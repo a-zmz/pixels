@@ -1928,7 +1928,7 @@ class Behaviour(ABC):
     def get_cluster_info(self):
         if self._cluster_info is None:
             info_file = self.ks_output / 'cluster_info.tsv'
-            print(f"> got cluster info at {info_file}\n")
+            #print(f"> got cluster info at {info_file}\n")
 
             try:
                 info = pd.read_csv(info_file, sep='\t')
@@ -1940,8 +1940,9 @@ class Behaviour(ABC):
 
     def get_good_units_info(self):
         if self._good_unit_info is None:
+            #az: good_units_info.tsv saved while running depth_profile.py
             info_file = self.interim / 'good_units_info.tsv'
-            print(f"> got good unit info at {info_file}\n")
+            #print(f"> got good unit info at {info_file}\n")
 
             try:
                 info = pd.read_csv(info_file, sep='\t')
