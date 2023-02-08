@@ -134,7 +134,7 @@ def _binarise_real(data):
 def find_sync_lag(array1, array2, plot=False):
     """
     Find the lag between two arrays where they have the greatest number of the same
-    values. This functions assumes that the lag is less than 120,000 points.
+    values. This functions assumes that the lag is less than 300,000 points.
 
     Parameters
     ----------

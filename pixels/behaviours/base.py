@@ -363,6 +363,35 @@ class Behaviour(ABC):
         with (self.processed / 'lag.json').open('w') as fd:
             json.dump(lag_json, fd)
 
+    def sync_streams(self):
+        """
+        Neuropixels data streams acquired simultaneously are not synchronised, unless
+        they are plugged into the same headstage, which is only the case for
+        Neuropixels 2.0 probes.
+        Dual-recording data acquired by Neuropixels 1.0 probes needs to be
+        synchronised.
+        Specifically, spike times from imecX stream need to be re-mapped to imec0
+        time scale.
+
+        For more info, see
+        https://open-ephys.github.io/gui-docs/Tutorials/Data-Synchronization.html and
+        https://github.com/billkarsh/TPrime.
+        """ 
+        edges = []
+        for rec_num, recording in enumerate(self.files):
+            # get file names and stuff
+            spike_data = self.find_file(recording['spike_data'])
+            spike_meta = self.find_file(files['spike_meta'])
+            stream_id = spike_data.as_posix()[-12:-4]
+            self.gate_idx = spike_data.as_posix()[-18:-16]
+            self.trigger_idx = spike_data.as_posix()[-15:-13]
+
+            # find extracted rising sync edges, rn from CatGT
+            CatGT_output = self.interim / ('catgt_' + self.name + self.gate_idx)
+            edges
+            if stream_id not in streams:
+                streams[stream_id] = metadata
+
     def process_behaviour(self):
         """
         Process behavioural data from raw tdms and align to neuropixels data.
@@ -568,6 +597,9 @@ class Behaviour(ABC):
 
 
     def load_recording(self):
+        """
+        Write a function to load recording.
+        """
         try:
             recording = si.load_extractor(self.interim / 'cache/recording.json')
             concat_rec = recording
