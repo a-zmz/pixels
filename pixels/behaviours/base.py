@@ -144,16 +144,16 @@ class Behaviour(ABC):
         self.ks_outputs = sorted(glob.glob(
             str(self.processed) +'/' + f'sorted_stream_cat_[0-9]'
         ))
-        for i, output in enumerate(self.ks_outputs):
+        for stream_num, stream in enumerate(self.ks_outputs):
             if not len(self.ks_outputs) == 0:
-                output = Path(output)
-                if not ((output / 'phy_ks3').exists() and
-                        len(os.listdir(output / 'phy_ks3'))>17): 
-                    self.ks_outputs[i] = output
+                stream = Path(stream)
+                if not ((stream / 'phy_ks3').exists() and
+                        len(os.listdir(stream / 'phy_ks3'))>17): 
+                    self.ks_outputs[stream_num] = stream
                 else:
-                    self.ks_outputs[i] = output / 'phy_ks3'
+                    self.ks_outputs[stream_num] = stream / 'phy_ks3'
             else:
-                output = sorted(glob.glob(
+                stream = sorted(glob.glob(
                     str(self.processed) +'/' + f'sorted_stream_[0-9]'
                 ))
 
@@ -362,7 +362,7 @@ class Behaviour(ABC):
         with (self.processed / 'lag.json').open('w') as fd:
             json.dump(lag_json, fd)
 
-    def sync_streams(self, SYNC_BIN):
+    def sync_streams(self, SYNC_BIN, remap_stream_idx):
         """
         Neuropixels data streams acquired simultaneously are not synchronised, unless
         they are plugged into the same headstage, which is only the case for
@@ -384,6 +384,24 @@ class Behaviour(ABC):
         edges_list = []
         stream_ids = []
         self.CatGT_dir = Path(self.CatGT_dir[0])
+        output = self.ks_outputs[remap_stream_idx] / f'spike_times_remapped.npy'
+
+        if output.exists():
+            print(f'\n> Spike times from {self.ks_outputs[remap_stream_idx]}\
+            already remapped, next session.')
+            return
+
+        # load spike times that needs to be remapped
+        times = self.ks_outputs[remap_stream_idx] / f'spike_times.npy'
+        try:
+            times = np.load(times)
+        except FileNotFoundError:
+            msg = ": Can't load spike times that haven't been extracted!"
+            raise PixelsError(self.name + msg)
+        times = np.squeeze(times)
+        # convert spike times to ms
+        orig_rate = int(self.spike_meta[0]['imSampRate'])
+        times_ms = times * self.sample_rate / orig_rate
 
         for rec_num, recording in enumerate(self.files):
             # get file names and stuff
@@ -404,22 +422,50 @@ class Behaviour(ABC):
                     f"Can't load sync pulse rising edges. Did you run CatGT and\
                     extract edges? Full error: {e}\n"
                 )
-            # read sync edges
+            # read sync edges, ms
             edges = np.loadtxt(edges_file)
-            edges_list.append(edges)
+            # pick edges by defined bin
+            binned_edges = np.append(
+                arr=edges[0::SYNC_BIN],
+                values=edges[-1],
+            )
+            edges_list.append(binned_edges)
 
-            # load spike times of the last recording
-            self._spike_times_data = self._get_spike_times()
-            #TODO: times?
-
-        # make list np array and calculate difference between streams
+        # make list np array and calculate difference between streams to get the
+        # initial difference
         edges = np.array(edges_list)
-        diff = np.diff(edges, axis=0).squeeze()
-        lag = [None, 'earlier', 'later']
-        print(f"""\n{stream_ids[0]} started {abs(diff[0]*1000):.2f}ms\r
-        {lag[int(np.sign(diff[0]))]} than {stream_ids[1]}.""")
+        initial_dt = np.diff(edges, axis=0).squeeze()
+        lag = [None, 'later', 'earlier']
+        print(f"""\n> {stream_ids[0]} started\r
+        {abs(initial_dt[0]*1000):.2f}ms {lag[int(np.sign(initial_dt[0]))]}\r
+        and finished\r
+        {abs(initial_dt[-1]*1000):.2f}ms {lag[-int(np.sign(initial_dt[0]))]}\r
+        than {stream_ids[1]}.""")
 
-        assert 0
+        # create a np array for remapped spike times from imec1
+        remapped_times_ms = np.zeros(times.shape)
+
+        # get edge difference within & between streams
+        within_streams = np.diff(edges)
+        # calculate scaling factor for each sync bin
+        scales = within_streams[0] / within_streams[-1]
+
+        # find out which sync period/bin each spike time belongs to, and use
+        # the scale from that period/bin
+        for t, time in enumerate(times_ms):
+            bin_idx = np.where(time > edges[remap_stream_idx])[0][0]
+            remapped_times_ms[t] = ((time - edges[remap_stream_idx][bin_idx]) *
+            scales[bin_idx]) + edges[0][bin_idx]
+
+        print(f"""\n> Remap stats {stream_ids[remap_stream_idx]} spike times:\r
+        median shift {np.median(remapped_times_ms-times_ms):.2f}ms,\r
+        min shift {np.min(remapped_times_ms-times_ms):.2f}ms,\r
+        max shift {np.max(remapped_times_ms-times_ms):.2f}ms.""")
+
+        # convert remappmed times back to its original sample index
+        remapped_times = np.uint64(remapped_times_ms * orig_rate / self.sample_rate)
+        np.save(output, remapped_times)
+        print(f'\n> Spike times remapping output saved to\n {output}.')
 
 
     def process_behaviour(self):
@@ -1479,39 +1525,40 @@ class Behaviour(ABC):
         """
         spike_times = self._spike_times_data
 
-        if spike_times[0] is None:
-            for i in range(len(spike_times)):
-                times = self.ks_output / f'spike_times.npy'
-                clust = self.ks_output / f'spike_clusters.npy'
-                assert 0
+        for stream_num, stream in enumerate(range(len(spike_times))):
+            try:
+                times = self.ks_outputs[stream_num] / f'spike_times_remapped.npy'
+                print(f'\n> Found remapped spike times from\r
+                {self.ks_outputs[stream_num]}, try to load this.')
+            except:
+                times = self.ks_outputs[stream_num] / f'spike_times.npy'
+            clust = self.ks_outputs[stream_num] / f'spike_clusters.npy'
 
-                try:
-                    times = np.load(times)
-                    clust = np.load(clust)
-                except FileNotFoundError:
-                    msg = ": Can't load spike times that haven't been extracted!"
-                    raise PixelsError(self.name + msg)
+            try:
+                times = np.load(times)
+                clust = np.load(clust)
+            except FileNotFoundError:
+                msg = ": Can't load spike times that haven't been extracted!"
+                raise PixelsError(self.name + msg)
 
-                times = np.squeeze(times)
-                clust = np.squeeze(clust)
-                by_clust = {}
+            times = np.squeeze(times)
+            clust = np.squeeze(clust)
+            by_clust = {}
 
-                for c in np.unique(clust):
-                    c_times = times[clust == c]
-                    uniques, counts = np.unique(
-                        c_times,
-                        return_counts=True,
-                    )
-                    repeats = c_times[np.where(counts>1)]
-                    if len(repeats>1):
-                        print(f"> removed {len(repeats)} double-counted spikes from cluster {c}.")
+            for c in np.unique(clust):
+                c_times = times[clust == c]
+                uniques, counts = np.unique(
+                    c_times,
+                    return_counts=True,
+                )
+                repeats = c_times[np.where(counts>1)]
+                if len(repeats>1):
+                    print(f"> removed {len(repeats)} double-counted spikes from cluster {c}.")
 
-                    by_clust[c] = pd.Series(uniques)
-                spike_times[0]  = pd.concat(by_clust, axis=1, names=['unit'])
-        else:
-            print("new stream?")
-            assert 0
-        return spike_times[0]
+                by_clust[c] = pd.Series(uniques)
+            spike_times[stream_num]  = pd.concat(by_clust, axis=1, names=['unit'])
+
+        return spike_times
 
     def _get_aligned_spike_times(
         self, label, event, duration, rate=False, sigma=None, units=None
@@ -1526,6 +1573,8 @@ class Behaviour(ABC):
         if units is None:
             units = self.select_units()
 
+        #TODO: with multiple streams, spike times will be a list with multiple dfs,
+        #make sure old code does not break!
         spikes = self._get_spike_times()[units]
         # Convert to ms (self.sample_rate)
         spikes /= int(self.spike_meta[0]['imSampRate']) / self.sample_rate
@@ -1989,7 +2038,9 @@ class Behaviour(ABC):
 
     def get_cluster_info(self):
         if self._cluster_info is None:
-            info_file = self.ks_output / 'cluster_info.tsv'
+            #TODO: with multiple streams, spike times will be a list with multiple dfs,
+            #make sure put old code under loop of stream so it does not break!
+            info_file = self.ks_outputs / 'cluster_info.tsv'
             #print(f"> got cluster info at {info_file}\n")
 
             try:
@@ -2066,7 +2117,9 @@ class Behaviour(ABC):
             units = self.select_units()
 
             #paramspy = self.processed / 'sorted_stream_0' / 'params.py'
-            paramspy = self.ks_output / 'params.py'
+            #TODO: with multiple streams, spike times will be a list with multiple dfs,
+            #make sure put old code under loop of stream so it does not break!
+            paramspy = self.ks_outputs / 'params.py'
             if not paramspy.exists():
                 raise PixelsError(f"{self.name}: params.py not found")
             model = load_model(paramspy)
@@ -2103,8 +2156,10 @@ class Behaviour(ABC):
                 progress_bar=True,
             )
             recording, _ = self.load_recording()
+            #TODO: with multiple streams, spike times will be a list with multiple dfs,
+            #make sure put old code under loop of stream so it does not break!
             try:
-                sorting = se.read_kilosort(self.ks_output)
+                sorting = se.read_kilosort(self.ks_outputs)
             except ValueError as e:
                 raise PixelsError(
                     f"Can't load sorting object. Did you delete cluster_info.csv? Full error: {e}\n"
@@ -2114,7 +2169,9 @@ class Behaviour(ABC):
             try:
                 template_cache_mod_time = os.path.getmtime(self.interim /
                                                            'cache/templates_average.npy')
-                ks_mod_time = os.path.getmtime(self.ks_output / 'cluster_info.tsv')
+                #TODO: with multiple streams, spike times will be a list with multiple dfs,
+                #make sure put old code under loop of stream so it does not break!
+                ks_mod_time = os.path.getmtime(self.ks_outputs / 'cluster_info.tsv')
                 assert template_cache_mod_time < ks_mod_time
                 check = True # re-extract waveforms
                 print("> Re-extracting waveforms since kilosort output is newer.") 
