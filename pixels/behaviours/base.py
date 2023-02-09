@@ -139,33 +139,32 @@ class Behaviour(ABC):
         self.raw = self.data_dir / 'raw' / self.name
         self.processed = self.data_dir / 'processed' / self.name
 
-        ks_output = glob.glob(
-            str(self.processed) +'/' + f'sorted_stream_cat_[0-9]'
-        )
-        if not len(ks_output) == 0:
-            ks_output = Path(ks_output[0])
-            if not ((ks_output / 'phy_ks3').exists() and
-                    len(os.listdir(ks_output / 'phy_ks3'))>17): 
-                #if not (ks_output.exists() and
-                        #len(os.listdir(ks_output / ks_output))>17): 
-                self.ks_output = ks_output
-            else:
-                self.ks_output = ks_output / 'phy_ks3'
-        else:
-            self.ks_output = Path(glob.glob(
-                str(self.processed) +'/' + f'sorted_stream_[0-9]'
-            )[0])
-
         self.files = ioutils.get_data_files(self.raw, name)
+
+        self.ks_outputs = sorted(glob.glob(
+            str(self.processed) +'/' + f'sorted_stream_cat_[0-9]'
+        ))
+        for i, output in enumerate(self.ks_outputs):
+            if not len(self.ks_outputs) == 0:
+                output = Path(output)
+                if not ((output / 'phy_ks3').exists() and
+                        len(os.listdir(output / 'phy_ks3'))>17): 
+                    self.ks_outputs[i] = output
+                else:
+                    self.ks_outputs[i] = output / 'phy_ks3'
+            else:
+                output = sorted(glob.glob(
+                    str(self.processed) +'/' + f'sorted_stream_[0-9]'
+                ))
 
         if interim_dir is None:
             self.interim = self.data_dir / 'interim' / self.name
         else:
             self.interim = Path(interim_dir) / self.name
 
-        self.CatGT_dir = glob.glob(
+        self.CatGT_dir = sorted(glob.glob(
             str(self.interim) +'/' + f'catgt_{self.name}_g[0-9]'
-        )
+        ))
 
         self.interim.mkdir(parents=True, exist_ok=True)
         self.processed.mkdir(parents=True, exist_ok=True)
@@ -363,7 +362,7 @@ class Behaviour(ABC):
         with (self.processed / 'lag.json').open('w') as fd:
             json.dump(lag_json, fd)
 
-    def sync_streams(self):
+    def sync_streams(self, SYNC_BIN):
         """
         Neuropixels data streams acquired simultaneously are not synchronised, unless
         they are plugged into the same headstage, which is only the case for
@@ -376,21 +375,52 @@ class Behaviour(ABC):
         For more info, see
         https://open-ephys.github.io/gui-docs/Tutorials/Data-Synchronization.html and
         https://github.com/billkarsh/TPrime.
+        
+        params
+        ===
+        SYNC_BIN: int, number of rising sync edges for calculating the scaling
+        factor.
         """ 
-        edges = []
+        edges_list = []
+        stream_ids = []
+        self.CatGT_dir = Path(self.CatGT_dir[0])
+
         for rec_num, recording in enumerate(self.files):
             # get file names and stuff
-            spike_data = self.find_file(recording['spike_data'])
-            spike_meta = self.find_file(files['spike_meta'])
+            spike_data = self.CatGT_dir / recording['CatGT_ap_data']
+            spike_meta = self.CatGT_dir / recording['CatGT_ap_meta']
             stream_id = spike_data.as_posix()[-12:-4]
-            self.gate_idx = spike_data.as_posix()[-18:-16]
+            stream_ids.append(stream_id)
+            #self.gate_idx = spike_data.as_posix()[-18:-16]
             self.trigger_idx = spike_data.as_posix()[-15:-13]
 
             # find extracted rising sync edges, rn from CatGT
-            CatGT_output = self.interim / ('catgt_' + self.name + self.gate_idx)
-            edges
-            if stream_id not in streams:
-                streams[stream_id] = metadata
+            try:
+                edges_file = sorted(glob.glob(
+                    rf'{self.CatGT_dir}' + f'/*{stream_id}.xd*.txt', recursive=True)
+                )[0]
+            except IndexError as e:
+                raise PixelsError(
+                    f"Can't load sync pulse rising edges. Did you run CatGT and\
+                    extract edges? Full error: {e}\n"
+                )
+            # read sync edges
+            edges = np.loadtxt(edges_file)
+            edges_list.append(edges)
+
+            # load spike times of the last recording
+            self._spike_times_data = self._get_spike_times()
+            #TODO: times?
+
+        # make list np array and calculate difference between streams
+        edges = np.array(edges_list)
+        diff = np.diff(edges, axis=0).squeeze()
+        lag = [None, 'earlier', 'later']
+        print(f"""\n{stream_ids[0]} started {abs(diff[0]*1000):.2f}ms\r
+        {lag[int(np.sign(diff[0]))]} than {stream_ids[1]}.""")
+
+        assert 0
+
 
     def process_behaviour(self):
         """
@@ -612,8 +642,8 @@ class Behaviour(ABC):
                     print("\n> Getting catgt-ed recording...")
                     self.CatGT_dir = Path(self.CatGT_dir[0])
                     data_dir = self.CatGT_dir
-                    data_file = data_dir / files['catGT_ap_data']
-                    metadata = data_dir / files['catGT_ap_meta']
+                    data_file = data_dir / files['CatGT_ap_data']
+                    metadata = data_dir / files['CatGT_ap_meta']
                 except:
                     print(f"\n> Getting the orignial recording...")
                     data_file = self.find_file(files['spike_data'])
@@ -674,8 +704,8 @@ class Behaviour(ABC):
 
                 print("\n> Sorting catgt-ed spikes\n")
                 self.CatGT_dir = Path(self.CatGT_dir[0])
-                data_file = self.CatGT_dir / files['catGT_ap_data']
-                metadata = self.CatGT_dir / files['catGT_ap_meta']
+                data_file = self.CatGT_dir / files['CatGT_ap_data']
+                metadata = self.CatGT_dir / files['CatGT_ap_meta']
             else:
                 print(f"\n> using the orignial spike data.\n")
                 data_file = self.find_file(files['spike_data'])
@@ -1443,45 +1473,45 @@ class Behaviour(ABC):
         """
         return self._get_processed_data("_lfp_data", "lfp_processed")
 
-    def _get_spike_times(self, catgt=False):
+    def _get_spike_times(self):
         """
         Returns the sorted spike times.
         """
-        saved = self._spike_times_data
-        if saved[0] is None:
-            # TODO: temporarily add catgt arg here, 
-            if catgt:
-                stream = 'sorted_stream_cat_0'
-            else:
-                stream = 'sorted_stream_0'
-            times = self.processed / stream / f'spike_times.npy'
-            clust = self.processed / stream / f'spike_clusters.npy'
+        spike_times = self._spike_times_data
 
-            try:
-                times = np.load(times)
-                clust = np.load(clust)
-            except FileNotFoundError:
-                msg = ": Can't load spike times that haven't been extracted!"
-                raise PixelsError(self.name + msg)
+        if spike_times[0] is None:
+            for i in range(len(spike_times)):
+                times = self.ks_output / f'spike_times.npy'
+                clust = self.ks_output / f'spike_clusters.npy'
+                assert 0
 
-            times = np.squeeze(times)
-            clust = np.squeeze(clust)
-            by_clust = {}
+                try:
+                    times = np.load(times)
+                    clust = np.load(clust)
+                except FileNotFoundError:
+                    msg = ": Can't load spike times that haven't been extracted!"
+                    raise PixelsError(self.name + msg)
 
-            for c in np.unique(clust):
-                c_times = times[clust == c]
-                uniques, counts = np.unique(
-                    c_times,
-                    return_counts=True,
-                )
-                repeats = c_times[np.where(counts>1)]
-                if len(repeats>1):
-                    print(f"> removed {len(repeats)} double-counted spikes from cluster {c}.")
+                times = np.squeeze(times)
+                clust = np.squeeze(clust)
+                by_clust = {}
 
-                by_clust[c] = pd.Series(uniques)
-            saved[0]  = pd.concat(by_clust, axis=1, names=['unit'])
+                for c in np.unique(clust):
+                    c_times = times[clust == c]
+                    uniques, counts = np.unique(
+                        c_times,
+                        return_counts=True,
+                    )
+                    repeats = c_times[np.where(counts>1)]
+                    if len(repeats>1):
+                        print(f"> removed {len(repeats)} double-counted spikes from cluster {c}.")
+
+                    by_clust[c] = pd.Series(uniques)
+                spike_times[0]  = pd.concat(by_clust, axis=1, names=['unit'])
+        else:
+            print("new stream?")
             assert 0
-        return saved[0]
+        return spike_times[0]
 
     def _get_aligned_spike_times(
         self, label, event, duration, rate=False, sigma=None, units=None
