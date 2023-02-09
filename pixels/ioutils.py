@@ -119,13 +119,6 @@ def get_data_files(data_dir, session_name):
         )
         recording['CatGT_ap_data'] = str(recording['spike_data']).replace("t0", "tcat")
         recording['CatGT_ap_meta'] = str(recording['spike_meta']).replace("t0", "tcat")
-        recording['CatGT_ap_sync'] = str(recording['spike_meta']).replace("t0",
-                                              "tcat").replace("meta", "xd_384")
-        recording['CatGT_ap_sync'] = sorted(glob.glob(
-            rf'{data_dir}/catgt_{session_name}_g[0-9]' + '/*xd*.txt', recursive=True)
-        )
-        #TODO: does this way of finding sync edges file works?
-        assert 0
 
         files.append(recording)
 
