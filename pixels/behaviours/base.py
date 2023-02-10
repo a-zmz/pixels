@@ -386,22 +386,20 @@ class Behaviour(ABC):
         self.CatGT_dir = Path(self.CatGT_dir[0])
         output = self.ks_outputs[remap_stream_idx] / f'spike_times_remapped.npy'
 
+        # do not redo the remapping if not necessary
         if output.exists():
             print(f'\n> Spike times from {self.ks_outputs[remap_stream_idx]}\
             already remapped, next session.')
-            return
+            cluster_times = self._get_spike_times()[remap_stream_idx]
+            remapped_cluster_times = self._get_spike_times(
+                remapped=True)[remap_stream_idx]
 
-        # load spike times that needs to be remapped
-        times = self.ks_outputs[remap_stream_idx] / f'spike_times.npy'
-        try:
-            times = np.load(times)
-        except FileNotFoundError:
-            msg = ": Can't load spike times that haven't been extracted!"
-            raise PixelsError(self.name + msg)
-        times = np.squeeze(times)
-        # convert spike times to ms
-        orig_rate = int(self.spike_meta[0]['imSampRate'])
-        times_ms = times * self.sample_rate / orig_rate
+            # get first spike time from each cluster, and their difference
+            clusters_first = cluster_times.iloc[0,:]
+            remapped_clusters_first = remapped_cluster_times.iloc[0,:]
+            remap = remapped_clusters_first - clusters_first
+
+            return remap
 
         for rec_num, recording in enumerate(self.files):
             # get file names and stuff
@@ -435,6 +433,22 @@ class Behaviour(ABC):
         # initial difference
         edges = np.array(edges_list)
         initial_dt = np.diff(edges, axis=0).squeeze()
+        # save initial diff for later plotting
+        np.save(self.processed / 'sync_streams_lag.npy', initial_dt)
+
+        # load spike times that needs to be remapped
+        times = self.ks_outputs[remap_stream_idx] / f'spike_times.npy'
+        try:
+            times = np.load(times)
+        except FileNotFoundError:
+            msg = ": Can't load spike times that haven't been extracted!"
+            raise PixelsError(self.name + msg)
+        times = np.squeeze(times)
+
+        # convert spike times to ms
+        orig_rate = int(self.spike_meta[0]['imSampRate'])
+        times_ms = times * self.sample_rate / orig_rate
+
         lag = [None, 'later', 'earlier']
         print(f"""\n> {stream_ids[0]} started\r
         {abs(initial_dt[0]*1000):.2f}ms {lag[int(np.sign(initial_dt[0]))]}\r
@@ -466,6 +480,18 @@ class Behaviour(ABC):
         remapped_times = np.uint64(remapped_times_ms * orig_rate / self.sample_rate)
         np.save(output, remapped_times)
         print(f'\n> Spike times remapping output saved to\n {output}.')
+
+        # load remapped spike times of each cluster
+        cluster_times = self._get_spike_times()[remap_stream_idx]
+        remapped_cluster_times = self._get_spike_times(
+            remapped=True)[remap_stream_idx]
+
+        # get first spike time from each cluster, and their difference
+        clusters_first = cluster_times.iloc[0,:]
+        remapped_clusters_first = remapped_cluster_times.iloc[0,:]
+        remap = remapped_clusters_first - clusters_first
+
+        return remap
 
 
     def process_behaviour(self):
@@ -1519,19 +1545,25 @@ class Behaviour(ABC):
         """
         return self._get_processed_data("_lfp_data", "lfp_processed")
 
-    def _get_spike_times(self):
+    def _get_spike_times(self, remapped=False):
         """
         Returns the sorted spike times.
+
+        params
+        ===
+        remapped: bool, if using remapped (synced with imec0) spike times.
+            Default: False
         """
         spike_times = self._spike_times_data
 
         for stream_num, stream in enumerate(range(len(spike_times))):
-            try:
+            if remapped and stream_num > 0:
                 times = self.ks_outputs[stream_num] / f'spike_times_remapped.npy'
-                print(f'\n> Found remapped spike times from\r
-                {self.ks_outputs[stream_num]}, try to load this.')
-            except:
+                print(f"""\n> Found remapped spike times from\r
+                {self.ks_outputs[stream_num]}, try to load this.""")
+            else:
                 times = self.ks_outputs[stream_num] / f'spike_times.npy'
+
             clust = self.ks_outputs[stream_num] / f'spike_clusters.npy'
 
             try:
