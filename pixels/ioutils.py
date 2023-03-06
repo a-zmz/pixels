@@ -59,10 +59,10 @@ def get_data_files(data_dir, session_name):
         raise PixelsError(f"{session_name}: could not find raw AP data file.")
     if not spike_meta:
         raise PixelsError(f"{session_name}: could not find raw AP metadata file.")
-    if not lfp_data:
-        raise PixelsError(f"{session_name}: could not find raw LFP data file.")
-    if not lfp_meta:
-        raise PixelsError(f"{session_name}: could not find raw LFP metadata file.")
+    #if not lfp_data:
+    #    raise PixelsError(f"{session_name}: could not find raw LFP data file.")
+    #if not lfp_meta:
+    #    raise PixelsError(f"{session_name}: could not find raw LFP metadata file.")
 
     camera_data = []
     camera_meta = []
@@ -78,8 +78,8 @@ def get_data_files(data_dir, session_name):
         recording = {}
         recording['spike_data'] = original_name(spike_recording)
         recording['spike_meta'] = original_name(spike_meta[num])
-        recording['lfp_data'] = original_name(lfp_data[num])
-        recording['lfp_meta'] = original_name(lfp_meta[num])
+        #recording['lfp_data'] = original_name(lfp_data[num])
+        #recording['lfp_meta'] = original_name(lfp_meta[num])
 
         if behaviour:
             if len(behaviour) == len(spike_data):
@@ -114,7 +114,7 @@ def get_data_files(data_dir, session_name):
         recording['clustered_channels'] = recording['lfp_data'].with_name(
             f'channel_clustering_results_{num}.h5'
         )
-        recording['depth_info'] = recording['lfp_data'].with_name(
+        recording['depth_info'] = recording['spike_data'].with_name(
             f'depth_info_{num}.json'
         )
         recording['CatGT_ap_data'] = str(recording['spike_data']).replace("t0", "tcat")
