@@ -141,21 +141,23 @@ class Behaviour(ABC):
 
         self.files = ioutils.get_data_files(self.raw, name)
 
-        self.ks_outputs = sorted(glob.glob(
-            str(self.processed) +'/' + f'sorted_stream_cat_[0-9]'
+        ks_outputs = sorted(glob.glob(
+            str(self.processed) +'/' + f'sorted_stream_*'
         ))
-        for stream_num, stream in enumerate(self.ks_outputs):
-            if not len(self.ks_outputs) == 0:
-                stream = Path(stream)
-                if not ((stream / 'phy_ks3').exists() and
-                        len(os.listdir(stream / 'phy_ks3'))>17): 
-                    self.ks_outputs[stream_num] = stream
+        self.ks_outputs = [None] * len(ks_outputs)
+        if not len(ks_outputs) == 0:
+            for stream_num, stream in enumerate(ks_outputs):
+                path = Path(stream)
+                if stream.split('_')[-2] == 'cat':
+                    if not ((path / 'phy_ks3').exists() and
+                            len(os.listdir(path / 'phy_ks3'))>17): 
+                        self.ks_outputs[stream_num] = path
+                    else:
+                        self.ks_outputs[stream_num] = path / 'phy_ks3'
                 else:
-                    self.ks_outputs[stream_num] = stream / 'phy_ks3'
-            else:
-                stream = sorted(glob.glob(
-                    str(self.processed) +'/' + f'sorted_stream_[0-9]'
-                ))
+                    self.ks_outputs[stream_num] = path
+        else:
+            print(f"\n> {self.name} have not been spike-sorted.")
 
         if interim_dir is None:
             self.interim = self.data_dir / 'interim' / self.name
@@ -178,14 +180,15 @@ class Behaviour(ABC):
         self._use_cache = True
         self._cluster_info = None
         self._good_unit_info = None
+        self._probe_depths = None
         self.drop_data()
 
         self.spike_meta = [
             ioutils.read_meta(self.find_file(f['spike_meta'], copy=False)) for f in self.files
         ]
-        self.lfp_meta = [
-            ioutils.read_meta(self.find_file(f['lfp_meta'], copy=False)) for f in self.files
-        ]
+        #self.lfp_meta = [
+        #    ioutils.read_meta(self.find_file(f['lfp_meta'], copy=False)) for f in self.files
+        #]
 
         # environmental variable PIXELS_CACHE={0,1} can be {disable,enable} cache
         self.set_cache(bool(int(os.environ.get("PIXELS_CACHE", 1))))
@@ -201,6 +204,8 @@ class Behaviour(ABC):
         self._spike_rate_data = [None] * len(self.files)
         self._lfp_data = [None] * len(self.files)
         self._motion_index = [None] * len(self.files)
+        self._cluster_info = [None] * len(self.files)
+        self._probe_depths = [None] * len(self.files)
         self._load_lag()
 
     def set_cache(self, on: bool | Literal["overwrite"]) -> None:
@@ -230,20 +235,26 @@ class Behaviour(ABC):
         """
         Load probe depth in um from file if it has been recorded.
         """
-        depth_file = self.processed / 'depth.txt'
-        if not depth_file.exists():
-            depth_file = self.processed / self.files[0]["depth_info"]
+        for stream_num, depth in enumerate(self._probe_depths):
+            if depth is None:
+                try:
+                    depth_file = self.processed / 'depth.txt'
+                    with depth_file.open() as fd:
+                        self._probe_depths[stream_num] = [float(line) for line in
+                                                          fd.readlines()][0]
+                except:
+                    depth_file = self.processed / self.files[stream_num]["depth_info"]
+                    self._probe_depths[stream_num] = json.load(open(depth_file, mode="r"))["clustering"]
+                else:
+                    msg = f": Can't load probe depth: please add it in um to\
+                    \nprocessed/{self.name}/depth.txt, or save it with other depth related\
+                    \ninfo in {self.processed / self.files[0]['depth_info']}."
+                    raise PixelsError(msg)
 
-        if not depth_file.exists():
-            msg = f": Can't load probe depth: please add it in um to\
-            \nprocessed/{self.name}/depth.txt, or save it with other depth related\
-            \ninfo in {self.processed / self.files[0]['depth_info']}."
-            raise PixelsError(msg)
-        if Path(depth_file).suffix == ".txt":
-            with depth_file.open() as fd:
-                return [float(line) for line in fd.readlines()]
-        elif Path(depth_file).suffix == ".json":
-            return [json.load(open(depth_file, mode="r"))["clustering"]]
+            #if Path(depth_file).suffix == ".txt":
+            #elif Path(depth_file).suffix == ".json":
+            #    return [json.load(open(depth_file, mode="r"))["clustering"]]
+        return self._probe_depths
 
     def find_file(self, name: str, copy: bool=True) -> Optional[Path]:
         """
@@ -1738,7 +1749,7 @@ class Behaviour(ABC):
             selected_units.name = name
 
         if min_depth is not None or max_depth is not None:
-            probe_depth = self.get_probe_depth()[0]
+            probe_depths = self.get_probe_depth()
 
         if min_spike_width == 0:
             min_spike_width = None
@@ -1747,37 +1758,36 @@ class Behaviour(ABC):
         else:
             widths = None
 
-        rec_num = 0
+        for stream_num, info in enumerate(cluster_info):
+            id_key = 'id' if 'id' in info else 'cluster_id'
+            grouping = 'KSLabel' if uncurated else 'group'
 
-        id_key = 'id' if 'id' in cluster_info else 'cluster_id'
-        grouping = 'KSLabel' if uncurated else 'group'
+            for unit in info[id_key]:
+                unit_info = info.loc[info[id_key] == unit].iloc[0].to_dict()
 
-        for unit in cluster_info[id_key]:
-            unit_info = cluster_info.loc[cluster_info[id_key] == unit].iloc[0].to_dict()
+                # we only want units that are in the specified group
+                if not group or unit_info[grouping] == group:
 
-            # we only want units that are in the specified group
-            if not group or unit_info[grouping] == group:
-
-                # and that are within the specified depth range
-                if min_depth is not None:
-                    if probe_depth - unit_info['depth'] <= min_depth:
-                        continue
-                if max_depth is not None:
-                    if probe_depth - unit_info['depth'] > max_depth:
-                        continue
-
-                # and that have the specified median spike widths
-                if widths is not None:
-                    width = widths[widths['unit'] == unit]['median_ms']
-                    assert len(width.values) == 1
-                    if min_spike_width is not None:
-                        if width.values[0] < min_spike_width:
+                    # and that are within the specified depth range
+                    if min_depth is not None:
+                        if probe_depths[stream_num] - unit_info['depth'] <= min_depth:
                             continue
-                    if max_spike_width is not None:
-                        if width.values[0] > max_spike_width:
+                    if max_depth is not None:
+                        if probe_depths[stream_num] - unit_info['depth'] > max_depth:
                             continue
 
-                selected_units.append(unit)
+                    # and that have the specified median spike widths
+                    if widths is not None:
+                        width = widths[widths['unit'] == unit]['median_ms']
+                        assert len(width.values) == 1
+                        if min_spike_width is not None:
+                            if width.values[0] < min_spike_width:
+                                continue
+                        if max_spike_width is not None:
+                            if width.values[0] > max_spike_width:
+                                continue
+
+                    selected_units.append(unit)
 
         return selected_units
 
@@ -2069,18 +2079,15 @@ class Behaviour(ABC):
         return trials
 
     def get_cluster_info(self):
-        if self._cluster_info is None:
-            #TODO: with multiple streams, spike times will be a list with multiple dfs,
-            #make sure put old code under loop of stream so it does not break!
-            info_file = self.ks_outputs / 'cluster_info.tsv'
-            #print(f"> got cluster info at {info_file}\n")
-
-            try:
-                info = pd.read_csv(info_file, sep='\t')
-            except FileNotFoundError:
-                msg = ": Can't load cluster info. Did you sort this session yet?"
-                raise PixelsError(self.name + msg)
-            self._cluster_info = info
+        for stream_num, info in enumerate(self._cluster_info):
+            if info is None:
+                info_file = self.ks_outputs[stream_num] / 'cluster_info.tsv'
+                try:
+                    info = pd.read_csv(info_file, sep='\t')
+                except FileNotFoundError:
+                    msg = ": Can't load cluster info. Did you sort this session yet?"
+                    raise PixelsError(self.name + msg)
+            self._cluster_info[stream_num] = info
         return self._cluster_info
 
     def get_good_units_info(self):
