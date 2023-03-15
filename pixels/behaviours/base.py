@@ -1601,7 +1601,7 @@ class Behaviour(ABC):
                 by_clust[c] = pd.Series(uniques)
             spike_times[stream_num]  = pd.concat(by_clust, axis=1, names=['unit'])
 
-        return spike_times
+        return spike_times[0]
 
     def _get_aligned_spike_times(
         self, label, event, duration, rate=False, sigma=None, units=None
@@ -1618,6 +1618,7 @@ class Behaviour(ABC):
 
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
+        #TODO: spike times cannot be indexed by unit ids anymore
         spikes = self._get_spike_times()[units]
         # Convert to ms (self.sample_rate)
         spikes /= int(self.spike_meta[0]['imSampRate']) / self.sample_rate
