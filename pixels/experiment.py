@@ -283,7 +283,7 @@ class Experiment:
             )
             info[mouse] = long_df
 
-        info_per_mouse = info
+        mouse_info = info
 
         info_pooled = pd.concat(
             info, axis=0, copy=False,
@@ -291,7 +291,7 @@ class Experiment:
             names=["mouse", "session", "unit_idx"],
         )
 
-        return info_per_mouse, info_pooled
+        return mouse_info, info_pooled
 
     def get_spike_widths(self, units=None):
         """
@@ -325,7 +325,10 @@ class Experiment:
                     waveforms[i] = session.get_spike_waveforms(units=units[i])
             else:
                 waveforms[i] = session.get_spike_waveforms()
+        assert 0
+        df.add_prefix(i)
 
+        #TODO: get concat waveforms for each mouse
         df = pd.concat(
             waveforms.values(), axis=1, copy=False,
             keys=waveforms.keys(),
@@ -363,7 +366,7 @@ class Experiment:
             long_df.dropna(inplace=True)
             waveform_metrics[mouse] = long_df
 
-        waveform_metrics_per_mouse = waveform_metrics
+        mouse_waveform_metrics = waveform_metrics
 
         waveform_metrics_pooled = pd.concat(
             waveform_metrics, axis=0, copy=False,
@@ -371,7 +374,44 @@ class Experiment:
             names=["mouse", "session", "unit_idx"],
         )
 
-        return waveform_metrics_per_mouse, waveform_metrics_pooled
+        return mouse_waveform_metrics, waveform_metrics_pooled
+
+    def get_spike_times(self, units):
+        """
+        Get spike times of each units, separated by mouse.
+        """
+        spike_times = {}
+
+        for m, mouse in enumerate(self.mouse_ids):
+            mouse_sessions = []
+            spike_times[mouse] = {}
+            for session in self.sessions:
+                if mouse in session.name:
+                    mouse_sessions.append(session)
+
+            for i, session in enumerate(mouse_sessions):
+                spike_times[mouse][i] = session._get_spike_times()[units[i]]
+                #spike_times[mouse][i] = spike_times[mouse][i].add_prefix(f'{i}_')
+
+            df = pd.concat(
+                spike_times[mouse],
+                axis=1,
+                names=["session", "unit"],
+            )
+            spike_times[mouse] = df
+
+        mouse_spike_times = spike_times
+
+        """
+        spike_times_pooled = pd.concat(
+            mouse_spike_times, axis=1, copy=False,
+            keys=mouse_spike_times.keys(),
+            names=["mouse", "session", "unit"],
+        )
+        """
+
+        return mouse_spike_times
+
 
     def get_aligned_spike_rate_CI(self, *args, units=None, **kwargs):
         """
