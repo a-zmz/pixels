@@ -2279,6 +2279,8 @@ class Behaviour(ABC):
             return wave_metrics.loc[wave_metrics.unit.isin(units)]
 
         # TODO june 2nd 2023: extract amplitude, i.e., abs(trough - peak) in mV
+        # make sure amplitude is in mV
+        # normalise these metrics before passing to k-means
         columns = ["unit", "duration", "trough_peak_ratio", "half_width",
                    "repolarisation_slope", "recovery_slope"]
         print(f"> Calculating waveform metrics {columns[1:]}...\n")
