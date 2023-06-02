@@ -78,8 +78,8 @@ def get_data_files(data_dir, session_name):
         recording = {}
         recording['spike_data'] = original_name(spike_recording)
         recording['spike_meta'] = original_name(spike_meta[num])
-        #recording['lfp_data'] = original_name(lfp_data[num])
-        #recording['lfp_meta'] = original_name(lfp_meta[num])
+        recording['lfp_data'] = original_name(lfp_data[num])
+        recording['lfp_meta'] = original_name(lfp_meta[num])
 
         if behaviour:
             if len(behaviour) == len(spike_data):
