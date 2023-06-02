@@ -2278,7 +2278,8 @@ class Behaviour(ABC):
             wave_metrics = self.get_waveform_metrics()
             return wave_metrics.loc[wave_metrics.unit.isin(units)]
 
-        columns = ["unit", "trough_to_peak", "trough_peak_ratio", "half_width",
+        # TODO june 2nd 2023: extract amplitude, i.e., abs(trough - peak) in mV
+        columns = ["unit", "duration", "trough_peak_ratio", "half_width",
                    "repolarisation_slope", "recovery_slope"]
         print(f"> Calculating waveform metrics {columns[1:]}...\n")
 
@@ -2304,8 +2305,8 @@ class Behaviour(ABC):
                 raise PixelsError(f"> Cannot find peak in mean waveform.\n")
             if trough_idx == 0:
                 raise PixelsError(f"> Cannot find trough in mean waveform.\n")
-            trough_to_peak = mean_waveform.index[peak_idx] - mean_waveform.index[trough_idx]
-            metrics.append(trough_to_peak)
+            duration = mean_waveform.index[peak_idx] - mean_waveform.index[trough_idx]
+            metrics.append(duration)
 
             # trough to peak ratio
             trough_peak_ratio = mean_waveform.iloc[peak_idx] / mean_waveform.iloc[trough_idx]
