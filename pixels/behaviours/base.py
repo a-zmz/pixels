@@ -157,12 +157,12 @@ class Behaviour(ABC):
                 else:
                     self.ks_outputs[stream_num] = path
         else:
-            print(f"\n> {self.name} have not been spike-sorted.")
+            print(f"\n> {self.name} has not been spike-sorted.")
 
         if interim_dir is None:
             self.interim = self.data_dir / 'interim' / self.name
         else:
-            self.interim = Path(interim_dir) / self.name
+            self.interim = Path(interim_dir).expanduser() / self.name
 
         self.CatGT_dir = sorted(glob.glob(
             str(self.interim) +'/' + f'catgt_{self.name}_g[0-9]'
@@ -184,7 +184,7 @@ class Behaviour(ABC):
         self.drop_data()
 
         self.spike_meta = [
-            ioutils.read_meta(self.find_file(f['spike_meta'], copy=False)) for f in self.files
+            ioutils.read_meta(self.find_file(f['spike_meta'], copy=True)) for f in self.files
         ]
         #self.lfp_meta = [
         #    ioutils.read_meta(self.find_file(f['lfp_meta'], copy=False)) for f in self.files
@@ -394,7 +394,7 @@ class Behaviour(ABC):
         """ 
         edges_list = []
         stream_ids = []
-        self.CatGT_dir = Path(self.CatGT_dir[0])
+        #self.CatGT_dir = Path(self.CatGT_dir[0])
         output = self.ks_outputs[remap_stream_idx] / f'spike_times_remapped.npy'
 
         # do not redo the remapping if not necessary
@@ -414,8 +414,11 @@ class Behaviour(ABC):
 
         for rec_num, recording in enumerate(self.files):
             # get file names and stuff
-            spike_data = self.CatGT_dir / recording['CatGT_ap_data']
-            spike_meta = self.CatGT_dir / recording['CatGT_ap_meta']
+            # TODO jan 4 check if find_file works for catgt data
+            spike_data = self.find_file(recording['CatGT_ap_data'])
+            spike_meta = self.find_file(recording['CatGT_ap_meta'])
+            #spike_data = self.CatGT_dir / recording['CatGT_ap_data']
+            #spike_meta = self.CatGT_dir / recording['CatGT_ap_meta']
             stream_id = spike_data.as_posix()[-12:-4]
             stream_ids.append(stream_id)
             #self.gate_idx = spike_data.as_posix()[-18:-16]
@@ -674,39 +677,46 @@ class Behaviour(ABC):
         # move cwd to catgt
         os.chdir(CatGT_app)
 
-        for rec_num, recording in enumerate(self.files):
+        # reset catgt args for current session
+        session_args = None
+
+        for f in self.files:
             # copy spike data to interim
-            self.find_file(recording['spike_data'])
+            self.find_file(f['spike_data'])
 
-            # reset catgt args for current session
-            session_args = None
-
-            if len(self.CatGT_dir) != 0:
-                if len(os.listdir(self.CatGT_dir[0])) != 0:
-                    print(f"\nCatGT already performed on ap data of {self.name}. Next session.\n")
-                    continue
-
+        if isinstance(self.CatGT_dir, list) and
+             len(self.CatGT_dir) != 0 and
+             len(os.listdir(self.CatGT_dir[0])) != 0:
+            print(f"\nCatGT already performed on ap data of {self.name}. Next session.\n")
+            return
+        else:
             #TODO: finish this here so that catgt can run together with sorting
             print(f"> Running CatGT on ap data of {self.name}")
             #_dir = self.interim
 
-            if args == None:
-                args = f"-no_run_fld\
-                    -g=0,9\
-                    -t=0,9\
-                    -prb=0\
-                    -ap\
-                    -lf\
-                    -apfilter=butter,12,300,9000\
-                    -lffilter=butter,12,0.5,300\
-                    -xd=2,0,384,6,350,160\
-                    -gblcar\
-                    -gfix=0.2,0.1,0.02"
+        if args == None:
+            args = f"-no_run_fld\
+                -g=0,9\
+                -t=0,9\
+                -prb=0:1\
+                -prb_miss_ok\
+                -ap\
+                -lf\
+                -apfilter=butter,12,300,9000\
+                -lffilter=butter,12,0.5,300\
+                -xd=2,0,384,6,350,160\
+                -gblcar\
+                -gfix=0.2,0.1,0.02"
 
-            session_args = f"-dir={self.interim} -run={self.name} -dest={self.interim} " + args
-            print(f"\ncatgt args of {self.name}: \n{session_args}")
+        session_args = f"-dir={self.interim} -run={self.name} -dest={self.interim} " + args
+        print(f"\ncatgt args of {self.name}: \n{session_args}")
 
-            subprocess.run( ['./run_catgt.sh', session_args])
+        subprocess.run( ['./run_catgt.sh', session_args])
+
+        # make sure CatGT_dir is set after running
+        self.CatGT_dir = sorted(glob.glob(
+            str(self.interim) +'/' + f'catgt_{self.name}_g[0-9]'
+        ))
 
 
     def load_recording(self):
@@ -721,6 +731,7 @@ class Behaviour(ABC):
 
         except:
             for _, files in enumerate(self.files):
+                # TODO jan 4 check if can put line 798-808 here 
                 try:
                     print("\n> Getting catgt-ed recording...")
                     self.CatGT_dir = Path(self.CatGT_dir[0])
@@ -781,22 +792,30 @@ class Behaviour(ABC):
         #assert 0
         #TODO: jan 3 see if ks can run normally now using load_recording()
 
+        self.run_catgt(CatGT_app=CatGT_app)
+
         for _, files in enumerate(self.files):
             if not CatGT_app == None:
-                self.run_catgt(CatGT_app=CatGT_app)
-
                 print("\n> Sorting catgt-ed spikes\n")
-                self.CatGT_dir = Path(self.CatGT_dir[0])
-                data_file = self.CatGT_dir / files['CatGT_ap_data']
-                metadata = self.CatGT_dir / files['CatGT_ap_meta']
+                basename = self.CatGT_dir[0].split('/')[-1]
+                files['CatGT_ap_data'] =  basename + "/" + files['CatGT_ap_data']
+                files['CatGT_ap_meta'] = basename + "/" + files['CatGT_ap_meta']
+                data_type = 'CatGT_ap_data'
+                meta_type = 'CatGT_ap_meta'
             else:
                 print(f"\n> using the orignial spike data.\n")
-                data_file = self.find_file(files['spike_data'])
-                metadata = self.find_file(files['spike_meta'])
+                data_type = 'spike_data'
+                meta_type = 'spike_meta'
 
-        stream_id = data_file.as_posix()[-12:-4]
-        if stream_id not in streams:
-            streams[stream_id] = metadata
+            data_file = self.find_file(files[data_type])
+            metadata = self.find_file(files[meta_type])
+
+            stream_id = data_file.as_posix()[-12:-4]
+            if stream_id not in streams:
+                streams[stream_id] = metadata
+            assert 0
+            #TODO jan 4 check if with multiple streams, do i need to go out of
+            #the loop 
 
         for stream_num, stream in enumerate(streams.items()):
             stream_id, metadata = stream
