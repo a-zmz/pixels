@@ -699,7 +699,7 @@ class Behaviour(ABC):
                     -lf\
                     -apfilter=butter,12,300,9000\
                     -lffilter=butter,12,0.5,300\
-                    -xd=2,0,384,6,500\
+                    -xd=2,0,384,6,350,160\
                     -gblcar\
                     -gfix=0.2,0.1,0.02"
 
@@ -772,15 +772,15 @@ class Behaviour(ABC):
         streams = {}
         # set chunks for spikeinterface operations
         job_kwargs = dict(
-            n_jobs=10, # -1: num of job equals num of cores
+            n_jobs=20, # -1: num of job equals num of cores
             chunk_duration="1s",
             progress_bar=True,
         )
 
-        concat_rec, output = self.load_recording()
+        #concat_rec, output = self.load_recording()
+        #assert 0
+        #TODO: jan 3 see if ks can run normally now using load_recording()
 
-        assert 0
-        #TODO: see if ks can run normally now using load_recording()
         for _, files in enumerate(self.files):
             if not CatGT_app == None:
                 self.run_catgt(CatGT_app=CatGT_app)
