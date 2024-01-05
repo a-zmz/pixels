@@ -131,13 +131,23 @@ class Behaviour(ABC):
 
     sample_rate = 1000
 
-    def __init__(self, name, data_dir, metadata=None, interim_dir=None):
+    def __init__(self, name, data_dir, metadata=None, processed_dir=None,
+                 interim_dir=None):
         self.name = name
         self.data_dir = data_dir
         self.metadata = metadata
 
         self.raw = self.data_dir / 'raw' / self.name
-        self.processed = self.data_dir / 'processed' / self.name
+
+        if interim_dir is None:
+            self.interim = self.data_dir / 'interim' / self.name
+        else:
+            self.interim = Path(interim_dir).expanduser() / self.name
+
+        if processed_dir is None:
+            self.processed = self.data_dir / 'processed' / self.name
+        else:
+            self.processed =  Path(processed_dir).expanduser() / self.name
 
         self.files = ioutils.get_data_files(self.raw, name)
 
@@ -158,11 +168,6 @@ class Behaviour(ABC):
                     self.ks_outputs[stream_num] = path
         else:
             print(f"\n> {self.name} has not been spike-sorted.")
-
-        if interim_dir is None:
-            self.interim = self.data_dir / 'interim' / self.name
-        else:
-            self.interim = Path(interim_dir).expanduser() / self.name
 
         self.CatGT_dir = sorted(glob.glob(
             str(self.interim) +'/' + f'catgt_{self.name}_g[0-9]'
@@ -684,9 +689,9 @@ class Behaviour(ABC):
             # copy spike data to interim
             self.find_file(f['spike_data'])
 
-        if isinstance(self.CatGT_dir, list) and
+        if (isinstance(self.CatGT_dir, list) and
              len(self.CatGT_dir) != 0 and
-             len(os.listdir(self.CatGT_dir[0])) != 0:
+             len(os.listdir(self.CatGT_dir[0])) != 0):
             print(f"\nCatGT already performed on ap data of {self.name}. Next session.\n")
             return
         else:
@@ -783,7 +788,7 @@ class Behaviour(ABC):
         streams = {}
         # set chunks for spikeinterface operations
         job_kwargs = dict(
-            n_jobs=20, # -1: num of job equals num of cores
+            n_jobs=0.9, # -1: num of job equals num of cores
             chunk_duration="1s",
             progress_bar=True,
         )
@@ -813,9 +818,6 @@ class Behaviour(ABC):
             stream_id = data_file.as_posix()[-12:-4]
             if stream_id not in streams:
                 streams[stream_id] = metadata
-            assert 0
-            #TODO jan 4 check if with multiple streams, do i need to go out of
-            #the loop 
 
         for stream_num, stream in enumerate(streams.items()):
             stream_id, metadata = stream
@@ -834,7 +836,10 @@ class Behaviour(ABC):
                 continue
 
             try:
-                recording = se.SpikeGLXRecordingExtractor(self.CatGT_dir, stream_id=stream_id)
+                recording = se.SpikeGLXRecordingExtractor(
+                    self.CatGT_dir[0],
+                    stream_id=stream_id,
+                )
                 # this recording is filtered
                 recording.annotate(is_filtered=True)
             except ValueError as e:
@@ -860,6 +865,7 @@ class Behaviour(ABC):
             else:
                 try: 
                     ks3_output = si.load_extractor(output / 'saved_si_sorting_obj')
+                    #sorting_KS = read_kilosort(folder_path="kilosort-folder")
                     print("> This session is already sorted, now it is loaded.\n") 
 
                     """
@@ -883,10 +889,11 @@ class Behaviour(ABC):
                         sorter_name='kilosort3',
                         recording=concat_rec, #recording=test, # for testing
                         output_folder=output,
-                        #remove_existing_folder=False,
+                        remove_existing_folder=True,
                         **job_kwargs,
                     )
 
+                    assert 0
                     # remove empty units
                     ks3_output = sorting.remove_empty_units()
                     print(f"> KS3 removed\
@@ -954,6 +961,7 @@ class Behaviour(ABC):
             )
             print(f"> Parameters for manual curation saved to {for_phy}.\n")
 
+            assert 0
             correct_kslabels = for_phy / "cluster_KSLabel.tsv"
             if correct_kslabels.exists():
                 print(f"\nCorrect KS labels already saved in {correct_kslabels}. Next session.\n")

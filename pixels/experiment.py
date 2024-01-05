@@ -50,6 +50,7 @@ class Experiment:
         data_dir,
         meta_dir=None,
         interim_dir=None,
+        processed_dir=None,
         session_date_fmt="%y%m%d",
     ):
         if not isinstance(mouse_ids, (list, tuple, set)):
@@ -80,6 +81,7 @@ class Experiment:
                     metadata=[s['metadata'] for s in metadata],
                     data_dir=metadata[0]['data_dir'],
                     interim_dir=interim_dir,
+                    processed_dir=processed_dir,
                 )
             )
 
