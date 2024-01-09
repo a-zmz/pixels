@@ -801,7 +801,7 @@ class Behaviour(ABC):
 
         for _, files in enumerate(self.files):
             if not CatGT_app == None:
-                print("\n> Sorting catgt-ed spikes\n")
+                print("\n> Sorting catgt-ed spikes.\n")
                 basename = self.CatGT_dir[0].split('/')[-1]
                 files['CatGT_ap_data'] =  basename + "/" + files['CatGT_ap_data']
                 files['CatGT_ap_meta'] = basename + "/" + files['CatGT_ap_meta']
@@ -830,9 +830,9 @@ class Behaviour(ABC):
             # check if already sorted and exported
             for_phy = output / "phy_ks3"
             if not for_phy.exists() or not len(os.listdir(for_phy)) > 1:
-                print("> Not sorted or exported yet, start from spike sorting...\n")
+                print(f"> {self.name}{stream_id} not sorted or exported.\n")
             else:
-                print("> Already sorted and exported, next session...\n")
+                print("> Already sorted and exported, next session.\n")
                 continue
 
             try:
@@ -866,7 +866,7 @@ class Behaviour(ABC):
                 try: 
                     ks3_output = si.load_extractor(output / 'saved_si_sorting_obj')
                     #sorting_KS = read_kilosort(folder_path="kilosort-folder")
-                    print("> This session is already sorted, now it is loaded.\n") 
+                    print(f"> {self.name}{stream_id} is already sorted, now it is loaded.\n") 
 
                     """
                     # for testing: get first 5 mins of the recording 
@@ -882,8 +882,7 @@ class Behaviour(ABC):
                     """
 
                 except:
-                    print("> Running kilosort\n")
-                    print(f"> Now is sorting: \n{concat_rec}\n")
+                    print(f"> Now kilosorting {self.name}{stream_id}: \n{concat_rec}\n")
                     #ks3_output = ss.run_kilosort3(recording=concat_rec, output_folder=output)
                     sorting = ss.run_sorter(
                         sorter_name='kilosort3',
@@ -893,7 +892,6 @@ class Behaviour(ABC):
                         **job_kwargs,
                     )
 
-                    assert 0
                     # remove empty units
                     ks3_output = sorting.remove_empty_units()
                     print(f"> KS3 removed\
@@ -913,26 +911,28 @@ class Behaviour(ABC):
 
             #TODO: toggle load_if_exists=True & overwrite=False should replace
             #...load_from_folder.
+            cache = self.interim / f'cache_{stream_num}'
             try:
                 waveforms = si.WaveformExtractor.load_from_folder(
-                    folder=self.interim / 'cache',
+                    folder=cache,
                     sorting=ks3_output,
                 )
-                print("> Waveforms extracted, now it is loaded.\n")
+                print("> {self.name}{stream_id} waveforms extracted, now it is loaded.\n")
             except:
-                print("> Waveforms not extracted, extracting now.\n")
+                print("> {self.name}{stream_id} waveforms not extracted, extracting now.\n")
+                #if ks3_output.count_total_num_spikes()
                 # extract waveforms
                 waveforms = si.extract_waveforms(
                     recording=concat_rec, #recording=test, # for testing
                     sorting=ks3_output,
-                    folder=self.interim / 'cache',
-                    #load_if_exists=True, # load extracted if available
-                    load_if_exists=False, # re-calculate everytime
+                    folder=cache,
+                    load_if_exists=True, # load extracted if available
+                    #load_if_exists=False, # re-calculate everytime
                     max_spikes_per_unit=500, # None will extract all waveforms
                     ms_before=2.0, # time before trough 
                     ms_after=3.0, # time after trough 
-                    #overwrite=False,
-                    overwrite=True,
+                    overwrite=False,
+                    #overwrite=True,
                     **job_kwargs,
                 )
 
@@ -948,20 +948,19 @@ class Behaviour(ABC):
             # export to phy, with pc feature calculated.
             # copy recording.dat to output so that individual waveforms can be
             # seen in waveformview.
-            print("\n> Exporting parameters for phy...\n")
+            print(f"\n> Exporting {self.name}{stream_id} parameters for phy...\n")
             sexp.export_to_phy(
                 waveform_extractor=waveforms,
                 output_folder=for_phy,
                 compute_pc_features=True, # pca
                 compute_amplitudes=True,
-                copy_binary=True,
+                copy_binary=False,
                 #remove_if_exists=True, # overwrite everytime
                 remove_if_exists=False, # load if already exists
                 **job_kwargs,
             )
             print(f"> Parameters for manual curation saved to {for_phy}.\n")
 
-            assert 0
             correct_kslabels = for_phy / "cluster_KSLabel.tsv"
             if correct_kslabels.exists():
                 print(f"\nCorrect KS labels already saved in {correct_kslabels}. Next session.\n")
@@ -969,7 +968,7 @@ class Behaviour(ABC):
 
             print("\n> Getting all KS labels...")
             all_ks_labels = pd.read_csv(
-                output / "cluster_KSLabel.tsv",
+                output / "sorter_output/cluster_KSLabel.tsv",
                 sep='\t',
             )
             print("\n> Finding cluster ids from spikeinterface output...")
@@ -987,6 +986,14 @@ class Behaviour(ABC):
                 sep='\t',
                 index=False,
             )
+
+            # copy params.py from sorter_output to phy_ks3
+            print(f"\n> Copying params.py to {for_phy}...")
+            copyfile(output / "sorter_output/params.py", for_phy / "params.py")
+
+            # TODO jan 8 in sorter_output, only keep params, recording and
+            # temp_wh, delete the rest
+            print(f"\n> {self.name}{stream_id} spike-sorted.")
 
 
     def extract_videos(self, force=False):
@@ -2218,7 +2225,7 @@ class Behaviour(ABC):
         elif method == 'spikeinterface':
             # set chunks
             job_kwargs = dict(
-                n_jobs=10, # -1: num of job equals num of cores
+                n_jobs=0.9, # -1: num of job equals num of cores
                 chunk_duration="1s",
                 progress_bar=True,
             )
