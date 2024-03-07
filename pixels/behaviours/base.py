@@ -696,7 +696,7 @@ class Behaviour(ABC):
             return
         else:
             #TODO: finish this here so that catgt can run together with sorting
-            print(f"> Running CatGT on ap data of {self.name}")
+            print(f"\n> Running CatGT on ap data of {self.name}")
             #_dir = self.interim
 
         if args == None:
@@ -788,7 +788,7 @@ class Behaviour(ABC):
         streams = {}
         # set chunks for spikeinterface operations
         job_kwargs = dict(
-            n_jobs=0.9, # -1: num of job equals num of cores
+            n_jobs=-3, # -1: num of job equals num of cores
             chunk_duration="1s",
             progress_bar=True,
         )
@@ -830,7 +830,7 @@ class Behaviour(ABC):
             # check if already sorted and exported
             for_phy = output / "phy_ks3"
             if not for_phy.exists() or not len(os.listdir(for_phy)) > 1:
-                print(f"> {self.name}{stream_id} not sorted or exported.\n")
+                print(f"> {self.name} {stream_id} not sorted/exported.\n")
             else:
                 print("> Already sorted and exported, next session.\n")
                 continue
@@ -866,7 +866,7 @@ class Behaviour(ABC):
                 try: 
                     ks3_output = si.load_extractor(output / 'saved_si_sorting_obj')
                     #sorting_KS = read_kilosort(folder_path="kilosort-folder")
-                    print(f"> {self.name}{stream_id} is already sorted, now it is loaded.\n") 
+                    print(f"> {self.name} {stream_id} is already sorted, now it is loaded.\n") 
 
                     """
                     # for testing: get first 5 mins of the recording 
@@ -882,7 +882,7 @@ class Behaviour(ABC):
                     """
 
                 except:
-                    print(f"> Now kilosorting {self.name}{stream_id}: \n{concat_rec}\n")
+                    print(f"> Now kilosorting {self.name} {stream_id}: \n{concat_rec}\n")
                     #ks3_output = ss.run_kilosort3(recording=concat_rec, output_folder=output)
                     sorting = ss.run_sorter(
                         sorter_name='kilosort3',
@@ -917,9 +917,9 @@ class Behaviour(ABC):
                     folder=cache,
                     sorting=ks3_output,
                 )
-                print("> {self.name}{stream_id} waveforms extracted, now it is loaded.\n")
+                print(f"> {self.name} {stream_id} waveforms extracted, now it is loaded.\n")
             except:
-                print("> {self.name}{stream_id} waveforms not extracted, extracting now.\n")
+                print(f"> {self.name} {stream_id} waveforms not extracted, extracting now.\n")
                 #if ks3_output.count_total_num_spikes()
                 # extract waveforms
                 waveforms = si.extract_waveforms(
@@ -948,7 +948,7 @@ class Behaviour(ABC):
             # export to phy, with pc feature calculated.
             # copy recording.dat to output so that individual waveforms can be
             # seen in waveformview.
-            print(f"\n> Exporting {self.name}{stream_id} parameters for phy...\n")
+            print(f"\n> Exporting {self.name} {stream_id} parameters for phy...\n")
             sexp.export_to_phy(
                 waveform_extractor=waveforms,
                 output_folder=for_phy,
@@ -993,7 +993,7 @@ class Behaviour(ABC):
 
             # TODO jan 8 in sorter_output, only keep params, recording and
             # temp_wh, delete the rest
-            print(f"\n> {self.name}{stream_id} spike-sorted.")
+            print(f"\n> {self.name} {stream_id} spike-sorted.\n")
 
 
     def extract_videos(self, force=False):
@@ -2225,7 +2225,7 @@ class Behaviour(ABC):
         elif method == 'spikeinterface':
             # set chunks
             job_kwargs = dict(
-                n_jobs=0.9, # -1: num of job equals num of cores
+                n_jobs=-3, # -1: num of job equals num of cores
                 chunk_duration="1s",
                 progress_bar=True,
             )
