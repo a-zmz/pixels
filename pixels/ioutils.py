@@ -348,7 +348,7 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt):
     raw_dir = data_dir / 'raw'
 
     for mouse in mouse_ids:
-        mouse_sessions = list(raw_dir.glob(f'*{mouse}*'))
+        mouse_sessions = list(raw_dir.glob(f'*{mouse}'))
 
         if not mouse_sessions:
             print(f'Found no sessions for: {mouse}')
