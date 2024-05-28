@@ -26,57 +26,42 @@ class ActionLabels:
     To align trials to more than one action type they can be bitwise OR'd i.e.
     `miss_left | miss_right` will match all miss trials.
     """
+    # triggered events
     miss_light = 1 << 0
     miss_dark = 1 << 1
     correct_light = 1 << 2
     correct_dark = 1 << 3
     punished_light = 1 << 4
     punished_dark = 1 << 5
-    #TODO mar 7 continue here
 
+    # given reward
+    default_light = 1 << 6
+    default_dark = 1 << 7
+    auto_light = 1 << 8
+    auto_dark = 1 << 9
+    reinf_light = 1 << 10
+    reinf_dark = 1 << 11
+
+    # combos
     miss = miss_light | miss_dark
     correct = correct_light | correct_dark
     punished = punished_light | punished_dark
-    light = miss_light | correct_light | incorrect_light
-    dark = miss_dark | correct_dark | incorrect_dark
 
-    # Timepoints determined from motion tracking
-    clean_left = 1 << 10  # Cued single reach to grasp
-    clean_right = 1 << 11
-    multi_left = 1 << 12  # Cued multiple reaches before reward
-    multi_right = 1 << 13
-    precue_rewarded_left = 1 << 14  # Cued by well-timed spontaneous reach right before
-    precue_rewarded_right = 1 << 15
-    tracking_fail_left = 1 << 16  # Motion tracking failed to get reach trajectory
-    tracking_fail_right = 1 << 17
-    long_reach_duration_left = 1 << 17
-    long_reach_duration_right = 1 << 18
-    clean = clean_left | clean_right
-    multi = multi_left | multi_right
-    precue_rewarded = precue_rewarded_left | precue_rewarded_right
-    tracking_fail = tracking_fail_left | tracking_fail_right
-    long_reach_duration = long_reach_duration_left | long_reach_duration_right
+    # trial type combos
+    light = miss_light | correct_light | punished_light | default_light |
+        auto_light | reinf_light
+    dark = miss_dark | correct_dark | punished_dark | default_dark |
+        auto_dark | reinf_dark
+    rewarded_light = correct_light | default_light | auto_light | reinf_light
+    rewarded_dark = correct_dark | default_dark | auto_dark | reinf_dark
+    given_light = default_light | auto_light | reinf_light
+    given_dark = default_dark | auto_dark | reinf_dark
 
-    clean_incorrect_left = 1 << 19  # Cued single reach to grasp
-    clean_incorrect_right = 1 << 20
-    multi_incorrect_left = 1 << 21  # Cued multiple reaches before reward
-    multi_incorrect_right = 1 << 22
-    precue_incorrect_left = 1 << 23  # Cued by well-timed spontaneous reach right before
-    precue_incorrect_right = 1 << 24
-    tracking_fail_incorrect_left = 1 << 25  # Motion tracking failed to get reach trajectory
-    tracking_fail_incorrect_right = 1 << 26
-    long_reach_duration_incorrect_left = 1 << 27
-    long_reach_duration_incorrect_right = 1 << 28
-    clean_incorrect = clean_incorrect_left | clean_incorrect_right
-    multi_incorrect = multi_incorrect_left | multi_incorrect_right
-    precue_incorrect = precue_incorrect_left | precue_incorrect_right
-    tracking_fail_incorrect = tracking_fail_incorrect_left | tracking_fail_incorrect_right
-    long_reach_duration_incorrect = long_reach_duration_incorrect_left | long_reach_duration_incorrect_right
-
+    #TODO mar 7 continue here
 
 class Events:
-    led_on = 1 << 0
-    led_off = 1 << 1
+    gray_on = 1 << 0
+    tunnel_on = 1 << 1
 
     # Timepoints determined from motion tracking
     reach_onset = 1 << 2
