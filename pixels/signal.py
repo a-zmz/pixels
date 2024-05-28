@@ -101,7 +101,7 @@ def resample(array, from_hz, to_hz, poly=True, padtype=None):
         current += chunk_size
         print(f"    {100 * current / cols:.1f}%", end="\r")
     
-    return np.concatenate(new_data, axis=1) #.astype(np.int16)
+    return  np.concatenate(new_data, axis=1).squeeze()#.astype(np.int16)
 
 
 def binarise(data):
@@ -139,8 +139,8 @@ def find_sync_lag(array1, array2, plot=False):
     Parameters
     ----------
     array1 : array, Series or similar
-        The first array. A positive result indicates that this array has leading data
-        not present in the second array. e.g. if lag == 5 then array2 starts on the 5th
+        The first array. A positive result indicates that THIS ARRAY HAS LEADING DATA
+        NOT PRESENT IN THE SECOND ARRAY. e.g. if lag == 5 then array2 starts on the 5th
         index of array1.
 
     array2 : array, Series or similar
@@ -165,26 +165,32 @@ def find_sync_lag(array1, array2, plot=False):
     array1 = array1.squeeze()
     array2 = array2.squeeze()
 
-    sync_p = []
+    sync_pos = []
     for i in range(length):
+        # finds how many values are the same in array1 as in array2 till given length
         matches = np.count_nonzero(array1[i:i + length] == array2[:length])
-        sync_p.append(100 * matches / length)
-    match_p = max(sync_p)
-    lag_p = sync_p.index(match_p)
+        # append the percentage of match given length
+        sync_pos.append(100 * matches / length)
+    # take the highest percentage during checks as the match
+    match_pos = max(sync_pos)
+    # find index where lag started in array1
+    lag_pos = sync_pos.index(match_pos)
 
-    sync_n = []
+    sync_neg = []
     for i in range(length):
+        # finds how many values are the same in array2 as in array1 till given length
         matches = np.count_nonzero(array2[i:i + length] == array1[:length])
-        sync_n.append(100 * matches / length)
-    match_n = max(sync_n)
-    lag_n = sync_n.index(match_n)
+        # append the percentage of match given length
+        sync_neg.append(100 * matches / length)
+    match_neg = max(sync_neg)
+    lag_neg = sync_neg.index(match_neg)
 
-    if match_p > match_n:
-        lag = lag_p
-        match = match_p
+    if match_pos > match_neg:
+        lag = lag_pos
+        match = match_pos
     else:
-        lag = - lag_n
-        match = match_n
+        lag = - lag_neg
+        match = match_neg
 
     if plot:
         plot = Path(plot)
