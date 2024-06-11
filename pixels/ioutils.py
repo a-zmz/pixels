@@ -119,6 +119,9 @@ def get_data_files(data_dir, session_name):
         )
         recording['CatGT_ap_data'] = str(recording['spike_data']).replace("t0", "tcat")
         recording['CatGT_ap_meta'] = str(recording['spike_meta']).replace("t0", "tcat")
+        recording['vr'] = recording['spike_data'].with_name(
+            f'{session_name}_vr_synched.pickle'
+        )
 
         files.append(recording)
 
@@ -291,7 +294,10 @@ def read_hdf5(path):
     pandas.DataFrame : The dataframe stored within the hdf5 file under the name 'df'.
 
     """
-    df = pd.read_hdf(path, 'df')
+    df = pd.read_hdf(
+        path_or_buf=path,
+        key='df',
+    )
     return df
 
 
@@ -308,7 +314,11 @@ def write_hdf5(path, df):
         Dataframe to save to h5.
 
     """
-    df.to_hdf(path, 'df', mode='w')
+    df.to_hdf(
+        path_or_buf=path,
+        key='df',
+        mode='w',
+    )
     
     print('HDF5 saved to ', path)
 
