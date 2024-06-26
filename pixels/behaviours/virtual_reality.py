@@ -2,6 +2,11 @@
 This module provides reach task specific operations.
 """
 
+# NOTE: for event alignment, we align to the first timepoint when the event
+# starts, and the last timepoint before the event ends, i.e., think of an event
+# as a train of 0s and 1s, we align to the first 1s and the last 1s of a given
+# event.
+
 from __future__ import annotations
 
 import pickle
@@ -10,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from vision_in_darkness.session import Outcome, World
+from vision_in_darkness.session import Outcome, World, Trial_Type
 
 from pixels import Experiment, PixelsError
 from pixels import signal, ioutils
@@ -18,7 +23,6 @@ from pixels.behaviours import Behaviour
 
 from common_utils import file_utils
 
-SAMPLE_RATE = 1000
 
 class ActionLabels:
     """
@@ -53,13 +57,13 @@ class ActionLabels:
     punished = punished_light | punished_dark
 
     # trial type combos
-    light = miss_light | triggered_light | punished_light | default_light |
-        auto_light | reinf_light
+    light = miss_light | triggered_light | punished_light | default_light\
+            | auto_light | reinf_light
     dark = miss_dark | triggered_dark | punished_dark | auto_dark | reinf_dark
     rewarded_light = triggered_light | default_light | auto_light | reinf_light
     rewarded_dark = triggered_dark | auto_dark | reinf_dark
     given_light = default_light | auto_light | reinf_light
-    given_dark =  auto_dark | reinf_dark
+    given_dark = auto_dark | reinf_dark
 
 
 class Events:
@@ -69,30 +73,33 @@ class Events:
     Events can be added on top of each other.
     """
     # vr events
-    gray_on = 1 << 0
-    gray_off = 1 << 1
-    tunnel_on = 1 << 2
-    tunnel_off = 1 << 3
-    dark_on = 1 << 4
-    dark_off = 1 << 5
-    punish_on = 1 << 6
-    punish_off = 1 << 7
-    session_end = 1 << 8
+    gray_on = 1 << 1
+    gray_off = 1 << 2
+    light_on = 1 << 3
+    light_off = 1 << 4
+    dark_on = 1 << 5
+    dark_off = 1 << 6
+    punish_on = 1 << 7
+    punish_off = 1 << 8
+    session_end = 1 << 9
+    # NOTE if use this event to mark trial ending, begin of the first trial
+    # needs to be excluded
+    trial_end = gray_on | punish_on
 
     # positional events
-    black = 1 << 9 # 0 - 60 cm
-    wall = 1 << 10 # in between landmarks
-    landmark1 = 1 << 11 # 110 - 130 cm
-    landmark2 = 1 << 12 # 190 - 210 cm
-    landmark3 = 1 << 13 # 270 - 290 cm
-    landmark4 = 1 << 14 # 350 - 370 cm
-    landmark5 = 1 << 15 # 430 - 450 cm
-    reward_zone = 1 << 16 # 460 - 495 cm
+    black = 1 << 10 # 0 - 60 cm
+    wall = 1 << 11 # in between landmarks
+    landmark1 = 1 << 12 # 110 - 130 cm
+    landmark2 = 1 << 13 # 190 - 210 cm
+    landmark3 = 1 << 14 # 270 - 290 cm
+    landmark4 = 1 << 15 # 350 - 370 cm
+    landmark5 = 1 << 16 # 430 - 450 cm
+    reward_zone = 1 << 17 # 460 - 495 cm
 
     # sensors
-    valve_open = 1 << 17
-    valve_closed = 1 << 18
-    licked = 1 << 19
+    valve_open = 1 << 18
+    valve_closed = 1 << 19
+    licked = 1 << 20
     #run_start = 1 << 12
     #run_stop = 1 << 13
 
@@ -114,51 +121,111 @@ _action_map = {
 
 class VR(Behaviour):
 
-    def _extract_action_labels(self, vr_data):
-
-        # TEMPORARY load synced vr data
-        cache_dir = "/home/amz/interim/behaviour_cache/temp100/trials/"
-        vr_data = file_utils.load_pickle(
-            cache_dir + "20231130_az_WDAN07_upsampled.pickle"
-            #self.cache_dir + 'trials/' + self.name + '_upsampled.pickle'
-        )
-
+    def _extract_action_labels(self, vr, vr_data):
         # create action label array for actions & events
-        action_label = np.zeros((vr_data.shape[0], 2), dtype=np.int32)
+        action_labels = np.zeros((vr_data.shape[0], 2), dtype=np.int32)
+
+        # make sure position is not nan
+        no_nan = (~vr_data.position_in_tunnel.isna())
+        # define in gray
+        in_gray = (vr_data.world_index == World.GRAY)
+        # define in dark
+        in_dark = (vr_data.world_index == World.DARK_5)\
+                | (vr_data.world_index == World.DARK_2_5)\
+                | (vr_data.world_index == World.DARK_FULL)\
+                & no_nan
+        # define in white
+        in_white = (vr_data.world_index == World.WHITE)
+        # define in tunnel
+        in_tunnel = ~in_gray & ~in_white & no_nan
+        # define in light
+        in_light = (vr_data.world_index == World.TUNNEL)\
+                & no_nan
+        # define light & dark trials
+        trial_light = (vr_data.trial_type == Trial_Type.LIGHT)
+        trial_dark = (vr_data.trial_type == Trial_Type.DARK)
 
         print(">> Mapping vr event times...")
 
         # get gray_on times, i.e., trial starts
-        gray_idx = vr_data.world_index[vr_data.world_index == World.GRAY].index
+        gray_idx = vr_data.world_index[in_gray].index
         # grays
         grays = np.where(gray_idx.diff() != 1)[0]
 
-        # first frame of gray
-        gray_on = gray_idx[grays].values
+        # find time for first frame of gray
+        gray_on_t = gray_idx[grays]
+        # find their index in vr data
+        gray_on = vr_data.index.get_indexer(gray_on_t)
         action_labels[gray_on, 1] += Events.gray_on
 
-        # last frame of gray
-        gray_off = np.append(gray_idx[grays[1:] - 1], gray_idx[-1])
+        # find time for last frame of gray
+        gray_off_t = np.append(gray_idx[grays[1:] - 1], gray_idx[-1])
+        # find their index in vr data
+        gray_off = vr_data.index.get_indexer(gray_off_t)
         action_labels[gray_off, 1] += Events.gray_off
 
-        # get tunnel_on times, i.e., tunnel starts
-        tunnel_idx = vr_data.world_index[vr_data.world_index == World.TUNNEL].index
-        # tunnels
-        tunnels = np.where(tunnel_idx.diff() != 1)[0]
+        # get light_on times, i.e., light tunnel starts
+        #light_idx = vr_data.world_index[in_light].index
 
-        # tunnel starts is first frame after gray
-        tunnel_on = gray_off + 1
-        action_labels[tunnel_on, 1] += Events.tunnel_on
+        # get data in light tunnel
+        light_data = vr_data[in_light]
+        # use light tunnel on as trial starts
+        trial_starts = np.where(light_data.trial_count.diff() != 0)[0]
+        # get interval of possible starting position
+        start_interval = int(vr.meta_item('rand_start_int'))
 
-        # get usual tunnel_off times
-        tunnel_off = np.append(tunnel_idx[tunnels[1:] - 1], tunnel_idx[-1])
-        action_labels[tunnel_off, 1] += Events.tunnel_off
+        # double check if all starting positions make sense
+        wrong_start = light_data.position_in_tunnel.iloc[trial_starts]\
+                        % start_interval != 0
+        wrong_start_idx = np.where(wrong_start)[0]
+        if not wrong_start_idx.size == 0:
+            raise PixelsError(f"Check index {wrong_start_idx} of light_data,\
+                \nthey do not have the correct starting position.")
+
+        # get timestamps of when trial starts as light tunnel on
+        light_on_t = light_data.index[trial_starts]
+        # get index of when trial starts for action labels
+        light_on = vr_data.index.get_indexer(light_on_t)
+        action_labels[light_on, 1] += Events.light_on
+
+        # get light trials
+        light_trials = vr_data[trial_light & in_light]
+
+        # in light trials, light tunnel off when trials end
+        L_light_off_bool = (light_trials.trial_count.diff().shift(-1).fillna(1) != 0)
+        L_light_off_t = light_trials.index[L_light_off_bool]
+        L_light_off = vr_data.index.get_indexer(L_light_off_t)
+        action_labels[L_light_off, 1] += Events.light_off
+
+        # NOTE: if dark trial is aborted, light tunnel only turns off once; but
+        # if it is a reward is dispensed, light tunnel turns off twice
+
+        # get dark trials
+        dark_trials = vr_data[trial_dark & in_tunnel]
+        # get when dark starts
+        dark_on = dark_trials[dark_trials.world_index.diff() < 0]
+        dark_on_idx = vr_data.index.get_indexer(dark_on.index)
+        action_labels[dark_on_idx, 1] += Events.dark_on
+
+        # get when light tunnel turns off before dark starts
+        D_light_off_idx = dark_on_idx - 1
+        action_labels[D_light_off_idx, 1] += Events.light_off
+
+        # TODO CONTINUE HERE JUN 26
+        # separate dark trials into different chunks:
+        # with & without dark turned on, cuz some trials were punished even
+        # before dark on
+        # for trials went into dark, separate into before & after dark starts
+        assert 0
+
+        # get when dark ends
+        dark_in_light = vr_data[trial_dark & in_light]
+
+        D_light_off_bool = (dark_trials_light.trial_count.diff().shift(-1).fillna(1) != 0)
+        D_light_off_t = dark_trials_light.index[D_light_off_bool]
+        D_light_off = vr_data.index.get_indexer(D_light_off_t)
 
         # get dark on
-        # define in dark
-        in_dark = (vr_data.world_index == World.DARK_5)\
-                |(vr_data.world_index == World.DARK_2_5)\
-                |(vr_data.world_index == World.DARK_FULL)
         # get index in dark
         in_dark_idx = vr_data[in_dark].index
         # number of dark_on does not match with number of dark trials caused by
@@ -167,30 +234,110 @@ class VR(Behaviour):
         darks = np.where(in_dark_idx.diff() != 1)[0]
 
         # first frame of dark
-        dark_on = in_dark_idx[darks].values
+        dark_on_t = in_dark_idx[darks]
+        dark_on = vr_data.index.get_indexer(dark_on_t)
         action_labels[dark_on, 1] += Events.dark_on
 
         # last frame of dark
-        dark_off = np.append(in_dark_idx[darks[1:] - 1], in_dark_idx[-1])
+        dark_off_t = np.append(in_dark_idx[darks[1:] - 1], in_dark_idx[-1])
+        dark_off = vr_data.index.get_indexer(dark_off_t)
         action_labels[dark_off, 1] += Events.dark_off
 
         # map licks
-        licked_idx = vr_data.lick_count[vr_data.lick_count == 1].index.values
+        licked_idx = np.where(vr_data.lick_count == 1)[0]
         action_labels[licked_idx, 1] += Events.licked
 
 
         print(">> Mapping vr action times...")
+        # map trial types
+        light_trials = vr_data[vr_data.trial_type == 0]
+        dark_trials = vr_data[vr_data.trial_type == 1]
+
+        # map pre-reward zone
+        pre_zone = (vr_data.position_in_tunnel < vr.reward_zone_start)
+        # get in reward zone index
+        pre_zone_idx = vr_data[pre_zone].index
+        # get reward type while in reward zone
+        pre_reward_type = vr_data.reward_type.loc[pre_zone_idx]
+
+        # default reward light trials
+        default_light = pre_reward_type.index[pre_reward_type == Outcome.DEFAULT]
+        default_light_id = light_trials.trial_count.loc[default_light].unique()
+        for i in default_light_id:
+            default_light_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[default_light_idx, 0] = ActionLabels.default_light
+
+        # punished
+        punished_idx = vr_data.index[in_white]
+        # punished light
+        punished_light = light_trials.reindex(punished_idx).dropna()
+        punished_light_id = punished_light.trial_count.unique()
+        for i in punished_light_id:
+            punished_light_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[punished_light_idx, 0] = ActionLabels.punished_light
+
+        # punished dark
+        punished_dark = dark_trials.reindex(punished_idx).dropna()
+        punished_dark_id = punished_dark.trial_count.unique()
+        for i in punished_dark_id:
+            punished_dark_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[punished_dark_idx, 0] = ActionLabels.punished_dark
+
         # map reward zone
-        in_zone = (vr_data.position_in_tunnel >= self.reward_zone_start)\
-            & (vr_data.position_in_tunnel <= self.reward_zone_end)
+        in_zone = (vr_data.position_in_tunnel >= vr.reward_zone_start)\
+            & (vr_data.position_in_tunnel <= vr.reward_zone_end)
         # get in reward zone index
         in_zone_idx = vr_data[in_zone].index
         # get reward type while in reward zone
         reward_type = vr_data.reward_type.loc[in_zone_idx]
 
+        # triggered
+        triggered_idx = reward_type.index[reward_type == Outcome.TRIGGERED]
+        # triggered light trials
+        triggered_light = light_trials.reindex(triggered_idx).dropna()
+        triggered_light_id = triggered_light.trial_count.unique()
+        for i in triggered_light_id:
+            trig_light_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[trig_light_idx, 0] = ActionLabels.triggered_light
+
+        # automatically rewarded light trials
+        auto_light = reward_type.index[reward_type == Outcome.AUTO_LIGHT]
+        auto_light_id = light_trials.trial_count.loc[auto_light].unique()
+        for i in auto_light_id:
+            auto_light_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[auto_light_idx, 0] = ActionLabels.auto_light
+
+        # reinforcement reward light trials
+        reinf_light = reward_type.index[reward_type == Outcome.REINF_LIGHT]
+        reinf_light_id = light_trials.trial_count.loc[reinf_light].unique()
+        for i in reinf_light_id:
+            reinf_light_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[reinf_light_idx, 0] = ActionLabels.reinf_light
+
+        # triggered dark trials
+        triggered_dark = dark_trials.reindex(triggered_idx).dropna()
+        triggered_dark_id = triggered_dark.trial_count.unique()
+        for i in triggered_dark_id:
+            trig_dark_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[trig_dark_idx, 0] = ActionLabels.triggered_dark
+
+        # automatically rewarded dark trials
+        auto_dark = reward_type.index[reward_type == Outcome.AUTO_DARK]
+        auto_dark_id = dark_trials.trial_count.loc[auto_dark].unique()
+        for i in auto_dark_id:
+            auto_dark_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[auto_dark_idx, 0] = ActionLabels.auto_dark
+
+        # reinforcement reward dark trials
+        reinf_dark = reward_type.index[reward_type == Outcome.REINF_DARK]
+        reinf_dark_id = dark_trials.trial_count.loc[reinf_dark].unique()
+        for i in reinf_dark_id:
+            reinf_dark_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[reinf_dark_idx, 0] = ActionLabels.reinf_dark
+
         # after reward zone before trial resets
-        pass_zone = (vr_data.position_in_tunnel > self.reward_zone_end)\
-            & (vr_data.position_in_tunnel <= self.tunnel_length)
+        pass_zone = (vr_data.position_in_tunnel > vr.reward_zone_end)\
+            & (vr_data.position_in_tunnel <= vr.tunnel_length)
         # get passed reward zone index
         pass_zone_idx = vr_data[pass_zone].index
         end_reward_type = vr_data.reward_type.loc[pass_zone_idx]
@@ -198,28 +345,31 @@ class VR(Behaviour):
         # missed light trials
         miss_light = end_reward_type[end_reward_type ==
                                  Outcome.ABORTED_LIGHT].index.values
+        miss_light_id = vr_data.trial_count.loc[miss_light].unique()
+        for i in miss_light_id:
+            miss_light_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[miss_light_idx, 0] = ActionLabels.miss_light
+
         # missed dark trials
         miss_dark = end_reward_type[end_reward_type ==
                                 Outcome.ABORTED_DARK].index.values
+        miss_dark_id = vr_data.trial_count.loc[miss_dark].unique()
+        for i in miss_dark_id:
+            miss_dark_idx = np.where(vr_data.trial_count == i)[0]
+            action_labels[miss_dark_idx, 0] = ActionLabels.miss_dark
 
-        # TODO jun 7 2024 action labels not mapped
-
+        # put pixels timestamps in the third column
+        action_labels = np.column_stack((action_labels, vr_data.index.values))
 
         return action_labels
 
 
-    def _old_extract_action_labels(self, vr_data, action_labels, plot=False):
+    def _check_action_labels(self, vr_data, action_labels, plot=True):
 
-        for i, trial in enumerate(self.metadata[rec_num]["trials"]):
-            side = _side_map[trial["spout"]]
-            outcome = trial["outcome"]
-            if outcome in _action_map:
-                action = _action_map[trial["outcome"]]
-                action_labels[led_onsets[i], 0] += getattr(ActionLabels, f"{action}_{side}")
-
+        # TODO jun 9 2024 make this work, save the plot
         if plot:
             plt.clf()
-            _, axes = plt.subplots(4, 1, sharex=True, sharey=True)
+            _, axes = plt.subplots(4, 1, sharex=False, sharey=False)
             axes[0].plot(back_sensor_signal)
             if "/'Back_Sensor'/'0'" in behavioural_data:
                 axes[1].plot(behavioural_data["/'Back_Sensor'/'0'"].values)
