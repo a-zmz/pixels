@@ -147,6 +147,7 @@ class VR(Behaviour):
 
         print(">> Mapping vr event times...")
 
+        # >>>> gray >>>>
         # get gray_on times, i.e., trial starts
         gray_idx = vr_data.world_index[in_gray].index
         # grays
@@ -163,90 +164,92 @@ class VR(Behaviour):
         # find their index in vr data
         gray_off = vr_data.index.get_indexer(gray_off_t)
         action_labels[gray_off, 1] += Events.gray_off
+        # <<<< gray <<<<
 
-        # get light_on times, i.e., light tunnel starts
-        #light_idx = vr_data.world_index[in_light].index
+        # >>>> white >>>>
+        # get punish_on times
+        punish_idx = vr_data.world_index[in_white].index
+        # punishes
+        punishes = np.where(punish_idx.diff() != 1)[0]
 
-        # get data in light tunnel
-        light_data = vr_data[in_light]
-        # use light tunnel on as trial starts
-        trial_starts = np.where(light_data.trial_count.diff() != 0)[0]
-        # get interval of possible starting position
-        start_interval = int(vr.meta_item('rand_start_int'))
+        # find time for first frame of punish
+        punish_on_t = punish_idx[punishes]
+        # find their index in vr data
+        punish_on = vr_data.index.get_indexer(punish_on_t)
+        action_labels[punish_on, 1] += Events.punish_on
 
-        # double check if all starting positions make sense
-        wrong_start = light_data.position_in_tunnel.iloc[trial_starts]\
-                        % start_interval != 0
-        wrong_start_idx = np.where(wrong_start)[0]
-        if not wrong_start_idx.size == 0:
-            raise PixelsError(f"Check index {wrong_start_idx} of light_data,\
-                \nthey do not have the correct starting position.")
+        # find time for last frame of punish
+        punish_off_t = np.append(punish_idx[punishes[1:] - 1], punish_idx[-1])
+        # find their index in vr data
+        punish_off = vr_data.index.get_indexer(punish_off_t)
+        action_labels[punish_off, 1] += Events.punish_off
+        # <<<< white <<<<
 
-        # get timestamps of when trial starts as light tunnel on
-        light_on_t = light_data.index[trial_starts]
-        # get index of when trial starts for action labels
+        # >>>> light >>>>
+        # get index of data in light tunnel
+        light_idx = vr_data[in_light].index
+        # get where light turns on
+        lights = np.where(light_idx.diff() != 1)[0]
+        # get timepoint of when light turns on
+        light_on_t = light_idx[lights]
+        # get index of when light turns on
         light_on = vr_data.index.get_indexer(light_on_t)
         action_labels[light_on, 1] += Events.light_on
 
-        # get light trials
-        light_trials = vr_data[trial_light & in_light]
+        # get interval of possible starting position
+        start_interval = int(vr.meta_item('rand_start_int'))
 
-        # in light trials, light tunnel off when trials end
-        L_light_off_bool = (light_trials.trial_count.diff().shift(-1).fillna(1) != 0)
-        L_light_off_t = light_trials.index[L_light_off_bool]
-        L_light_off = vr_data.index.get_indexer(L_light_off_t)
-        action_labels[L_light_off, 1] += Events.light_off
+        # find starting position in all light_on
+        trial_starts = light_on[np.where(
+            vr_data.iloc[light_on].position_in_tunnel % start_interval == 0
+        )[0]]
+
+        if not trial_starts.size == vr_data.trial_count.max():
+            raise PixelsError(f"Number of trials does not equal to\
+                    \n{vr_data.trial_count.max()}.")
+        # NOTE: if trial starts at 0, the first position_in_tunnel value will
+        # NOT be nan
+
+        # last frame of light
+        light_off_t = np.append(light_idx[lights[1:] - 1], light_idx[-1])
+        light_off = vr_data.index.get_indexer(light_off_t)
+        action_labels[light_off, 1] += Events.light_off
+        # <<<< light <<<<
 
         # NOTE: if dark trial is aborted, light tunnel only turns off once; but
         # if it is a reward is dispensed, light tunnel turns off twice
 
-        # get dark trials
-        dark_trials = vr_data[trial_dark & in_tunnel]
-        # get when dark starts
-        dark_on = dark_trials[dark_trials.world_index.diff() < 0]
-        dark_on_idx = vr_data.index.get_indexer(dark_on.index)
-        action_labels[dark_on_idx, 1] += Events.dark_on
+        # NOTE: number of dark_on does not match with number of dark trials
+        # caused by triggering punishment before dark
 
-        # get when light tunnel turns off before dark starts
-        D_light_off_idx = dark_on_idx - 1
-        action_labels[D_light_off_idx, 1] += Events.light_off
-
-        # TODO CONTINUE HERE JUN 26
-        # separate dark trials into different chunks:
-        # with & without dark turned on, cuz some trials were punished even
-        # before dark on
-        # for trials went into dark, separate into before & after dark starts
-        assert 0
-
-        # get when dark ends
-        dark_in_light = vr_data[trial_dark & in_light]
-
-        D_light_off_bool = (dark_trials_light.trial_count.diff().shift(-1).fillna(1) != 0)
-        D_light_off_t = dark_trials_light.index[D_light_off_bool]
-        D_light_off = vr_data.index.get_indexer(D_light_off_t)
-
-        # get dark on
+        # >>>> dark >>>>
         # get index in dark
-        in_dark_idx = vr_data[in_dark].index
-        # number of dark_on does not match with number of dark trials caused by
-        # triggering punishment before dark
-        # darks
-        darks = np.where(in_dark_idx.diff() != 1)[0]
+        dark_idx = vr_data[in_dark].index
+        darks = np.where(dark_idx.diff() != 1)[0]
 
         # first frame of dark
-        dark_on_t = in_dark_idx[darks]
+        dark_on_t = dark_idx[darks]
         dark_on = vr_data.index.get_indexer(dark_on_t)
         action_labels[dark_on, 1] += Events.dark_on
 
         # last frame of dark
-        dark_off_t = np.append(in_dark_idx[darks[1:] - 1], in_dark_idx[-1])
+        dark_off_t = np.append(dark_idx[darks[1:] - 1], dark_idx[-1])
         dark_off = vr_data.index.get_indexer(dark_off_t)
         action_labels[dark_off, 1] += Events.dark_off
+        # <<<< dark <<<<
 
-        # map licks
+        # >>>> session ends >>>>
+        session_end = vr_data.shape[0]
+        action_labels[session_end, 1] += Events.session_end
+        # <<<< session ends <<<<
+
+        # >>>> licks >>>>
         licked_idx = np.where(vr_data.lick_count == 1)[0]
         action_labels[licked_idx, 1] += Events.licked
+        # <<<< licks <<<<
 
+        # TODO jun 27 positional events and valve events needs mapping
+        assert 0
 
         print(">> Mapping vr action times...")
         # map trial types
