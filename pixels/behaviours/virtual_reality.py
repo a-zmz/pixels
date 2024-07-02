@@ -125,6 +125,9 @@ class VR(Behaviour):
         # create action label array for actions & events
         action_labels = np.zeros((vr_data.shape[0], 2), dtype=np.int32)
 
+        # >>>> definitions >>>>
+        # TODO july 2 2024 no need to dropna here since already removed in
+        # processing
         # make sure position is not nan
         no_nan = (~vr_data.position_in_tunnel.isna())
         # define in gray
@@ -144,9 +147,11 @@ class VR(Behaviour):
         # define light & dark trials
         trial_light = (vr_data.trial_type == Trial_Type.LIGHT)
         trial_dark = (vr_data.trial_type == Trial_Type.DARK)
+        # <<<< definitions <<<<
 
         print(">> Mapping vr event times...")
 
+        assert 0
         # >>>> gray >>>>
         # get gray_on times, i.e., trial starts
         gray_idx = vr_data.world_index[in_gray].index
@@ -168,7 +173,7 @@ class VR(Behaviour):
 
         # >>>> white >>>>
         # get punish_on times
-        punish_idx = vr_data.world_index[in_white].index
+        punish_idx = vr_data[in_white].index
         # punishes
         punishes = np.where(punish_idx.diff() != 1)[0]
 
@@ -239,7 +244,7 @@ class VR(Behaviour):
         # <<<< dark <<<<
 
         # >>>> session ends >>>>
-        session_end = vr_data.shape[0]
+        session_end = vr_data.shape[0] - 1
         action_labels[session_end, 1] += Events.session_end
         # <<<< session ends <<<<
 
@@ -249,46 +254,50 @@ class VR(Behaviour):
         # <<<< licks <<<<
 
         # TODO jun 27 positional events and valve events needs mapping
-        assert 0
 
         print(">> Mapping vr action times...")
+
         # map trial types
-        light_trials = vr_data[vr_data.trial_type == 0]
-        dark_trials = vr_data[vr_data.trial_type == 1]
+        light_trials = vr_data[trial_light & no_nan]
+        dark_trials = vr_data[trial_dark & no_nan]
 
         # map pre-reward zone
         pre_zone = (vr_data.position_in_tunnel < vr.reward_zone_start)
+        # map post-reward zone
+        post_zone = (vr_data.position_in_tunnel > vr.reward_zone_end)
         # get in reward zone index
         pre_zone_idx = vr_data[pre_zone].index
         # get reward type while in reward zone
         pre_reward_type = vr_data.reward_type.loc[pre_zone_idx]
 
+        # >>>> light default reward >>>>
         # default reward light trials
         default_light = pre_reward_type.index[pre_reward_type == Outcome.DEFAULT]
         default_light_id = light_trials.trial_count.loc[default_light].unique()
         for i in default_light_id:
             default_light_idx = np.where(vr_data.trial_count == i)[0]
             action_labels[default_light_idx, 0] = ActionLabels.default_light
+        # >>>> light default reward >>>>
 
-        # punished
-        punished_idx = vr_data.index[in_white]
+        # >>>> punished >>>>
         # punished light
-        punished_light = light_trials.reindex(punished_idx).dropna()
+        punished_light = vr_data[trial_light & no_nan & in_white]
         punished_light_id = punished_light.trial_count.unique()
         for i in punished_light_id:
             punished_light_idx = np.where(vr_data.trial_count == i)[0]
             action_labels[punished_light_idx, 0] = ActionLabels.punished_light
 
         # punished dark
-        punished_dark = dark_trials.reindex(punished_idx).dropna()
+        punished_dark = vr_data[trial_dark & no_nan & in_white]
         punished_dark_id = punished_dark.trial_count.unique()
         for i in punished_dark_id:
             punished_dark_idx = np.where(vr_data.trial_count == i)[0]
             action_labels[punished_dark_idx, 0] = ActionLabels.punished_dark
+        # <<<< punished <<<<
 
+        assert 0
         # map reward zone
-        in_zone = (vr_data.position_in_tunnel >= vr.reward_zone_start)\
-            & (vr_data.position_in_tunnel <= vr.reward_zone_end)
+        in_zone = ~pre_zone & ~post_zone
         # get in reward zone index
         in_zone_idx = vr_data[in_zone].index
         # get reward type while in reward zone
