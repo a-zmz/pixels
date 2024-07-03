@@ -31,6 +31,7 @@ import spikeinterface.extractors as se
 import spikeinterface.sorters as ss
 import spikeinterface.curation as sc
 import spikeinterface.exporters as sexp
+import spikeinterface.preprocessing as spre
 import spikeinterface.postprocessing as spost
 from scipy import interpolate
 from tables import HDF5ExtError
@@ -45,6 +46,15 @@ if TYPE_CHECKING:
 BEHAVIOUR_HZ = 25000
 
 np.random.seed(BEHAVIOUR_HZ)
+
+# set si job_kwargs
+job_kwargs = dict(
+    n_jobs=-1,
+    chunk_duration='1s',
+    progress_bar=True,
+)
+
+si.set_global_job_kwargs(**job_kwargs)
 
 
 def _cacheable(method):
@@ -189,11 +199,11 @@ class Behaviour(ABC):
         self.drop_data()
 
         self.spike_meta = [
-            ioutils.read_meta(self.find_file(f['spike_meta'], copy=True)) for f in self.files
+            ioutils.read_meta(self.find_file(f['spike_meta'], copy=False)) for f in self.files
         ]
-        #self.lfp_meta = [
-        #    ioutils.read_meta(self.find_file(f['lfp_meta'], copy=False)) for f in self.files
-        #]
+        self.lfp_meta = [
+            ioutils.read_meta(self.find_file(f['lfp_meta'], copy=False)) for f in self.files
+        ]
 
         # environmental variable PIXELS_CACHE={0,1} can be {disable,enable} cache
         self.set_cache(bool(int(os.environ.get("PIXELS_CACHE", 1))))
@@ -202,6 +212,9 @@ class Behaviour(ABC):
         """
         Clear attributes that store data to clear some memory.
         """
+        # assume each pixels session only has one behaviour session, no matter
+        # number of probes
+        #self._action_labels = None
         self._action_labels = [None] * len(self.files)
         self._behavioural_data = [None] * len(self.files)
         self._spike_data = [None] * len(self.files)
@@ -241,6 +254,9 @@ class Behaviour(ABC):
         Load probe depth in um from file if it has been recorded.
         """
         for stream_num, depth in enumerate(self._probe_depths):
+            # TODO jun 12 2024 skip stream 1 for now
+            if stream_num > 0:
+                continue
             if depth is None:
                 try:
                     depth_file = self.processed / 'depth.txt'
@@ -249,7 +265,9 @@ class Behaviour(ABC):
                                                           fd.readlines()][0]
                 except:
                     depth_file = self.processed / self.files[stream_num]["depth_info"]
-                    self._probe_depths[stream_num] = json.load(open(depth_file, mode="r"))["clustering"]
+                    #self._probe_depths[stream_num] = json.load(open(depth_file, mode="r"))["clustering"]
+                    self._probe_depths[stream_num] = json.load(
+                            open(depth_file, mode="r"))["manipulator"]
                 else:
                     msg = f": Can't load probe depth: please add it in um to\
                     \nprocessed/{self.name}/depth.txt, or save it with other depth related\
@@ -611,49 +629,54 @@ class Behaviour(ABC):
         for rec_num, recording in enumerate(self.files):
             print(f">>>>> Processing LFP for recording {rec_num + 1} of {len(self.files)}")
 
-            data_file = self.find_file(recording['lfp_data'])
-            orig_rate = self.lfp_meta[rec_num]['imSampRate']
-            num_chans = self.lfp_meta[rec_num]['nSavedChans']
-
-            print("> Mapping LFP data")
-            data = ioutils.read_bin(data_file, num_chans)
-
             output = self.processed / recording['lfp_processed']
             if output.exists():
                 continue
 
+            data_file = self.find_file(recording['lfp_data'])
+            orig_rate = int(self.lfp_meta[rec_num]['imSampRate'])
+            num_chans = int(self.lfp_meta[rec_num]['nSavedChans'])
+
+            print("> Mapping LFP data")
+            data = se.read_binary(data_file, orig_rate, np.int16, num_chans-1)
+            #data = ioutils.read_bin(data_file, num_chans)
+
             print("> Performing median subtraction across channels for each timepoint")
-            subtracted = signal.median_subtraction(data, axis=1)
+            #subtracted = signal.median_subtraction(data, axis=1)
+            cmred = spre.common_reference(data)
 
             print(f"> Downsampling to {self.sample_rate} Hz")
-            downsampled = signal.resample(subtracted, orig_rate, self.sample_rate, False)
-            sync_chan = downsampled[:, -1]
-            downsampled = downsampled[:, :-1]
+            #downsampled = signal.resample(subtracted, orig_rate, self.sample_rate, False)
+            downsampled = spre.resample(cmred, self.sample_rate)
+            # get traces
+            downsampled = downsampled.get_traces()
 
-            if self._lag[rec_num] is None:
-                self.sync_data(rec_num, sync_channel=data[:, -1])
-            lag_start, lag_end = self._lag[rec_num]
+            # TODO jun 10 2024 to get sync channel here and find lag?
+            #sync_chan = downsampled[:, -1]
+            #downsampled = downsampled[:, :-1]
+
+            #if self._lag[rec_num] is None:
+            #    self.sync_data(rec_num, sync_channel=data[:, -1])
+            #lag_start, lag_end = self._lag[rec_num]
 
             sd = self.processed / recording['lfp_sd']
             if sd.exists():
                 continue
 
-            SDs = []
-            for i in range(downsampled.shape[1]):
-                SDs.append(np.std(downsampled[:, i]))
+            SDs = np.std(downsampled, axis=0)
             results = dict(
                 median=np.median(SDs),
-                SDs=SDs,
+                SDs=SDs.tolist(),
             )
             print(f"> Saving standard deviation (and their median) of each channel")
             with open(sd, 'w') as fd:
                 json.dump(results, fd)
 
-            if lag_end < 0:
-                data = data[:lag_end]
-            if lag_start < 0:
-                data = data[- lag_start:]
-            print(f"> Saving median subtracted & downsampled LFP to {output}")
+            #if lag_end < 0:
+            #    data = data[:lag_end]
+            #if lag_start < 0:
+            #    data = data[- lag_start:]
+            #print(f"> Saving median subtracted & downsampled LFP to {output}")
             # save in .npy format
             np.save(
                 file=output,
@@ -700,18 +723,26 @@ class Behaviour(ABC):
             #_dir = self.interim
 
         if args == None:
+            #args = f"-no_run_fld\
+            #    -g=0,9\
+            #    -t=0,9\
+            #    -prb=0:1\
+            #    -prb_miss_ok\
+            #    -ap\
+            #    -lf\
+            #    -apfilter=butter,12,300,9000\
+            #    -lffilter=butter,12,0.5,300\
+            #    -xd=2,0,384,6,350,160\
+            #    -gblcar\
+            #    -gfix=0.2,0.1,0.02"
             args = f"-no_run_fld\
-                -g=0,9\
-                -t=0,9\
-                -prb=0:1\
+                -g=0\
+                -t=0\
+                -prb=0\
                 -prb_miss_ok\
                 -ap\
-                -lf\
-                -apfilter=butter,12,300,9000\
-                -lffilter=butter,12,0.5,300\
-                -xd=2,0,384,6,350,160\
-                -gblcar\
-                -gfix=0.2,0.1,0.02"
+                -xd=2,0,384,6,20,15\
+                -xid=2,0,384,6,20,15"
 
         session_args = f"-dir={self.interim} -run={self.name} -dest={self.interim} " + args
         print(f"\ncatgt args of {self.name}: \n{session_args}")
@@ -787,17 +818,18 @@ class Behaviour(ABC):
         """
         streams = {}
         # set chunks for spikeinterface operations
-        job_kwargs = dict(
-            n_jobs=-3, # -1: num of job equals num of cores
-            chunk_duration="1s",
-            progress_bar=True,
-        )
+        #job_kwargs = dict(
+        #    n_jobs=-3, # -1: num of job equals num of cores
+        #    chunk_duration="1s",
+        #    progress_bar=True,
+        #)
 
         #concat_rec, output = self.load_recording()
         #assert 0
         #TODO: jan 3 see if ks can run normally now using load_recording()
 
         self.run_catgt(CatGT_app=CatGT_app)
+        assert 0
 
         for _, files in enumerate(self.files):
             if not CatGT_app == None:
@@ -1637,9 +1669,8 @@ class Behaviour(ABC):
 
         return spike_times[0]
 
-    def _get_aligned_spike_times(
-        self, label, event, duration, rate=False, sigma=None, units=None
-    ):
+    def _get_aligned_spike_times(self, label, event, duration, rate=False,
+                                 sigma=None, units=None, end_event=None):
         """
         Returns spike times for each unit within a given time window around an event.
         align_trials delegates to this function, and should be used for getting aligned
@@ -1656,21 +1687,38 @@ class Behaviour(ABC):
         spikes = self._get_spike_times()[units]
         # Convert to ms (self.sample_rate)
         spikes /= int(self.spike_meta[0]['imSampRate']) / self.sample_rate
+        # get index of spike times in data in sample_rate Hz too
+        spikes_idx = spikes * self.sample_rate
 
-        if rate:
+        if rate & (type(duration) != str):
             # pad ends with 1 second extra to remove edge effects from convolution
             duration += 2
+            half = int((self.sample_rate * duration) / 2)
+            scan_duration = self.sample_rate * 8
 
-        scan_duration = self.sample_rate * 8
-        half = int((self.sample_rate * duration) / 2)
         cursor = 0  # In sample points
         i = -1
         rec_trials = {}
 
+        # since each session has one behaviour session, now only one action
+        # label file
+        actions = action_labels[:, 0]
+        events = action_labels[:, 1]
+        # select trials
+        selected_trials = np.where(np.bitwise_and(actions, label))[0]
+        # map starts by event
+        starts = np.where(np.bitwise_and(events, event))[0]
+        ends = np.where(np.bitwise_and(events, end_event))[0]
+        assert 0
+        # TODO jul 3 2024 continue here!!!!
+
+
         for rec_num in range(len(self.files)):
-            actions = action_labels[rec_num][:, 0]
-            events = action_labels[rec_num][:, 1]
-            trial_starts = np.where(np.bitwise_and(actions, label))[0]
+            # TODO jun 12 2024 skip other streams for now
+            if rec_num > 0:
+                continue
+            #actions = action_labels[rec_num][:, 0]
+            #events = action_labels[rec_num][:, 1]
 
             # Account for multiple raw data files
             meta = self.spike_meta[rec_num]
@@ -1794,6 +1842,10 @@ class Behaviour(ABC):
             widths = None
 
         for stream_num, info in enumerate(cluster_info):
+            # TODO jun 12 2024 skip stream 1 for now
+            if stream_num > 0:
+                continue
+
             id_key = 'id' if 'id' in info else 'cluster_id'
             grouping = 'KSLabel' if uncurated else 'group'
 
@@ -1830,7 +1882,7 @@ class Behaviour(ABC):
         raw = []
         meta = getattr(self, f"{kind}_meta")
         for rec_num, recording in enumerate(self.files):
-            data_file = self.find_file(recording[f'{kind}_data'])
+            data_file = self.find_file(recording[f'{kind}_data'], copy=False)
             orig_rate = int(meta[rec_num]['imSampRate'])
             num_chans = int(meta[rec_num]['nSavedChans'])
             factor = orig_rate / self.sample_rate
@@ -1866,7 +1918,7 @@ class Behaviour(ABC):
     @_cacheable
     def align_trials(
         self, label, event, data='spike_times', raw=False, duration=1, sigma=None,
-        units=None, dlc_project=None, video_match=None,
+        units=None, dlc_project=None, video_match=None, end_event=None,
     ):
         """
         Get trials aligned to an event. This finds all instances of label in the action
@@ -1929,7 +1981,7 @@ class Behaviour(ABC):
             # we let a dedicated function handle aligning spike times
             return self._get_aligned_spike_times(
                 label, event, duration, rate=data == "spike_rate", sigma=sigma,
-                units=units
+                units=units, end_event=end_event,
             )
 
         if data == "motion_tracking" and not dlc_project:
@@ -2063,6 +2115,7 @@ class Behaviour(ABC):
             trial_starts = np.where(np.bitwise_and(actions, label))[0]
 
             behavioural_data = ioutils.read_tdms(self.find_file(recording['behaviour']))
+            assert 0
             behavioural_data = behavioural_data["/'CamFrames'/'0'"]
             behav_array = signal.resample(behavioural_data.values, 25000, self.sample_rate)
             behavioural_data.iloc[:len(behav_array)] = np.squeeze(behav_array)
@@ -2223,12 +2276,12 @@ class Behaviour(ABC):
 
         #TODO: implement spikeinterface waveform extraction
         elif method == 'spikeinterface':
-            # set chunks
-            job_kwargs = dict(
-                n_jobs=-3, # -1: num of job equals num of cores
-                chunk_duration="1s",
-                progress_bar=True,
-            )
+            ## set chunks
+            #job_kwargs = dict(
+            #    n_jobs=-3, # -1: num of job equals num of cores
+            #    chunk_duration="1s",
+            #    progress_bar=True,
+            #)
             recording, _ = self.load_recording()
             #TODO: with multiple streams, spike times will be a list with multiple dfs,
             #make sure put old code under loop of stream so it does not break!
