@@ -37,19 +37,19 @@ class ActionLabels:
     # TODO jun 7 2024 does the name "action" make sense?
 
     # triggered vr trials
-    miss_light = 1 << 0
-    miss_dark = 1 << 1
-    triggered_light = 1 << 2
-    triggered_dark = 1 << 3
-    punished_light = 1 << 4
-    punished_dark = 1 << 5
+    miss_light = 1 << 0 # 1
+    miss_dark = 1 << 1 # 2
+    triggered_light = 1 << 2 # 4
+    triggered_dark = 1 << 3 # 8
+    punished_light = 1 << 4 # 16
+    punished_dark = 1 << 5 # 32
 
     # given reward
-    default_light = 1 << 6
-    auto_light = 1 << 7
-    auto_dark = 1 << 8
-    reinf_light = 1 << 9
-    reinf_dark = 1 << 10
+    default_light = 1 << 6 # 64
+    auto_light = 1 << 7 # 128
+    auto_dark = 1 << 8 # 256
+    reinf_light = 1 << 9 # 512
+    reinf_dark = 1 << 10 # 1024
 
     # combos
     miss = miss_light | miss_dark
@@ -73,15 +73,15 @@ class Events:
     Events can be added on top of each other.
     """
     # vr events
-    gray_on = 1 << 1
-    gray_off = 1 << 2
-    light_on = 1 << 3
-    light_off = 1 << 4
-    dark_on = 1 << 5
-    dark_off = 1 << 6
-    punish_on = 1 << 7
-    punish_off = 1 << 8
-    session_end = 1 << 9
+    gray_on = 1 << 1 # 2
+    gray_off = 1 << 2 # 4
+    light_on = 1 << 3 # 8
+    light_off = 1 << 4 # 16
+    dark_on = 1 << 5 # 32
+    dark_off = 1 << 6 # 64
+    punish_on = 1 << 7 # 128
+    punish_off = 1 << 8 # 256
+    session_end = 1 << 9 # 512
     # NOTE if use this event to mark trial ending, begin of the first trial
     # needs to be excluded
     trial_end = gray_on | punish_on
@@ -97,18 +97,17 @@ class Events:
     reward_zone = 1 << 17 # 460 - 495 cm
 
     # sensors
-    valve_open = 1 << 18
-    valve_closed = 1 << 19
-    licked = 1 << 20
+    valve_open = 1 << 18 # 262144
+    valve_closed = 1 << 19 # 524288
+    licked = 1 << 20 # 1048576
     #run_start = 1 << 12
     #run_stop = 1 << 13
 
 
-# convert the trial data into Actions and Events
-_action_map = {
+# map trial outcome
+_outcome_map = {
     Outcome.ABORTED_DARK: "miss_dark",
     Outcome.ABORTED_LIGHT: "miss_light",
-    Outcome.NONE: "miss",
     Outcome.TRIGGERED: "triggered",
     Outcome.AUTO_LIGHT: "auto_light",
     Outcome.DEFAULT: "default_light",
@@ -117,7 +116,8 @@ _action_map = {
     Outcome.REINF_DARK: "reinf_dark",
 }
 
-
+# function to look up trial type
+trial_type_lookup = {v: k for k, v in vars(Trial_Type).items()}
 
 class VR(Behaviour):
 
@@ -126,24 +126,18 @@ class VR(Behaviour):
         action_labels = np.zeros((vr_data.shape[0], 2), dtype=np.int32)
 
         # >>>> definitions >>>>
-        # TODO july 2 2024 no need to dropna here since already removed in
-        # processing
-        # make sure position is not nan
-        no_nan = (~vr_data.position_in_tunnel.isna())
         # define in gray
         in_gray = (vr_data.world_index == World.GRAY)
         # define in dark
         in_dark = (vr_data.world_index == World.DARK_5)\
                 | (vr_data.world_index == World.DARK_2_5)\
-                | (vr_data.world_index == World.DARK_FULL)\
-                & no_nan
+                | (vr_data.world_index == World.DARK_FULL)
         # define in white
         in_white = (vr_data.world_index == World.WHITE)
         # define in tunnel
-        in_tunnel = ~in_gray & ~in_white & no_nan
+        in_tunnel = ~in_gray & ~in_white
         # define in light
-        in_light = (vr_data.world_index == World.TUNNEL)\
-                & no_nan
+        in_light = (vr_data.world_index == World.TUNNEL)
         # define light & dark trials
         trial_light = (vr_data.trial_type == Trial_Type.LIGHT)
         trial_dark = (vr_data.trial_type == Trial_Type.DARK)
@@ -151,7 +145,6 @@ class VR(Behaviour):
 
         print(">> Mapping vr event times...")
 
-        assert 0
         # >>>> gray >>>>
         # get gray_on times, i.e., trial starts
         gray_idx = vr_data.world_index[in_gray].index
@@ -257,121 +250,65 @@ class VR(Behaviour):
 
         print(">> Mapping vr action times...")
 
-        # map trial types
-        light_trials = vr_data[trial_light & no_nan]
-        dark_trials = vr_data[trial_dark & no_nan]
+        # >>>> map reward types >>>>
+        # get non-zero reward types
+        reward_not_none = (vr_data.reward_type != Outcome.NONE)
 
-        # map pre-reward zone
-        pre_zone = (vr_data.position_in_tunnel < vr.reward_zone_start)
-        # map post-reward zone
-        post_zone = (vr_data.position_in_tunnel > vr.reward_zone_end)
-        # get in reward zone index
-        pre_zone_idx = vr_data[pre_zone].index
-        # get reward type while in reward zone
-        pre_reward_type = vr_data.reward_type.loc[pre_zone_idx]
+        for t, trial in enumerate(vr_data.trial_count.unique()):
+            # get current trial
+            of_trial = (vr_data.trial_count == trial)
+            # get index of current trial
+            trial_idx = np.where(of_trial)[0]
+            # find where is non-zero reward type in current trial
+            reward_typed = vr_data[of_trial & reward_not_none]
+            # get trial type of current trial
+            trial_type = int(vr_data[of_trial].trial_type.unique())
+            # get name of trial type in string
+            trial_type_str = trial_type_lookup.get(trial_type).lower()
 
-        # >>>> light default reward >>>>
-        # default reward light trials
-        default_light = pre_reward_type.index[pre_reward_type == Outcome.DEFAULT]
-        default_light_id = light_trials.trial_count.loc[default_light].unique()
-        for i in default_light_id:
-            default_light_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[default_light_idx, 0] = ActionLabels.default_light
-        # >>>> light default reward >>>>
+            # >>>> punished >>>>
+            if (reward_typed.size == 0)\
+                & (vr_data[of_trial & in_white].size != 0):
+                # punished outcome
+                outcome = f"punished_{trial_type_str}"
+                action_labels[trial_idx, 0] = getattr(ActionLabels, outcome)
+            # <<<< punished <<<<
+            else:
+                # >>>> non punished >>>>
+                # get non-zero reward type in current trial
+                reward_type = int(reward_typed.reward_type.unique())
+                # double check reward_type is in outcome map
+                assert (reward_type in _outcome_map)
 
-        # >>>> punished >>>>
-        # punished light
-        punished_light = vr_data[trial_light & no_nan & in_white]
-        punished_light_id = punished_light.trial_count.unique()
-        for i in punished_light_id:
-            punished_light_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[punished_light_idx, 0] = ActionLabels.punished_light
+                """ triggered """
+                # catch triggered trials and separate trial types
+                if reward_type == Outcome.TRIGGERED:
+                    outcome = f"{_outcome_map[reward_type]}_{trial_type_str}"
+                else:
+                    """ given & aborted """
+                    outcome = _outcome_map[reward_type]
+                # label outcome
+                action_labels[trial_idx, 0] = getattr(ActionLabels, outcome)
+                # <<<< non punished <<<<
 
-        # punished dark
-        punished_dark = vr_data[trial_dark & no_nan & in_white]
-        punished_dark_id = punished_dark.trial_count.unique()
-        for i in punished_dark_id:
-            punished_dark_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[punished_dark_idx, 0] = ActionLabels.punished_dark
-        # <<<< punished <<<<
-
+                # >>>> non aborted, valve only >>>>
+                # if not aborted, map valve open & closed
+                if reward_type > Outcome.NONE:
+                    # map valve open
+                    valve_open_idx = vr_data.index.get_indexer([reward_typed.index[0]])
+                    action_labels[valve_open_idx, 1] += Events.valve_open
+                    # map valve closed
+                    valve_closed_idx = vr_data.index.get_indexer(
+                        [reward_typed.index[-1]+1]
+                    )
+                    action_labels[valve_closed_idx, 1] += Events.valve_closed
+                # <<<< non aborted, valve only <<<<
+        # <<<< map reward types <<<<
         assert 0
-        # map reward zone
-        in_zone = ~pre_zone & ~post_zone
-        # get in reward zone index
-        in_zone_idx = vr_data[in_zone].index
-        # get reward type while in reward zone
-        reward_type = vr_data.reward_type.loc[in_zone_idx]
-
-        # triggered
-        triggered_idx = reward_type.index[reward_type == Outcome.TRIGGERED]
-        # triggered light trials
-        triggered_light = light_trials.reindex(triggered_idx).dropna()
-        triggered_light_id = triggered_light.trial_count.unique()
-        for i in triggered_light_id:
-            trig_light_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[trig_light_idx, 0] = ActionLabels.triggered_light
-
-        # automatically rewarded light trials
-        auto_light = reward_type.index[reward_type == Outcome.AUTO_LIGHT]
-        auto_light_id = light_trials.trial_count.loc[auto_light].unique()
-        for i in auto_light_id:
-            auto_light_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[auto_light_idx, 0] = ActionLabels.auto_light
-
-        # reinforcement reward light trials
-        reinf_light = reward_type.index[reward_type == Outcome.REINF_LIGHT]
-        reinf_light_id = light_trials.trial_count.loc[reinf_light].unique()
-        for i in reinf_light_id:
-            reinf_light_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[reinf_light_idx, 0] = ActionLabels.reinf_light
-
-        # triggered dark trials
-        triggered_dark = dark_trials.reindex(triggered_idx).dropna()
-        triggered_dark_id = triggered_dark.trial_count.unique()
-        for i in triggered_dark_id:
-            trig_dark_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[trig_dark_idx, 0] = ActionLabels.triggered_dark
-
-        # automatically rewarded dark trials
-        auto_dark = reward_type.index[reward_type == Outcome.AUTO_DARK]
-        auto_dark_id = dark_trials.trial_count.loc[auto_dark].unique()
-        for i in auto_dark_id:
-            auto_dark_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[auto_dark_idx, 0] = ActionLabels.auto_dark
-
-        # reinforcement reward dark trials
-        reinf_dark = reward_type.index[reward_type == Outcome.REINF_DARK]
-        reinf_dark_id = dark_trials.trial_count.loc[reinf_dark].unique()
-        for i in reinf_dark_id:
-            reinf_dark_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[reinf_dark_idx, 0] = ActionLabels.reinf_dark
-
-        # after reward zone before trial resets
-        pass_zone = (vr_data.position_in_tunnel > vr.reward_zone_end)\
-            & (vr_data.position_in_tunnel <= vr.tunnel_length)
-        # get passed reward zone index
-        pass_zone_idx = vr_data[pass_zone].index
-        end_reward_type = vr_data.reward_type.loc[pass_zone_idx]
-
-        # missed light trials
-        miss_light = end_reward_type[end_reward_type ==
-                                 Outcome.ABORTED_LIGHT].index.values
-        miss_light_id = vr_data.trial_count.loc[miss_light].unique()
-        for i in miss_light_id:
-            miss_light_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[miss_light_idx, 0] = ActionLabels.miss_light
-
-        # missed dark trials
-        miss_dark = end_reward_type[end_reward_type ==
-                                Outcome.ABORTED_DARK].index.values
-        miss_dark_id = vr_data.trial_count.loc[miss_dark].unique()
-        for i in miss_dark_id:
-            miss_dark_idx = np.where(vr_data.trial_count == i)[0]
-            action_labels[miss_dark_idx, 0] = ActionLabels.miss_dark
 
         # put pixels timestamps in the third column
         action_labels = np.column_stack((action_labels, vr_data.index.values))
+        assert 0
 
         return action_labels
 
