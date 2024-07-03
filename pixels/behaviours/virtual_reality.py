@@ -304,11 +304,9 @@ class VR(Behaviour):
                     action_labels[valve_closed_idx, 1] += Events.valve_closed
                 # <<<< non aborted, valve only <<<<
         # <<<< map reward types <<<<
-        assert 0
 
         # put pixels timestamps in the third column
         action_labels = np.column_stack((action_labels, vr_data.index.values))
-        assert 0
 
         return action_labels
 
