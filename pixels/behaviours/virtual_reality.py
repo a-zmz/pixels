@@ -2,6 +2,7 @@
 This module provides reach task specific operations.
 """
 
+# TODO july 3 2024 is this description true????
 # NOTE: for event alignment, we align to the first timepoint when the event
 # starts, and the last timepoint before the event ends, i.e., think of an event
 # as a train of 0s and 1s, we align to the first 1s and the last 1s of a given
@@ -84,7 +85,8 @@ class Events:
     session_end = 1 << 9 # 512
     # NOTE if use this event to mark trial ending, begin of the first trial
     # needs to be excluded
-    trial_end = gray_on | punish_on
+    # TODO jul 3 2024 trial start & end is not properly defined
+    trial_end = gray_on | punish_on | session_end
 
     # positional events
     black = 1 << 10 # 0 - 60 cm

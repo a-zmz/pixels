@@ -1708,9 +1708,9 @@ class Behaviour(ABC):
         selected_trials = np.where(np.bitwise_and(actions, label))[0]
         # map starts by event
         starts = np.where(np.bitwise_and(events, event))[0]
-        ends = np.where(np.bitwise_and(events, end_event))[0]
         assert 0
         # TODO jul 3 2024 continue here!!!!
+        ends = np.where(np.bitwise_and(events, end_event))[0]
 
 
         for rec_num in range(len(self.files)):
