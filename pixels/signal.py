@@ -6,6 +6,9 @@ This module provides functions that operate on signal data.
 import time
 from pathlib import Path
 
+import multiprocessing as mp
+from joblib import Parallel, delayed
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -76,6 +79,28 @@ def resample(array, from_hz, to_hz, poly=True, padtype=None):
     chunks = int(np.ceil(size_bytes / 5368709120))
     chunk_size = int(np.ceil(cols / chunks))
 
+    # get index & chunk data
+    #chunk_indices = [(i, min(i + chunk_size, cols)) for i in range(0, cols, chunk_size)]
+    #chunks_data = [array[:, start:end] for start, end in chunk_indices]
+    # get number of processes/jobs
+    #n_processes = mp.cpu_count() - 2
+    # initiate a mp pool
+    #pool = mp.Pool(n_processes)
+    ## does resample for each chunk
+    #results = pool.starmap(
+    #    _resample_chunk, 
+    #    [(chunk, up, down, poly, padtype) for chunk in chunks_data],
+    #)
+
+    ## stop adding task to pool
+    #pool.close()
+    ## wait till all tasks in pool completed
+    #pool.join()
+    #results = Parallel(n_jobs=-1)(
+    #    delayed(_resample_chunk)(chunk, up, down, poly, padtype) for chunk in chunks_data
+    #)
+    #print(">> mapped chunk data to pool...")
+
     if chunks > 1:
         print(f"    0%", end="\r")
     current = 0
@@ -100,9 +125,25 @@ def resample(array, from_hz, to_hz, poly=True, padtype=None):
         new_data.append(result)
         current += chunk_size
         print(f"    {100 * current / cols:.1f}%", end="\r")
+    #new_data = np.concatenate(results, axis=1).squeeze()
     
     return  np.concatenate(new_data, axis=1).squeeze()#.astype(np.int16)
+    #return  new_data
 
+
+def _resample_chunk(chunk_data, up, down, poly, padtype):
+    if poly:
+        result = scipy.signal.resample_poly(
+            chunk_data, up, down, axis=0, padtype=padtype or 'minimum',
+        )
+    else:
+        samp_num = int(np.ceil(
+            chunk_data.shape[0] * (up / down)
+        ))
+        result = scipy.signal.resample(
+            chunk_data, samp_num, axis=0
+        )
+    return result
 
 def binarise(data):
     """
@@ -197,7 +238,7 @@ def find_sync_lag(array1, array2, plot=False):
         if plot.exists():
             plot = plot.with_name(plot.stem + '_' + time.strftime('%y%m%d-%H%M%S') + '.png')
         fig, axes = plt.subplots(nrows=2, ncols=1)
-        plot_length = min(length, 5000)
+        plot_length = min(length, 30000)
         if lag >= 0:
             axes[0].plot(array1[lag:lag + plot_length])
             axes[1].plot(array2[:plot_length])
