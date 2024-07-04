@@ -2,11 +2,10 @@
 This module provides reach task specific operations.
 """
 
-# TODO july 3 2024 is this description true????
 # NOTE: for event alignment, we align to the first timepoint when the event
 # starts, and the last timepoint before the event ends, i.e., think of an event
 # as a train of 0s and 1s, we align to the first 1s and the last 1s of a given
-# event.
+# event, except for licks since it could only be on or off per frame.
 
 from __future__ import annotations
 
@@ -74,6 +73,7 @@ class Events:
     Events can be added on top of each other.
     """
     # vr events
+    trial_start = 1 << 0 # 1
     gray_on = 1 << 1 # 2
     gray_off = 1 << 2 # 4
     light_on = 1 << 3 # 8
@@ -82,11 +82,7 @@ class Events:
     dark_off = 1 << 6 # 64
     punish_on = 1 << 7 # 128
     punish_off = 1 << 8 # 256
-    session_end = 1 << 9 # 512
-    # NOTE if use this event to mark trial ending, begin of the first trial
-    # needs to be excluded
-    # TODO jul 3 2024 trial start & end is not properly defined
-    trial_end = gray_on | punish_on | session_end
+    trial_end = 1 << 9 # 512
 
     # positional events
     black = 1 << 10 # 0 - 60 cm
@@ -148,9 +144,9 @@ class VR(Behaviour):
         print(">> Mapping vr event times...")
 
         # >>>> gray >>>>
-        # get gray_on times, i.e., trial starts
+        # get timestamps of gray
         gray_idx = vr_data.world_index[in_gray].index
-        # grays
+        # get first grays
         grays = np.where(gray_idx.diff() != 1)[0]
 
         # find time for first frame of gray
@@ -166,13 +162,13 @@ class VR(Behaviour):
         action_labels[gray_off, 1] += Events.gray_off
         # <<<< gray <<<<
 
-        # >>>> white >>>>
-        # get punish_on times
+        # >>>> punishment >>>>
+        # get timestamps of punishment 
         punish_idx = vr_data[in_white].index
-        # punishes
+        # get first punishment
         punishes = np.where(punish_idx.diff() != 1)[0]
 
-        # find time for first frame of punish
+        # find time for first frame of punishment
         punish_on_t = punish_idx[punishes]
         # find their index in vr data
         punish_on = vr_data.index.get_indexer(punish_on_t)
@@ -183,7 +179,22 @@ class VR(Behaviour):
         # find their index in vr data
         punish_off = vr_data.index.get_indexer(punish_off_t)
         action_labels[punish_off, 1] += Events.punish_off
-        # <<<< white <<<<
+        # <<<< punishment <<<<
+
+        # >>>> trial ends >>>>
+        # trial ends right before punishment starts
+        action_labels[punish_on-1, 1] += Events.trial_end
+
+        # for non punished trials, right before gray on is when trial ends, and
+        # the last frame of the session
+        pre_gray_on_idx = np.append(gray_on[1:] - 1, vr_data.shape[0] - 1)
+        pre_gray_on = vr_data.iloc[pre_gray_on_idx]
+        # drop punish_off times
+        no_punished_t = pre_gray_on.drop(punish_off_t).index
+        # get index of trial ends in non punished trials
+        no_punished_idx = vr_data.index.get_indexer(no_punished_t)
+        action_labels[no_punished_idx, 1] += Events.trial_end
+        # <<<< trial ends <<<<
 
         # >>>> light >>>>
         # get index of data in light tunnel
@@ -203,6 +214,8 @@ class VR(Behaviour):
         trial_starts = light_on[np.where(
             vr_data.iloc[light_on].position_in_tunnel % start_interval == 0
         )[0]]
+        # label trial starts
+        action_labels[trial_starts, 1] += Events.trial_start
 
         if not trial_starts.size == vr_data.trial_count.max():
             raise PixelsError(f"Number of trials does not equal to\
@@ -237,11 +250,6 @@ class VR(Behaviour):
         dark_off = vr_data.index.get_indexer(dark_off_t)
         action_labels[dark_off, 1] += Events.dark_off
         # <<<< dark <<<<
-
-        # >>>> session ends >>>>
-        session_end = vr_data.shape[0] - 1
-        action_labels[session_end, 1] += Events.session_end
-        # <<<< session ends <<<<
 
         # >>>> licks >>>>
         licked_idx = np.where(vr_data.lick_count == 1)[0]
@@ -301,7 +309,7 @@ class VR(Behaviour):
                     action_labels[valve_open_idx, 1] += Events.valve_open
                     # map valve closed
                     valve_closed_idx = vr_data.index.get_indexer(
-                        [reward_typed.index[-1]+1]
+                        [reward_typed.index[-1]]
                     )
                     action_labels[valve_closed_idx, 1] += Events.valve_closed
                 # <<<< non aborted, valve only <<<<
