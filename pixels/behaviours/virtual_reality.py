@@ -36,6 +36,8 @@ class ActionLabels:
     """
     # TODO jun 7 2024 does the name "action" make sense?
 
+    # TODO jul 4 2024 only label trial type at the first frame of the trial to
+    # make it easier for alignment???
     # triggered vr trials
     miss_light = 1 << 0 # 1
     miss_dark = 1 << 1 # 2
