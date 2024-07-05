@@ -271,6 +271,8 @@ class VR(Behaviour):
             of_trial = (vr_data.trial_count == trial)
             # get index of current trial
             trial_idx = np.where(of_trial)[0]
+            # get start index of current trial
+            start_idx = trial_idx[np.isin(trial_idx, trial_starts)]
             # find where is non-zero reward type in current trial
             reward_typed = vr_data[of_trial & reward_not_none]
             # get trial type of current trial
@@ -284,6 +286,7 @@ class VR(Behaviour):
                 # punished outcome
                 outcome = f"punished_{trial_type_str}"
                 action_labels[trial_idx, 0] = getattr(ActionLabels, outcome)
+                #action_labels[start_idx, 0] = getattr(ActionLabels, outcome)
             # <<<< punished <<<<
             else:
                 # >>>> non punished >>>>
@@ -301,6 +304,7 @@ class VR(Behaviour):
                     outcome = _outcome_map[reward_type]
                 # label outcome
                 action_labels[trial_idx, 0] = getattr(ActionLabels, outcome)
+                #action_labels[start_idx, 0] = getattr(ActionLabels, outcome)
                 # <<<< non punished <<<<
 
                 # >>>> non aborted, valve only >>>>
