@@ -14,7 +14,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.signal
-from scipy.ndimage import gaussian_filter1d
+from scipy.signal.windows import gaussian
+from scipy.ndimage import gaussian_filter1d, convolve1d
 
 from pixels import ioutils, PixelsError
 
@@ -267,6 +268,20 @@ def median_subtraction(data, axis=0):
     return data - np.median(data, axis=axis, keepdims=True)
 
 
+def convolve_1d(times, sigma):
+    kernel_size = int(sigma * 6)
+    kernel = gaussian(kernel_size, std=sigma)
+    assert 0
+    # TODO jul 5 2024 check computational neuroscience course work about
+    # spike rate convolution
+    n_kernel = kernel / np.sum(kernel)
+    convolved_df = times.apply(lambda x: convolve1d(x, kernel, mode='reflect'))
+
+    convolved = gaussian_filter1d(times, sigma, axis=0) * 1000
+
+    return df
+
+
 def convolve(times, duration, sigma=None):
     """
     Create a continuous signal from a set of spike times in milliseconds and convolve
@@ -289,10 +304,10 @@ def convolve(times, duration, sigma=None):
         sigma = 50
 
     # turn into array of 0s and 1s
-    times_arr = np.zeros((int(duration), len(times.columns)))
+    times_arr = np.zeros((duration.astype(int), len(times.columns)))
     for i, unit in enumerate(times):
         u_times = times[unit] + duration / 2
-        u_times = u_times[~np.isnan(u_times)].astype(np.int)
+        u_times = u_times[~np.isnan(u_times)].astype(int)
         try:
             times_arr[u_times, i] = 1
         except IndexError:
