@@ -1560,6 +1560,8 @@ class Behaviour(ABC):
         Returns the action labels, either from self._action_labels if they have been
         loaded already, or from file.
         """
+        # TODO jul 5 2024: only one action label for a session, make sure it
+        # does not error
         return self._get_processed_data("_action_labels", "action_labels")
 
     def get_behavioural_data(self):
@@ -1669,8 +1671,9 @@ class Behaviour(ABC):
 
         return spike_times[0]
 
-    def _get_aligned_spike_times(self, label, event, duration, rate=False,
-                                 sigma=None, units=None, end_event=None):
+    def _get_aligned_spike_times(
+        self, label, event, duration, rate=False, sigma=None, units=None
+    ):
         """
         Returns spike times for each unit within a given time window around an event.
         align_trials delegates to this function, and should be used for getting aligned
@@ -1687,38 +1690,21 @@ class Behaviour(ABC):
         spikes = self._get_spike_times()[units]
         # Convert to ms (self.sample_rate)
         spikes /= int(self.spike_meta[0]['imSampRate']) / self.sample_rate
-        # get index of spike times in data in sample_rate Hz too
-        spikes_idx = spikes * self.sample_rate
 
-        if rate & (type(duration) != str):
+        if rate:
             # pad ends with 1 second extra to remove edge effects from convolution
             duration += 2
-            half = int((self.sample_rate * duration) / 2)
-            scan_duration = self.sample_rate * 8
 
+        scan_duration = self.sample_rate * 8
+        half = int((self.sample_rate * duration) / 2)
         cursor = 0  # In sample points
         i = -1
         rec_trials = {}
 
-        # since each session has one behaviour session, now only one action
-        # label file
-        actions = action_labels[:, 0]
-        events = action_labels[:, 1]
-        # select trials
-        selected_trials = np.where(np.bitwise_and(actions, label))[0]
-        # map starts by event
-        starts = np.where(np.bitwise_and(events, event))[0]
-        assert 0
-        # TODO jul 3 2024 continue here!!!!
-        ends = np.where(np.bitwise_and(events, end_event))[0]
-
-
         for rec_num in range(len(self.files)):
-            # TODO jun 12 2024 skip other streams for now
-            if rec_num > 0:
-                continue
-            #actions = action_labels[rec_num][:, 0]
-            #events = action_labels[rec_num][:, 1]
+            actions = action_labels[rec_num][:, 0]
+            events = action_labels[rec_num][:, 1]
+            trial_starts = np.where(np.bitwise_and(actions, label))[0]
 
             # Account for multiple raw data files
             meta = self.spike_meta[rec_num]
@@ -1782,6 +1768,164 @@ class Behaviour(ABC):
             trials['time'] = pd.Series(timepoints, index=trials.index) / 1000
             trials = trials.set_index('time')
             trials = trials.iloc[self.sample_rate : - self.sample_rate]
+
+        return trials
+
+
+    def _get_aligned_trials(
+        self, label, event, end_event=None, sigma=None, bin_size=None,
+        units=None,
+    ):
+        """
+        Returns spike times for each unit within a given time window around an event.
+        align_trials delegates to this function, and should be used for getting aligned
+        data in scripts.
+        """
+        action_labels = self.get_action_labels()
+
+        if units is None:
+            units = self.select_units()
+
+        #TODO: with multiple streams, spike times will be a list with multiple dfs,
+        #make sure old code does not break!
+        #TODO: spike times cannot be indexed by unit ids anymore
+        spikes = self._get_spike_times()[units]
+        # Convert to ms (self.sample_rate)
+        spikes /= int(self.spike_meta[0]['imSampRate']) / self.sample_rate
+        # get index of spike times in data in sample_rate Hz too
+        spikes_idx = spikes * self.sample_rate
+
+        # since each session has one behaviour session, now only one action
+        # label file
+        actions = action_labels[:, 0]
+        events = action_labels[:, 1]
+        # get timestamps index of behaviour in pixels stream (ms)
+        timestamps = action_labels[:, 2]
+
+        # select frames of wanted trial type
+        #starts = np.where(np.bitwise_and(actions, label))[0]
+        trials = np.where(np.bitwise_and(actions, label))[0]
+        # map starts by event
+        starts = np.where(np.bitwise_and(events, event))[0]
+        # map starts by end event
+        ends = np.where(np.bitwise_and(events, end_event))[0]
+
+        # only take starts from selected trials
+        selected_starts = np.where(np.isin(trials, starts))[0]
+        start_t = timestamps[selected_starts]
+        # only take ends from selected trials
+        selected_ends = np.where(np.isin(trials, ends))[0]
+        end_t = timestamps[selected_ends]
+
+        # pad ends with 1 second extra to remove edge effects from convolution
+        scan_pad = self.sample_rate
+        scan_starts = start_t - scan_pad
+        scan_ends = end_t + scan_pad
+        scan_durations = scan_ends - scan_starts
+        # TODO jul 5 2024 CONTINUE HERE
+
+        #cursor = 0  # In sample points
+        #i = -1
+        rec_trials = {}
+
+        for rec_num in range(len(self.files)):
+            # TODO jun 12 2024 skip other streams for now
+            if rec_num > 0:
+                continue
+
+            # Account for multiple raw data files
+            meta = self.spike_meta[rec_num]
+            samples = int(meta["fileSizeBytes"]) / int(meta["nSavedChans"]) / 2
+            assert samples.is_integer()
+            milliseconds = samples / 30
+            cursor_duration = cursor / 30
+            rec_spikes = spikes[
+                (cursor_duration <= spikes) & (spikes < (cursor_duration + milliseconds))
+            ] - cursor_duration
+            cursor += samples
+
+            # Account for lag, in case the ephys recording was started before the
+            # behaviour
+            if not self._lag[rec_num] == None:
+                lag_start, _ = self._lag[rec_num]
+            else:
+                lag_start = action_labels[0, -1]
+
+            if lag_start < 0:
+                rec_spikes = rec_spikes + lag_start
+
+            for i, start in enumerate(selected_starts):
+                # select spike times of current trial
+                trial_bool = (rec_spikes >= scan_starts[i])\
+                            & (rec_spikes <= scan_ends[i])
+
+                trial = rec_spikes[trial_bool]
+
+                tdf = []
+
+                # initiate binary spike times array for current trial
+                times = np.zeros((scan_durations[i], len(units))).astype(int)
+                # use pixels time as spike index
+                idx = np.arange(scan_starts[i], scan_ends[i])
+                # make it df, column name being unit id
+                spiked = pd.DataFrame(times, index=idx, columns=units)
+
+                for unit in trial:
+                    # get spike time for unit
+                    u_times = trial[unit].values
+                    # drop nan
+                    u_times = u_times[~np.isnan(u_times)]
+
+                    # round spike times to use it as index
+                    u_spike_idx = np.round(u_times).astype(int)
+                    # make sure it does not exceed scan duration
+                    if (u_spike_idx >= scan_ends[i]).any():
+                        beyonds = np.where(u_spike_idx >= scan_ends[i])[0]
+                        u_spike_idx[beyonds] = idx[-1]
+                        # make sure no double counted
+                        u_spike_idx = np.unique(u_spike_idx)
+
+                    # set spiked to 1
+                    spiked.loc[u_spike_idx, unit] = 1
+
+                    #udf = pd.DataFrame({int(unit): u_times})
+                    #tdf.append(udf)
+
+                rates = signal.convolve_1d(
+                    times=spiked,
+                    sigma=sigma,
+                )
+                assert 0
+                # remove 1s padding from the start and end
+                rates = tdfc.iloc[scan_pad:\
+                                  -scan_pad].reset_index(inplace=True)
+                # convert index to datetime index for resampling
+                rates.index = pd.to_timedelta(rates.index, unit='ms')
+                # resample to 100ms bin
+                bin_rates = rates.resample(bin_size).mean()
+                # use numeric index
+                bin_rates.index = np.arange(0, len(bin_rates))
+
+                rec_trials[i] = bin_rates
+
+        if not rec_trials:
+            return None
+
+        trials = pd.concat(rec_trials, axis=1, names=["trial", "unit"])
+        trials = trials.reorder_levels(["unit", "trial"], axis=1)
+        trials = trials.sort_index(level=0, axis=1)
+
+        assert 0
+        # Set index to seconds and remove the padding 1 sec at each end
+        points = trials.shape[0]
+        scan_pad
+        start = (- duration / 2) + (duration / points)
+        # Having trouble with float values
+        #timepoints = np.linspace(start, duration / 2, points, dtype=np.float64)
+        timepoints = list(range(round(start * 1000), int(duration * 1000 / 2) + 1))
+        trials['time'] = pd.Series(timepoints, index=trials.index) / 1000
+        trials = trials.set_index('time')
+        trials = trials.iloc[self.sample_rate : - self.sample_rate]
 
         return trials
 
@@ -1919,6 +2063,7 @@ class Behaviour(ABC):
     def align_trials(
         self, label, event, data='spike_times', raw=False, duration=1, sigma=None,
         units=None, dlc_project=None, video_match=None, end_event=None,
+        bin_size=None,
     ):
         """
         Get trials aligned to an event. This finds all instances of label in the action
@@ -1972,6 +2117,8 @@ class Behaviour(ABC):
             'lfp',          # Raw/downsampled channels from probe (LFP)
             'motion_index', # Motion index per ROI from the video
             'motion_tracking', # Motion tracking coordinates from DLC
+            'trial_rate',   # Taking spike times from the whole duration of each
+                            # trial, convolve into spike rate
         ]
         if data not in data_options:
             raise PixelsError(f"align_trials: 'data' should be one of: {data_options}")
@@ -1981,7 +2128,15 @@ class Behaviour(ABC):
             # we let a dedicated function handle aligning spike times
             return self._get_aligned_spike_times(
                 label, event, duration, rate=data == "spike_rate", sigma=sigma,
-                units=units, end_event=end_event,
+                units=units,
+            )
+
+        if data == "trial_rate":
+            print(f"Aligning {data} to trials.")
+            # we let a dedicated function handle aligning spike times
+            return self._get_aligned_trials(
+                label, event, end_event=end_event, sigma=sigma,
+                bin_size=bin_size, units=units,
             )
 
         if data == "motion_tracking" and not dlc_project:
