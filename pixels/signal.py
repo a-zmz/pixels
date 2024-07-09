@@ -268,16 +268,42 @@ def median_subtraction(data, axis=0):
     return data - np.median(data, axis=axis, keepdims=True)
 
 
-def convolve_1d(times, sigma):
-    kernel_size = int(sigma * 6)
-    kernel = gaussian(kernel_size, std=sigma)
-    assert 0
-    # TODO jul 5 2024 check computational neuroscience course work about
-    # spike rate convolution
-    n_kernel = kernel / np.sum(kernel)
-    convolved_df = times.apply(lambda x: convolve1d(x, kernel, mode='reflect'))
+def convolve_spike_trains(times, sigma=100, size=10):
+    """
+    Convolve spike times data with 1D gaussian kernel to get spike rate.
 
-    convolved = gaussian_filter1d(times, sigma, axis=0) * 1000
+    Parameters
+    -------
+    times : pandas.DataFrame, time x units
+        Spike bool of units at each time point of a trial.
+        Dtype needs to be float, otherwise convolved results will be all 0.
+
+    sigma : float/int, optional
+        Time in milliseconds of sigma of gaussian kernel to use.
+        Default: 100 ms.
+
+    size : float/int, optional
+        Number of sigma for gaussian kernel to cover, i.e., size of the kernel
+        Default: 10.
+
+    """
+    # get kernel size in ms
+    kernel_size = int(sigma * size)
+    # get gaussian kernel
+    kernel = gaussian(kernel_size, std=sigma)
+    # normalise kernel to ensure that the total area under the Gaussian is 1
+    n_kernel = kernel / np.sum(kernel)
+
+    # convolve with gaussian
+    convolved = convolve1d(
+        input=times.values,
+        weights=n_kernel,
+        output=float,
+        mode='nearest',
+        axis=0,
+    ) * 1000 # rescale it to second
+
+    df = pd.DataFrame(convolved, columns=times.columns)
 
     return df
 
