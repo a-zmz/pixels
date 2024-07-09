@@ -1783,12 +1783,15 @@ class Behaviour(ABC):
         """
         action_labels = self.get_action_labels()
 
+        # define output path
+        output_path = self.interim/\
+                f'cache/{self.name}_{label}_{units}_fr_for_AL.npy'
+
         if units is None:
             units = self.select_units()
 
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
-        #TODO: spike times cannot be indexed by unit ids anymore
         spikes = self._get_spike_times()[units]
         # Convert to ms (self.sample_rate)
         spikes /= int(self.spike_meta[0]['imSampRate']) / self.sample_rate
@@ -1822,11 +1825,10 @@ class Behaviour(ABC):
         scan_starts = start_t - scan_pad
         scan_ends = end_t + scan_pad
         scan_durations = scan_ends - scan_starts
-        # TODO jul 5 2024 CONTINUE HERE
 
-        #cursor = 0  # In sample points
-        #i = -1
+        cursor = 0  # In sample points
         rec_trials = {}
+        bin_trials = {}
 
         for rec_num in range(len(self.files)):
             # TODO jun 12 2024 skip other streams for now
@@ -1861,10 +1863,10 @@ class Behaviour(ABC):
 
                 trial = rec_spikes[trial_bool]
 
-                tdf = []
-
                 # initiate binary spike times array for current trial
-                times = np.zeros((scan_durations[i], len(units))).astype(int)
+                # NOTE: dtype must be float otherwise would get all 0 when
+                # passing gaussian kernel
+                times = np.zeros((scan_durations[i], len(units))).astype(float)
                 # use pixels time as spike index
                 idx = np.arange(scan_starts[i], scan_ends[i])
                 # make it df, column name being unit id
@@ -1888,25 +1890,50 @@ class Behaviour(ABC):
                     # set spiked to 1
                     spiked.loc[u_spike_idx, unit] = 1
 
-                    #udf = pd.DataFrame({int(unit): u_times})
-                    #tdf.append(udf)
-
-                rates = signal.convolve_1d(
+                # convolve spike trains into spike rates
+                rates = signal.convolve_spike_trains(
                     times=spiked,
                     sigma=sigma,
                 )
-                assert 0
+                # keep the original index
+                rates.index = spiked.index
                 # remove 1s padding from the start and end
-                rates = tdfc.iloc[scan_pad:\
-                                  -scan_pad].reset_index(inplace=True)
+                rates = rates.iloc[scan_pad: -scan_pad]
+                # reset index to zero at the beginning of the trial
+                #rates.reset_index(inplace=True, drop=True)
+                rec_trials[i] = rates
+
+                bin_rates = rates.copy()
+                # reset index to zero at the beginning of the trial
+                bin_rates.reset_index(inplace=True, drop=True)
                 # convert index to datetime index for resampling
-                rates.index = pd.to_timedelta(rates.index, unit='ms')
+                bin_rates.index = pd.to_timedelta(bin_rates.index, unit='ms')
                 # resample to 100ms bin
-                bin_rates = rates.resample(bin_size).mean()
+                bin_rates = bin_rates.resample(bin_size).mean()
                 # use numeric index
                 bin_rates.index = np.arange(0, len(bin_rates))
+                bin_trials[i] = bin_rates
 
-                rec_trials[i] = bin_rates
+        # align all trials by index
+        all_indices = list(set().union(
+            *[df.index for df in bin_trials.values()])
+        )
+
+        # reindex all trials by the longest trial
+        dfs = {key: df.reindex(index=all_indices)
+               for key, df in bin_trials.items()}
+
+        # get output
+        output = np.stack(
+            [df.values for df in dfs.values()],
+            axis=2,
+        ).T # reshape into trials x units x bins
+
+        assert 0
+        # TODO july 9 2024 how to get trials x temporal bin??
+        # save output, for alfredo
+        np.save(output_path, output)
+        print(f"> Output saved at {output_path}.")
 
         if not rec_trials:
             return None
@@ -1914,18 +1941,6 @@ class Behaviour(ABC):
         trials = pd.concat(rec_trials, axis=1, names=["trial", "unit"])
         trials = trials.reorder_levels(["unit", "trial"], axis=1)
         trials = trials.sort_index(level=0, axis=1)
-
-        assert 0
-        # Set index to seconds and remove the padding 1 sec at each end
-        points = trials.shape[0]
-        scan_pad
-        start = (- duration / 2) + (duration / points)
-        # Having trouble with float values
-        #timepoints = np.linspace(start, duration / 2, points, dtype=np.float64)
-        timepoints = list(range(round(start * 1000), int(duration * 1000 / 2) + 1))
-        trials['time'] = pd.Series(timepoints, index=trials.index) / 1000
-        trials = trials.set_index('time')
-        trials = trials.iloc[self.sample_rate : - self.sample_rate]
 
         return trials
 
