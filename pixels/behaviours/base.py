@@ -1773,8 +1773,8 @@ class Behaviour(ABC):
 
 
     def _get_aligned_trials(
-        self, label, event, end_event=None, sigma=None, bin_size=None,
-        units=None,
+        self, label, event, end_event=None, sigma=None, time_bin=None,
+        pos_bin=None, units=None,
     ):
         """
         Returns spike times for each unit within a given time window around an event.
@@ -1789,6 +1789,13 @@ class Behaviour(ABC):
 
         if units is None:
             units = self.select_units()
+
+        if not pos_bin is None:
+            vr_dir = self.find_file(self.files[0]['vr'])
+            with open(vr_dir, 'rb') as f:
+                vr_data = pickle.load(f)
+            # get positions
+            positions = vr_data.position_in_tunnel
 
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
@@ -1860,8 +1867,12 @@ class Behaviour(ABC):
                 # select spike times of current trial
                 trial_bool = (rec_spikes >= scan_starts[i])\
                             & (rec_spikes <= scan_ends[i])
-
                 trial = rec_spikes[trial_bool]
+
+                # get position bin ids for current trial
+                trial_pos_bool = (positions.index >= start_t[i])\
+                            & (positions.index <= end_t[i])
+                trial_bin_pos = positions[trial_pos_bool]
 
                 # initiate binary spike times array for current trial
                 # NOTE: dtype must be float otherwise would get all 0 when
@@ -1903,16 +1914,24 @@ class Behaviour(ABC):
                 #rates.reset_index(inplace=True, drop=True)
                 rec_trials[i] = rates
 
-                bin_rates = rates.copy()
+                bin_trial = rates.copy()
+                # add position here to bin together
+                bin_trial['positions'] = positions
+
                 # reset index to zero at the beginning of the trial
-                bin_rates.reset_index(inplace=True, drop=True)
+                bin_trial.reset_index(inplace=True, drop=True)
                 # convert index to datetime index for resampling
-                bin_rates.index = pd.to_timedelta(bin_rates.index, unit='ms')
+                bin_trial.index = pd.to_timedelta(bin_trial.index, unit='ms')
                 # resample to 100ms bin
-                bin_rates = bin_rates.resample(bin_size).mean()
+                bin_trial = bin_trial.resample(time_bin).mean()
                 # use numeric index
-                bin_rates.index = np.arange(0, len(bin_rates))
-                bin_trials[i] = bin_rates
+                bin_trial.index = np.arange(0, len(bin_trial))
+                # bin positions and only save the bin index
+                # NOTE: here position bin index starts at 1, for alfredo
+                # to make it back to 0-indexing, remove +1 at the end
+                bin_trial['positions'] = bin_trial['positions'] // pos_bin + 1
+
+                bin_trials[i] = bin_trial
 
         # align all trials by index
         all_indices = list(set().union(
@@ -1929,14 +1948,14 @@ class Behaviour(ABC):
             axis=2,
         ).T # reshape into trials x units x bins
 
-        assert 0
-        # TODO july 9 2024 how to get trials x temporal bin??
         # save output, for alfredo
         np.save(output_path, output)
         print(f"> Output saved at {output_path}.")
 
         if not rec_trials:
             return None
+
+        # TODO july 10 2024 shuffle spike times for each unit across 
 
         trials = pd.concat(rec_trials, axis=1, names=["trial", "unit"])
         trials = trials.reorder_levels(["unit", "trial"], axis=1)
@@ -2078,7 +2097,7 @@ class Behaviour(ABC):
     def align_trials(
         self, label, event, data='spike_times', raw=False, duration=1, sigma=None,
         units=None, dlc_project=None, video_match=None, end_event=None,
-        bin_size=None,
+        time_bin=None, pos_bin=False,
     ):
         """
         Get trials aligned to an event. This finds all instances of label in the action
@@ -2151,7 +2170,7 @@ class Behaviour(ABC):
             # we let a dedicated function handle aligning spike times
             return self._get_aligned_trials(
                 label, event, end_event=end_event, sigma=sigma,
-                bin_size=bin_size, units=units,
+                time_bin=time_bin, pos_bin=pos_bin, units=units,
             )
 
         if data == "motion_tracking" and not dlc_project:
