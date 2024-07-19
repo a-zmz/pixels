@@ -1777,9 +1777,13 @@ class Behaviour(ABC):
         pos_bin=None, units=None,
     ):
         """
-        Returns spike times for each unit within a given time window around an event.
+        Returns spike rate for each unit within a trial.
         align_trials delegates to this function, and should be used for getting aligned
         data in scripts.
+
+        This function also saves binned data in the format that Alfredo wants:
+        trials * units * temporal bins (100ms)
+
         """
         action_labels = self.get_action_labels()
 
@@ -2140,6 +2144,15 @@ class Behaviour(ABC):
             When aligning video or motion index data, use this fnmatch pattern to select
             videos.
 
+        end_event : int | None
+            For VR behaviour, when aligning to the whole trial, this param is
+            the end event to align to.
+
+        time_bin: str | None
+            For VR behaviour, size of temporal bin for spike rate data.
+
+        pos_bin: int | None
+            For VR behaviour, size of positional bin for position data.
         """
         data = data.lower()
 
