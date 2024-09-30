@@ -344,3 +344,104 @@ class VR(Behaviour):
             plt.show()
 
         return action_labels
+
+    '''
+    # TODO sep 30 2024:
+    # refactored code from chatgpt
+    # needs testing!
+        def _assign_event_label(self, action_labels, event_times, event_type, column=1):
+        """
+        Helper function to assign event labels to action_labels array.
+        """
+        event_indices = event_times.index
+        event_on_idx = np.where(event_indices.diff() != 1)[0]
+
+        # Find first and last timepoints for events
+        event_on_t = event_indices[event_on_idx]
+        event_off_t = np.append(event_indices[event_on_idx[1:] - 1], event_indices[-1])
+
+        event_on = event_times.index.get_indexer(event_on_t)
+        event_off = event_times.index.get_indexer(event_off_t)
+
+        action_labels[event_on, column] += event_type['on']
+        action_labels[event_off, column] += event_type['off']
+
+        return action_labels
+
+    def _map_trial_events(self, action_labels, vr_data, vr):
+        """
+        Maps different trial events like gray, light, dark, and punishments.
+        """
+        # Define event mappings for gray, light, dark, punishments
+        event_mappings = {
+            'gray': {'on': Events.gray_on, 'off': Events.gray_off,
+                'condition': vr_data.world_index == World.GRAY},
+            'light': {'on': Events.light_on, 'off': Events.light_off,
+                'condition': vr_data.world_index == World.TUNNEL},
+            'dark': {'on': Events.dark_on, 'off': Events.dark_off,
+                'condition': (vr_data.world_index == World.DARK_5)\
+                    | (vr_data.world_index == World.DARK_2_5)\
+                    | (vr_data.world_index == World.DARK_FULL)},
+            'punish': {'on': Events.punish_on, 'off': Events.punish_off,
+                'condition': vr_data.world_index == World.WHITE},
+        }
+
+        for event_name, event_type in event_mappings.items():
+            event_times = vr_data[event_type['condition']]
+            action_labels = self._assign_event_label(action_labels, event_times, event_type)
+
+        return action_labels
+
+    def _assign_trial_outcomes(self, action_labels, vr_data, vr):
+        """
+        Assign outcomes for each trial, including rewards and punishments.
+        """
+        for t, trial in enumerate(vr_data.trial_count.unique()):
+            # Extract trial-specific information
+            of_trial = (vr_data.trial_count == trial)
+            trial_idx = np.where(of_trial)[0]
+
+            reward_not_none = (vr_data.reward_type != Outcome.NONE)
+            reward_typed = vr_data[of_trial & reward_not_none]
+            trial_type = int(vr_data[of_trial].trial_type.unique())
+            trial_type_str = trial_type_lookup.get(trial_type).lower()
+
+            if reward_typed.size == 0\
+                and vr_data[of_trial\
+                    & (vr_data.world_index == World.WHITE)].size != 0:
+                # Handle punishment case
+                outcome = f"punished_{trial_type_str}"
+            else:
+                reward_type = int(reward_typed.reward_type.unique())
+                outcome = _outcome_map.get(reward_type, "unknown")
+
+                if reward_type == Outcome.TRIGGERED:
+                    outcome = f"{outcome}_{trial_type_str}"
+
+            action_labels[trial_idx, 0] = getattr(ActionLabels, outcome, 0)
+
+            if reward_type > Outcome.NONE:
+                valve_open_idx = vr_data.index.get_indexer([reward_typed.index[0]])
+                valve_closed_idx = vr_data.index.get_indexer([reward_typed.index[-1]])
+                action_labels[valve_open_idx, 1] += Events.valve_open
+                action_labels[valve_closed_idx, 1] += Events.valve_closed
+
+        return action_labels
+
+    def _extract_action_labels(self, vr, vr_data):
+        """
+        Extract action labels from VR data and assign events and outcomes.
+        """
+        action_labels = np.zeros((vr_data.shape[0], 2), dtype=np.int32)
+
+        # Map events
+        action_labels = self._map_trial_events(action_labels, vr_data, vr)
+
+        # Assign trial outcomes
+        action_labels = self._assign_trial_outcomes(action_labels, vr_data, vr)
+
+        # Add timestamps to action labels
+        action_labels = np.column_stack((action_labels, vr_data.index.values))
+
+        return action_labels
+    '''
