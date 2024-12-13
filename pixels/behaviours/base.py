@@ -358,7 +358,7 @@ class Behaviour(ABC):
             data_file = self.find_file(recording['behaviour'])
             behavioural_data = ioutils.read_tdms(data_file, groups=["NpxlSync_Signal"])
             behavioural_data = signal.resample(
-                behavioural_data.values, BEHAVIOUR_HZ, self.sample_rate
+                behavioural_data.values, BEHAVIOUR_HZ, self.SAMPLE_RATE
             )
 
         if sync_channel is None:
@@ -368,7 +368,7 @@ class Behaviour(ABC):
             sync_channel = ioutils.read_bin(data_file, num_chans, channel=384)
             orig_rate = int(self.lfp_meta[rec_num]['imSampRate'])
             #sync_channel = sync_channel[:120 * orig_rate * 2]  # 2 mins, rec Hz, back/forward
-            sync_channel = signal.resample(sync_channel, orig_rate, self.sample_rate)
+            sync_channel = signal.resample(sync_channel, orig_rate, self.SAMPLE_RATE)
 
         behavioural_data = signal.binarise(behavioural_data)
         sync_channel = signal.binarise(sync_channel)
@@ -484,7 +484,7 @@ class Behaviour(ABC):
 
         # convert spike times to ms
         orig_rate = int(self.spike_meta[0]['imSampRate'])
-        times_ms = times * self.sample_rate / orig_rate
+        times_ms = times * self.SAMPLE_RATE / orig_rate
 
         lag = [None, 'later', 'earlier']
         print(f"""\n> {stream_ids[0]} started\r
@@ -514,7 +514,7 @@ class Behaviour(ABC):
         max shift {np.max(remapped_times_ms-times_ms):.2f}ms.""")
 
         # convert remappmed times back to its original sample index
-        remapped_times = np.uint64(remapped_times_ms * orig_rate / self.sample_rate)
+        remapped_times = np.uint64(remapped_times_ms * orig_rate / self.SAMPLE_RATE)
         np.save(output, remapped_times)
         print(f'\n> Spike times remapping output saved to\n {output}.')
 
@@ -548,8 +548,8 @@ class Behaviour(ABC):
                 if behavioural_data[col].isnull().values.any():
                     behavioural_data.drop(col, axis=1, inplace=True)
 
-            print(f"> Downsampling to {self.sample_rate} Hz")
-            behav_array = signal.resample(behavioural_data.values, 25000, self.sample_rate)
+            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
+            behav_array = signal.resample(behavioural_data.values, 25000, self.SAMPLE_RATE)
             behavioural_data.iloc[:len(behav_array), :] = behav_array
             behavioural_data = behavioural_data[:len(behav_array)]
 
@@ -599,8 +599,8 @@ class Behaviour(ABC):
             print("> Mapping spike data")
             data = ioutils.read_bin(data_file, num_chans)
 
-            print(f"> Downsampling to {self.sample_rate} Hz")
-            data = signal.resample(data, orig_rate, self.sample_rate)
+            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
+            data = signal.resample(data, orig_rate, self.SAMPLE_RATE)
 
             # Ideally we would median subtract before downsampling, but that takes a
             # very long time and is at risk of memory errors, so let's do it after.
@@ -645,9 +645,9 @@ class Behaviour(ABC):
             #subtracted = signal.median_subtraction(data, axis=1)
             cmred = spre.common_reference(data)
 
-            print(f"> Downsampling to {self.sample_rate} Hz")
-            #downsampled = signal.resample(subtracted, orig_rate, self.sample_rate, False)
-            downsampled = spre.resample(cmred, self.sample_rate)
+            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
+            #downsampled = signal.resample(subtracted, orig_rate, self.SAMPLE_RATE, False)
+            downsampled = spre.resample(cmred, self.SAMPLE_RATE)
             # get traces
             downsampled = downsampled.get_traces()
 
@@ -1196,7 +1196,7 @@ class Behaviour(ABC):
             if behavioural_data[col].isnull().values.any():
                 behavioural_data.drop(col, axis=1, inplace=True)
 
-        behav_array = signal.resample(behavioural_data.values, 25000, self.sample_rate)
+        behav_array = signal.resample(behavioural_data.values, 25000, self.SAMPLE_RATE)
         behavioural_data.iloc[:len(behav_array), :] = behav_array
         behavioural_data = behavioural_data[:len(behav_array)]
 
@@ -1386,7 +1386,7 @@ class Behaviour(ABC):
                     if behavioural_data[col].isnull().values.any():
                         behavioural_data.drop(col, axis=1, inplace=True)
 
-                behav_array = signal.resample(behavioural_data.values, 25000, self.sample_rate)
+                behav_array = signal.resample(behavioural_data.values, 25000, self.SAMPLE_RATE)
                 behavioural_data.iloc[:len(behav_array), :] = behav_array
                 behavioural_data = behavioural_data[:len(behav_array)]
                 trigger = signal.binarise(behavioural_data["/'CamFrames'/'0'"]).values
@@ -1456,14 +1456,14 @@ class Behaviour(ABC):
         action_labels = self.get_action_labels()
         motion_indexes = self.get_motion_index_data()
 
-        scan_duration = self.sample_rate * 10
+        scan_duration = self.SAMPLE_RATE * 10
         half = scan_duration // 2
 
         # We take 200 ms before the action begins as a short baseline period for each
         # trial. The smallest standard deviation of all SDs of these baseline periods is
         # used as a threshold to identify "clean" trials (`clean_threshold` below).
         # Non-clean trials are trials where TODO
-        short_pre = int(0.2 * self.sample_rate)
+        short_pre = int(0.2 * self.SAMPLE_RATE)
 
         for rec_num, recording in enumerate(self.files):
             # Only recs with camera_data will have motion indexes
