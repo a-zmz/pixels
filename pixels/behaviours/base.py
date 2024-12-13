@@ -1545,7 +1545,7 @@ class Behaviour(ABC):
                 if key in recording:
                     file_path = self.processed / recording[key]
                     if file_path.exists():
-                        if file_path.suffix == '.npy':
+                        if re.search(r'\.np[yz]$', file_path.suffix):
                             saved[rec_num] = np.load(file_path)
                         elif file_path.suffix == '.h5':
                             saved[rec_num] = ioutils.read_hdf5(file_path)
