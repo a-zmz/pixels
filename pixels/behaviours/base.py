@@ -1856,14 +1856,14 @@ class Behaviour(ABC):
         ends = np.where(np.bitwise_and(events, end_event))[0]
 
         # only take starts from selected trials
-        selected_starts = np.where(np.isin(trials, starts))[0]
+        selected_starts = trials[np.where(np.isin(trials, starts))[0]]
         start_t = timestamps[selected_starts]
         # only take ends from selected trials
-        selected_ends = np.where(np.isin(trials, ends))[0]
+        selected_ends = trials[np.where(np.isin(trials, ends))[0]]
         end_t = timestamps[selected_ends]
 
         # pad ends with 1 second extra to remove edge effects from convolution
-        scan_pad = self.sample_rate
+        scan_pad = self.SAMPLE_RATE
         scan_starts = start_t - scan_pad
         scan_ends = end_t + scan_pad
         scan_durations = scan_ends - scan_starts
