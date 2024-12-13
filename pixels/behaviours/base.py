@@ -1893,7 +1893,7 @@ class Behaviour(ABC):
             if not self._lag[rec_num] == None:
                 lag_start, _ = self._lag[rec_num]
             else:
-                lag_start = action_labels[0, -1]
+                lag_start = timestamps[0]
 
             if lag_start < 0:
                 rec_spikes = rec_spikes + lag_start
