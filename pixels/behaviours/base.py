@@ -139,7 +139,7 @@ class Behaviour(ABC):
 
     """
 
-    sample_rate = 1000
+    SAMPLE_RATE = 2000#1000
 
     def __init__(self, name, data_dir, metadata=None, processed_dir=None,
                  interim_dir=None):
