@@ -1722,15 +1722,13 @@ class Behaviour(ABC):
         #make sure old code does not break!
         #TODO: spike times cannot be indexed by unit ids anymore
         spikes = self._get_spike_times()[units]
-        # Convert to ms (self.sample_rate)
-        spikes /= int(self.spike_meta[0]['imSampRate']) / self.sample_rate
 
         if rate:
             # pad ends with 1 second extra to remove edge effects from convolution
             duration += 2
 
-        scan_duration = self.sample_rate * 8
-        half = int((self.sample_rate * duration) / 2)
+        scan_duration = self.SAMPLE_RATE * 8
+        half = int((self.SAMPLE_RATE * duration) / 2)
         cursor = 0  # In sample points
         i = -1
         rec_trials = {}
@@ -1801,7 +1799,7 @@ class Behaviour(ABC):
             timepoints = list(range(round(start * 1000), int(duration * 1000 / 2) + 1))
             trials['time'] = pd.Series(timepoints, index=trials.index) / 1000
             trials = trials.set_index('time')
-            trials = trials.iloc[self.sample_rate : - self.sample_rate]
+            trials = trials.iloc[self.SAMPLE_RATE : - self.SAMPLE_RATE]
 
         return trials
 
