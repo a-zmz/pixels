@@ -1699,6 +1699,9 @@ class Behaviour(ABC):
 
                 by_clust[c] = pd.Series(uniques)
             spike_times[stream_num]  = pd.concat(by_clust, axis=1, names=['unit'])
+            # Convert to time into sample rate index
+            spike_times[stream_num] /= int(self.spike_meta[0]['imSampRate'])\
+                                        / self.SAMPLE_RATE 
 
         return spike_times[0]
 
