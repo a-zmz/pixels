@@ -78,8 +78,8 @@ def get_data_files(data_dir, session_name):
         recording = {}
         recording['spike_data'] = original_name(spike_recording)
         recording['spike_meta'] = original_name(spike_meta[num])
-        recording['lfp_data'] = original_name(lfp_data[num])
-        recording['lfp_meta'] = original_name(lfp_meta[num])
+        #recording['lfp_data'] = original_name(lfp_data[num])
+        #recording['lfp_meta'] = original_name(lfp_meta[num])
 
         if behaviour:
             if len(behaviour) == len(spike_data):
@@ -100,27 +100,27 @@ def get_data_files(data_dir, session_name):
             recording['behaviour'] = None
             recording['behaviour_processed'] = None
 
-        recording['action_labels'] = Path(f'action_labels_{num}.npy')
+        recording['action_labels'] = Path(f'action_labels_{num}.npz')
         recording['spike_processed'] = recording['spike_data'].with_name(
             recording['spike_data'].stem + '_processed.h5'
         )
         recording['spike_rate_processed'] = Path(f'spike_rate_{num}.h5')
-        recording['lfp_processed'] = recording['lfp_data'].with_name(
-            recording['lfp_data'].stem + '_processed.npy'
-        )
-        recording['lfp_sd'] = recording['lfp_data'].with_name(
-            recording['lfp_data'].stem + '_sd.json'
-        )
-        recording['clustered_channels'] = recording['lfp_data'].with_name(
-            f'channel_clustering_results_{num}.h5'
-        )
+        #recording['lfp_processed'] = recording['lfp_data'].with_name(
+        #    recording['lfp_data'].stem + '_processed.npy'
+        #)
+        #recording['lfp_sd'] = recording['lfp_data'].with_name(
+        #    recording['lfp_data'].stem + '_sd.json'
+        #)
+        #recording['clustered_channels'] = recording['lfp_data'].with_name(
+        #    f'channel_clustering_results_{num}.h5'
+        #)
         recording['depth_info'] = recording['spike_data'].with_name(
             f'depth_info_{num}.json'
         )
         recording['CatGT_ap_data'] = str(recording['spike_data']).replace("t0", "tcat")
         recording['CatGT_ap_meta'] = str(recording['spike_meta']).replace("t0", "tcat")
         recording['vr'] = recording['spike_data'].with_name(
-            f'{session_name}_vr_synched.pickle'
+            f'{session_name}_vr_synched.h5'
         )
 
         files.append(recording)
