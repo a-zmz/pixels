@@ -1624,6 +1624,37 @@ class Behaviour(ABC):
         """
         return self._get_processed_data("_lfp_data", "lfp_processed")
 
+
+    def _get_si_spike_times(self, sa_dir):
+        """
+        get spike times in second with spikeinterface
+        """
+        spike_times = self._spike_times_data
+
+        for stream_num, stream in enumerate(range(len(spike_times))):
+            # load sorting analyser
+            sa = si.load_sorting_analyzer(sa_dir)
+
+            times = {}
+            # get spike train
+            for i, unit_id in enumerate(sa.unit_ids):
+                unit_times = sa.sorting.get_unit_spike_train(
+                    unit_id=unit_id,
+                    return_times=False,
+                )
+                times[unit_id] = pd.Series(unit_times)
+            # concatenate units
+            spike_times[stream_num] = pd.concat(
+                objs=times,
+                axis=1,
+                names="unit",
+            )
+            # Convert to time into sample rate index
+            spike_times[stream_num] /= int(self.spike_meta[0]['imSampRate'])\
+                                        / self.SAMPLE_RATE 
+
+        return spike_times[0] # NOTE: only deal with one stream for now
+
     def _get_spike_times(self, remapped=False):
         """
         Returns the sorted spike times.
