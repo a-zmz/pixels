@@ -288,6 +288,17 @@ class VR(Behaviour):
                 action_labels[trial_idx, 0] = getattr(ActionLabels, outcome)
                 #action_labels[start_idx, 0] = getattr(ActionLabels, outcome)
             # <<<< punished <<<<
+
+            elif (reward_typed.size == 0)\
+                & (vr_data[of_trial & in_white].size == 0):
+                # >>>> unfinished trial >>>>
+                # double check it is the last trial
+                assert (trial == vr_data.trial_count.unique().max())
+                assert (vr_data[of_trial].position_in_tunnel.max()\
+                        < vr.tunnel_reset)
+                print(f"> trial {trial} is unfinished when session ends, so "
+                      "there is no outcome.")
+                # <<<< unfinished trial <<<<
             else:
                 # >>>> non punished >>>>
                 # get non-zero reward type in current trial
