@@ -1817,39 +1817,38 @@ class Behaviour(ABC):
         trials * units * temporal bins (100ms)
 
         """
-        action_labels = self.get_action_labels()
+        action_labels = self.get_action_labels()[0]
 
         # define output path
         output_path = self.interim/\
-                f'cache/{self.name}_{label}_{units}_fr_for_AL.npy'
+                f'cache/{self.name}_{label}_{units}_fr_for_AL.npz'
 
         if units is None:
             units = self.select_units()
 
         if not pos_bin is None:
             vr_dir = self.find_file(self.files[0]['vr'])
-            with open(vr_dir, 'rb') as f:
-                vr_data = pickle.load(f)
+            vr_data = ioutils.read_hdf5(vr_dir)
             # get positions
             positions = vr_data.position_in_tunnel
 
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
-        spikes = self._get_spike_times()[units]
-        # Convert to ms (self.sample_rate)
-        spikes /= int(self.spike_meta[0]['imSampRate']) / self.sample_rate
-        # get index of spike times in data in sample_rate Hz too
-        spikes_idx = spikes * self.sample_rate
+        #spikes = self._get_spike_times()[units]
+        sa_dir="/home/amz/synology/arthur/data/npx/interim/20240812_az_VDCN09/ks4/curated_sa.zarr"
+        spikes = self._get_si_spike_times(sa_dir)[units]
+        # get index of spike times in data in SAMPLE_RATE Hz too
+        spikes_idx = spikes * int(self.spike_meta[0]['imSampRate'])
 
         # since each session has one behaviour session, now only one action
         # label file
-        actions = action_labels[:, 0]
-        events = action_labels[:, 1]
-        # get timestamps index of behaviour in pixels stream (ms)
-        timestamps = action_labels[:, 2]
+        actions = action_labels["outcome"]
+        events = action_labels["events"]
+        # get timestamps index of behaviour in self.SAMPLE_RATE hz, to convert
+        # it to ms, do timestamps*1000/self.SAMPLE_RATE
+        timestamps = action_labels["timestamps"]
 
         # select frames of wanted trial type
-        #starts = np.where(np.bitwise_and(actions, label))[0]
         trials = np.where(np.bitwise_and(actions, label))[0]
         # map starts by event
         starts = np.where(np.bitwise_and(events, event))[0]
