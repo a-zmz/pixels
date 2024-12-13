@@ -20,6 +20,39 @@ from scipy.ndimage import gaussian_filter1d, convolve1d
 from pixels import ioutils, PixelsError
 
 
+def decimate(array, from_hz, to_hz, ftype="fir"):
+    """
+    Downsample the signal after applying an anti-aliasing filter.
+    Downsampling factor MUST be an integer, if not, call `resample`.
+
+    Params
+    ===
+    array : ndarray, Series or similar
+        The data to be resampled.
+
+    from_hz : int or float
+        The starting frequency of the data.
+
+    sample_rate : int or float, optional
+        The resulting sample rate.
+
+    ftype: str or dlit instance
+        low pass filter type.
+        Default: fir (finite impulse response) filter
+    """
+    if from_hz % to_hz == 0:
+        factor = from_hz // to_hz
+        output = scipy.signal.decimate(
+            x=array,
+            q=factor,
+            ftype=ftype,
+        )
+    else:
+        output = resample(array, from_hz, to_hz)
+
+    return output
+
+
 def resample(array, from_hz, to_hz, poly=True, padtype=None):
     """
     Resample an array from one sampling rate to another.
