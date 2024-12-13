@@ -361,7 +361,7 @@ class VR(Behaviour):
     # TODO sep 30 2024:
     # refactored code from chatgpt
     # needs testing!
-        def _assign_event_label(self, action_labels, event_times, event_type, column=1):
+    def _assign_event_label(self, action_labels, event_times, event_type, column=1):
         """
         Helper function to assign event labels to action_labels array.
         """
