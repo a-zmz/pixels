@@ -254,17 +254,18 @@ class VR(Behaviour):
         # <<<< dark <<<<
 
         # >>>> licks >>>>
-        licked_idx = np.where(vr_data.lick_count == 1)[0]
+        lick_onsets = np.diff(vr_data.lick_detect, prepend=0)
+        licked_idx = np.where(lick_onsets == 1)[0]
         action_labels[licked_idx, 1] += Events.licked
         # <<<< licks <<<<
 
-        # TODO jun 27 positional events and valve events needs mapping
+        # TODO jun 27 2024 positional events and valve events needs mapping
 
         print(">> Mapping vr action times...")
 
         # >>>> map reward types >>>>
         # get non-zero reward types
-        reward_not_none = (vr_data.reward_type != Outcome.NONE)
+        reward_not_none = (vr_data.reward_type != Outcomes.NONE)
 
         for t, trial in enumerate(vr_data.trial_count.unique()):
             # get current trial
