@@ -301,7 +301,7 @@ def median_subtraction(data, axis=0):
     return data - np.median(data, axis=axis, keepdims=True)
 
 
-def convolve_spike_trains(times, sigma=100, size=10):
+def convolve_spike_trains(times, sigma=100, size=10, sample_rate=1000):
     """
     Convolve spike times data with 1D gaussian kernel to get spike rate.
 
@@ -334,7 +334,7 @@ def convolve_spike_trains(times, sigma=100, size=10):
         output=float,
         mode='nearest',
         axis=0,
-    ) * 1000 # rescale it to second
+    ) * sample_rate # rescale it to second
 
     df = pd.DataFrame(convolved, columns=times.columns)
 
