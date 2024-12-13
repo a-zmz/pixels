@@ -2123,7 +2123,7 @@ class Behaviour(ABC):
             data_file = self.find_file(recording[f'{kind}_data'], copy=False)
             orig_rate = int(meta[rec_num]['imSampRate'])
             num_chans = int(meta[rec_num]['nSavedChans'])
-            factor = orig_rate / self.sample_rate
+            factor = orig_rate / self.SAMPLE_RATE
 
             data = ioutils.read_bin(data_file, num_chans)
 
@@ -2252,7 +2252,7 @@ class Behaviour(ABC):
             getter = getattr(self, f"get_{data}_data_raw", None)
             if not getter:
                 raise PixelsError(f"align_trials: {data} doesn't have a 'raw' option.")
-            values, sample_rate = getter()
+            values, SAMPLE_RATE = getter()
 
         else:
             print(f"Aligning {data} data to trials.")
@@ -2262,18 +2262,18 @@ class Behaviour(ABC):
                 values = self.get_motion_index_data(video_match)
             else:
                 values = getattr(self, f"get_{data}_data")()
-            sample_rate = self.sample_rate
+            SAMPLE_RATE = self.SAMPLE_RATE
 
         if not values or values[0] is None:
             raise PixelsError(f"align_trials: Could not get {data} data.")
 
         trials = []
         # The logic here is that the action labels will always have a sample rate of
-        # self.sample_rate, whereas our data here may differ. 'duration' is used to scan
+        # self.SAMPLE_RATE, whereas our data here may differ. 'duration' is used to scan
         # the action labels, so always give it 5 seconds to scan, then 'half' is used to
         # index data.
-        scan_duration = self.sample_rate * 10
-        half = (sample_rate * duration) // 2
+        scan_duration = self.SAMPLE_RATE * 10
+        half = (SAMPLE_RATE * duration) // 2
         if isinstance(half, float):
             assert half.is_integer()  # In case duration is a float < 1
             half = int(half)
@@ -2304,7 +2304,7 @@ class Behaviour(ABC):
                     print("No event found for an action. If this is OK, ignore this.")
                     continue
                 centre = start + centre[0]
-                centre = int(centre * sample_rate / self.sample_rate)
+                centre = int(centre * SAMPLE_RATE / self.SAMPLE_RATE)
                 trial = values[rec_num][centre - half + 1:centre + half + 1]
 
                 if isinstance(trial, np.ndarray):
@@ -2352,8 +2352,8 @@ class Behaviour(ABC):
         """
         action_labels = self.get_action_labels()
 
-        scan_duration = self.sample_rate * 8
-        half = int((self.sample_rate * duration) / 2)
+        scan_duration = self.SAMPLE_RATE * 8
+        half = int((self.SAMPLE_RATE * duration) / 2)
         cursor = 0  # In sample points
         i = -1
         rec_trials = []
@@ -2375,7 +2375,7 @@ class Behaviour(ABC):
             behavioural_data = ioutils.read_tdms(self.find_file(recording['behaviour']))
             assert 0
             behavioural_data = behavioural_data["/'CamFrames'/'0'"]
-            behav_array = signal.resample(behavioural_data.values, 25000, self.sample_rate)
+            behav_array = signal.resample(behavioural_data.values, 25000, self.SAMPLE_RATE)
             behavioural_data.iloc[:len(behav_array)] = np.squeeze(behav_array)
             behavioural_data = behavioural_data[:len(behav_array)]
             trigger = signal.binarise(behavioural_data).values
