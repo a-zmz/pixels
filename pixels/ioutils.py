@@ -318,6 +318,8 @@ def write_hdf5(path, df):
         path_or_buf=path,
         key='df',
         mode='w',
+        complevel=9,
+        complib="blosc:lz4hc",
     )
     
     print('HDF5 saved to ', path)
