@@ -15,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from vision_in_darkness.session import Outcome, World, Trial_Type
+from vision_in_darkness.base import Outcomes, Worlds, Conditions
 
 from pixels import Experiment, PixelsError
 from pixels import signal, ioutils
@@ -106,18 +106,18 @@ class Events:
 
 # map trial outcome
 _outcome_map = {
-    Outcome.ABORTED_DARK: "miss_dark",
-    Outcome.ABORTED_LIGHT: "miss_light",
-    Outcome.TRIGGERED: "triggered",
-    Outcome.AUTO_LIGHT: "auto_light",
-    Outcome.DEFAULT: "default_light",
-    Outcome.REINF_LIGHT: "reinf_light",
-    Outcome.AUTO_DARK: "auto_dark",
-    Outcome.REINF_DARK: "reinf_dark",
+    Outcomes.ABORTED_DARK: "miss_dark",
+    Outcomes.ABORTED_LIGHT: "miss_light",
+    Outcomes.TRIGGERED: "triggered",
+    Outcomes.AUTO_LIGHT: "auto_light",
+    Outcomes.DEFAULT: "default_light",
+    Outcomes.REINF_LIGHT: "reinf_light",
+    Outcomes.AUTO_DARK: "auto_dark",
+    Outcomes.REINF_DARK: "reinf_dark",
 }
 
 # function to look up trial type
-trial_type_lookup = {v: k for k, v in vars(Trial_Type).items()}
+trial_type_lookup = {v: k for k, v in vars(Conditions).items()}
 
 class VR(Behaviour):
 
@@ -127,20 +127,20 @@ class VR(Behaviour):
 
         # >>>> definitions >>>>
         # define in gray
-        in_gray = (vr_data.world_index == World.GRAY)
+        in_gray = (vr_data.world_index == Worlds.GRAY)
         # define in dark
-        in_dark = (vr_data.world_index == World.DARK_5)\
-                | (vr_data.world_index == World.DARK_2_5)\
-                | (vr_data.world_index == World.DARK_FULL)
+        in_dark = (vr_data.world_index == Worlds.DARK_5)\
+                | (vr_data.world_index == Worlds.DARK_2_5)\
+                | (vr_data.world_index == Worlds.DARK_FULL)
         # define in white
-        in_white = (vr_data.world_index == World.WHITE)
+        in_white = (vr_data.world_index == Worlds.WHITE)
         # define in tunnel
         in_tunnel = ~in_gray & ~in_white
         # define in light
-        in_light = (vr_data.world_index == World.TUNNEL)
+        in_light = (vr_data.world_index == Worlds.TUNNEL)
         # define light & dark trials
-        trial_light = (vr_data.trial_type == Trial_Type.LIGHT)
-        trial_dark = (vr_data.trial_type == Trial_Type.DARK)
+        trial_light = (vr_data.trial_type == Conditions.LIGHT)
+        trial_dark = (vr_data.trial_type == Conditions.DARK)
         # <<<< definitions <<<<
 
         print(">> Mapping vr event times...")
@@ -297,7 +297,7 @@ class VR(Behaviour):
 
                 """ triggered """
                 # catch triggered trials and separate trial types
-                if reward_type == Outcome.TRIGGERED:
+                if reward_type == Outcomes.TRIGGERED:
                     outcome = f"{_outcome_map[reward_type]}_{trial_type_str}"
                 else:
                     """ given & aborted """
@@ -309,7 +309,7 @@ class VR(Behaviour):
 
                 # >>>> non aborted, valve only >>>>
                 # if not aborted, map valve open & closed
-                if reward_type > Outcome.NONE:
+                if reward_type > Outcomes.NONE:
                     # map valve open
                     valve_open_idx = vr_data.index.get_indexer([reward_typed.index[0]])
                     action_labels[valve_open_idx, 1] += Events.valve_open
@@ -375,15 +375,15 @@ class VR(Behaviour):
         # Define event mappings for gray, light, dark, punishments
         event_mappings = {
             'gray': {'on': Events.gray_on, 'off': Events.gray_off,
-                'condition': vr_data.world_index == World.GRAY},
+                'condition': vr_data.world_index == Worlds.GRAY},
             'light': {'on': Events.light_on, 'off': Events.light_off,
-                'condition': vr_data.world_index == World.TUNNEL},
+                'condition': vr_data.world_index == Worlds.TUNNEL},
             'dark': {'on': Events.dark_on, 'off': Events.dark_off,
-                'condition': (vr_data.world_index == World.DARK_5)\
-                    | (vr_data.world_index == World.DARK_2_5)\
-                    | (vr_data.world_index == World.DARK_FULL)},
+                'condition': (vr_data.world_index == Worlds.DARK_5)\
+                    | (vr_data.world_index == Worlds.DARK_2_5)\
+                    | (vr_data.world_index == Worlds.DARK_FULL)},
             'punish': {'on': Events.punish_on, 'off': Events.punish_off,
-                'condition': vr_data.world_index == World.WHITE},
+                'condition': vr_data.world_index == Worlds.WHITE},
         }
 
         for event_name, event_type in event_mappings.items():
@@ -401,26 +401,26 @@ class VR(Behaviour):
             of_trial = (vr_data.trial_count == trial)
             trial_idx = np.where(of_trial)[0]
 
-            reward_not_none = (vr_data.reward_type != Outcome.NONE)
+            reward_not_none = (vr_data.reward_type != Outcomes.NONE)
             reward_typed = vr_data[of_trial & reward_not_none]
             trial_type = int(vr_data[of_trial].trial_type.unique())
             trial_type_str = trial_type_lookup.get(trial_type).lower()
 
             if reward_typed.size == 0\
                 and vr_data[of_trial\
-                    & (vr_data.world_index == World.WHITE)].size != 0:
+                    & (vr_data.world_index == Worlds.WHITE)].size != 0:
                 # Handle punishment case
                 outcome = f"punished_{trial_type_str}"
             else:
                 reward_type = int(reward_typed.reward_type.unique())
                 outcome = _outcome_map.get(reward_type, "unknown")
 
-                if reward_type == Outcome.TRIGGERED:
+                if reward_type == Outcomes.TRIGGERED:
                     outcome = f"{outcome}_{trial_type_str}"
 
             action_labels[trial_idx, 0] = getattr(ActionLabels, outcome, 0)
 
-            if reward_type > Outcome.NONE:
+            if reward_type > Outcomes.NONE:
                 valve_open_idx = vr_data.index.get_indexer([reward_typed.index[0]])
                 valve_closed_idx = vr_data.index.get_indexer([reward_typed.index[-1]])
                 action_labels[valve_open_idx, 1] += Events.valve_open
