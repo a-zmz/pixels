@@ -237,6 +237,31 @@ class Experiment:
                 names=["session", "trial", "scorer", "bodyparts", "coords"]
             )
 
+        if "trial_rate" in kwargs.values():
+            frs = {}
+            positions = {}
+            for s in trials:
+                frs[s] = trials[s]["fr"]
+                positions[s] = trials[s]["positions"]
+
+            frs_df = pd.concat(
+                frs.values(),
+                axis=1,
+                copy=False,
+                keys=frs.keys(),
+                names=["session"]
+            )
+            pos_df = pd.concat(
+                positions.values(),
+                axis=1,
+                copy=False,
+                keys=positions.keys(),
+                names=["session"]
+            )
+            df = {
+                "fr": frs_df,
+                "positions": pos_df,
+            }
         else:
             df = pd.concat(
                 trials.values(), axis=1, copy=False,
