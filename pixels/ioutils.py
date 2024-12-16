@@ -122,6 +122,7 @@ def get_data_files(data_dir, session_name):
         recording['vr'] = recording['spike_data'].with_name(
             f'{session_name}_vr_synched.h5'
         )
+        recording['sorting_analyser'] = Path(f'ks4/curated_sa.zarr')
 
         files.append(recording)
 
