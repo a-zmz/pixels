@@ -92,13 +92,38 @@ def _cacheable(method):
                 df = ioutils.read_hdf5(output)
             except HDF5ExtError:
                 df = None
+            except (KeyError, ValueError):
+                # if key="df" is not found, then use HDFStore to list and read
+                # all dfs
+                with pd.HDFStore(output, "r") as store:
+                    # list all keys
+                    keys = store.keys()
+                    # create df as a dictionary to hold all dfs
+                    df = {}
+                    for key in keys:
+                        # read current df
+                        data = store[key]
+                        # remove "/" in key
+                        key_name = key.lstrip("/")
+                        # use key name as dict key
+                        df[key_name] = data
         else:
             df = method(*args, **kwargs)
             output.parent.mkdir(parents=True, exist_ok=True)
             if df is None:
                 output.touch()
             else:
-                ioutils.write_hdf5(output, df)
+                # allows to save multiple dfs in a dict in one hdf5 file
+                if isinstance(df, dict):
+                    for name, df in df.items():
+                        ioutils.write_hdf5(
+                            path=output,
+                            df=df,
+                            key=name,
+                            mode="a",
+                        )
+                else:
+                    ioutils.write_hdf5(output, df)
         return df
     return func
 
