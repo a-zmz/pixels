@@ -1862,6 +1862,9 @@ class Behaviour(ABC):
         selected_ends = trials[np.where(np.isin(trials, ends))[0]]
         end_t = timestamps[selected_ends]
 
+        # use original trial id as trial index
+        trial_ids = vr_data.iloc[selected_starts].trial_count.unique()
+
         # pad ends with 1 second extra to remove edge effects from convolution
         scan_pad = self.SAMPLE_RATE
         scan_starts = start_t - scan_pad
