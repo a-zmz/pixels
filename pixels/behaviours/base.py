@@ -115,10 +115,10 @@ def _cacheable(method):
             else:
                 # allows to save multiple dfs in a dict in one hdf5 file
                 if isinstance(df, dict):
-                    for name, df in df.items():
+                    for name, values in df.items():
                         ioutils.write_hdf5(
                             path=output,
-                            df=df,
+                            df=values,
                             key=name,
                             mode="a",
                         )
