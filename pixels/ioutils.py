@@ -301,7 +301,7 @@ def read_hdf5(path):
     return df
 
 
-def write_hdf5(path, df):
+def write_hdf5(path, df, key="df", mode="w"):
     """
     Write a dataframe to an h5 file.
 
@@ -313,12 +313,23 @@ def write_hdf5(path, df):
     df : pd.DataFrame
         Dataframe to save to h5.
 
+    key : str
+        identifier for the group in the store.
+        Default: "df".
+
+    mode : str
+        mode to open file.
+        Default: "w" write.
+        Options:
+            "a": append, if file does not exists it is created.
+            "r+": similar to "a" but file must exists.
     """
     df.to_hdf(
         path_or_buf=path,
-        key='df',
-        mode='w',
+        key=key,
+        mode=mode,
         complevel=9,
+        #complib="bzip2", # slower but higher compression ratio
         complib="blosc:lz4hc",
     )
     
