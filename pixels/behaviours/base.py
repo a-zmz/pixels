@@ -1837,8 +1837,8 @@ class Behaviour(ABC):
         #spikes = self._get_spike_times()[units]
         sa_dir="/home/amz/synology/arthur/data/npx/interim/20240812_az_VDCN09/ks4/curated_sa.zarr"
         spikes = self._get_si_spike_times(sa_dir)[units]
-        # get index of spike times in data in SAMPLE_RATE Hz too
-        spikes_idx = spikes * int(self.spike_meta[0]['imSampRate'])
+        # drop rows if all nans
+        spikes = spikes.dropna(how="all")
 
         # since each session has one behaviour session, now only one action
         # label file
