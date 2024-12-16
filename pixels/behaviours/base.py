@@ -2098,57 +2098,81 @@ class Behaviour(ABC):
             is the same between uses of the same name.
 
         """
-        cluster_info = self.get_cluster_info()
-        selected_units = SelectedUnits()
-        if name is not None:
-            selected_units.name = name
+        if use_si:
+            self.sa_dir = self.find_file(self.files[0]["sorting_analyser"])
+            # load sorting analyser
+            sa = si.load_sorting_analyzer(self.sa_dir)
 
-        if min_depth is not None or max_depth is not None:
-            probe_depths = self.get_probe_depth()
+            # get units
+            unit_ids = sa.unit_ids
 
-        if min_spike_width == 0:
-            min_spike_width = None
-        if min_spike_width is not None or max_spike_width is not None:
-            widths = self.get_spike_widths()
+            # init units class
+            selected_units = SelectedUnits()
+            if name is not None:
+                selected_units.name = name
+
+            # get coordinates of channel with max. amplitude
+            max_chan_coords = sa.sorting.get_property("max_chan_coords")
+            # get depths
+            depths = max_chan_coords[:, 1]
+            # select units within depths range
+            in_range = unit_ids[(depths >= min_depth) & (depths < max_depth)]
+            selected_units.extend(in_range)
+
+            return selected_units
+
         else:
-            widths = None
+            cluster_info = self.get_cluster_info()
+            selected_units = SelectedUnits()
+            if name is not None:
+                selected_units.name = name
 
-        for stream_num, info in enumerate(cluster_info):
-            # TODO jun 12 2024 skip stream 1 for now
-            if stream_num > 0:
-                continue
+            if min_depth is not None or max_depth is not None:
+                probe_depths = self.get_probe_depth()
 
-            id_key = 'id' if 'id' in info else 'cluster_id'
-            grouping = 'KSLabel' if uncurated else 'group'
+            if min_spike_width == 0:
+                min_spike_width = None
+            if min_spike_width is not None or max_spike_width is not None:
+                widths = self.get_spike_widths()
+            else:
+                widths = None
 
-            for unit in info[id_key]:
-                unit_info = info.loc[info[id_key] == unit].iloc[0].to_dict()
+            for stream_num, info in enumerate(cluster_info):
+                # TODO jun 12 2024 skip stream 1 for now
+                if stream_num > 0:
+                    continue
 
-                # we only want units that are in the specified group
-                if not group or unit_info[grouping] == group:
+                id_key = 'id' if 'id' in info else 'cluster_id'
+                grouping = 'KSLabel' if uncurated else 'group'
 
-                    # and that are within the specified depth range
-                    if min_depth is not None:
-                        if probe_depths[stream_num] - unit_info['depth'] <= min_depth:
-                            continue
-                    if max_depth is not None:
-                        if probe_depths[stream_num] - unit_info['depth'] > max_depth:
-                            continue
+                for unit in info[id_key]:
+                    unit_info = info.loc[info[id_key] == unit].iloc[0].to_dict()
 
-                    # and that have the specified median spike widths
-                    if widths is not None:
-                        width = widths[widths['unit'] == unit]['median_ms']
-                        assert len(width.values) == 1
-                        if min_spike_width is not None:
-                            if width.values[0] < min_spike_width:
+                    # we only want units that are in the specified group
+                    if not group or unit_info[grouping] == group:
+
+                        # and that are within the specified depth range
+                        if min_depth is not None:
+                            if probe_depths[stream_num] - unit_info['depth'] <= min_depth:
                                 continue
-                        if max_spike_width is not None:
-                            if width.values[0] > max_spike_width:
+                        if max_depth is not None:
+                            if probe_depths[stream_num] - unit_info['depth'] > max_depth:
                                 continue
 
-                    selected_units.append(unit)
+                        # and that have the specified median spike widths
+                        if widths is not None:
+                            width = widths[widths['unit'] == unit]['median_ms']
+                            assert len(width.values) == 1
+                            if min_spike_width is not None:
+                                if width.values[0] < min_spike_width:
+                                    continue
+                            if max_spike_width is not None:
+                                if width.values[0] > max_spike_width:
+                                    continue
 
-        return selected_units
+                        selected_units.append(unit)
+
+            return selected_units
 
     def _get_neuro_raw(self, kind):
         raw = []
