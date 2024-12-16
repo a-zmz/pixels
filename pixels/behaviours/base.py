@@ -1844,8 +1844,8 @@ class Behaviour(ABC):
         """
         action_labels = self.get_action_labels()[0]
 
-        # define output path
-        output_path = self.interim/\
+        # define output path for alfredo
+        output_al_path = self.interim/\
                 f'cache/{self.name}_{label}_{units}_fr_for_AL.npz'
 
         if units is None:
@@ -2014,24 +2014,24 @@ class Behaviour(ABC):
         all_indices = list(set().union(
             *[df.index for df in bin_trials.values()])
         )
-        # reindex all trials by the longest trial
-        dfs = {key: df.reindex(index=all_indices)
+        # reindex bin_trial by the longest trial
+        bin_dfs = {key: df.reindex(index=all_indices)
                for key, df in bin_trials.items()}
 
-        # get output
-        output = np.stack(
-            [df.values for df in dfs.values()],
+        # stack df values into np array
+        bin_arr = np.stack(
+            [df.values for df in bin_dfs.values()],
             axis=2,
         ).T # reshape into trials x units x bins
 
-        # save output, for alfredo
+        # save bin_arr, for alfredo
         # use label as array key name
         arr_to_save = {
-            "fr": output[:, :-2, :],
-            "pos": output[:, -2:, :],
+            "fr": bin_arr[:, :-2, :],
+            "pos": bin_arr[:, -2:, :],
         }
-        np.savez_compressed(output_path, **arr_to_save)
-        print(f"> Output saved at {output_path}.")
+        np.savez_compressed(output_al_path, **arr_to_save)
+        print(f"> Output saved at {output_al_path}.")
 
         if not rec_trials:
             return None
