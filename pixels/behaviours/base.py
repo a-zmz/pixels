@@ -1912,8 +1912,8 @@ class Behaviour(ABC):
 
                 # get position bin ids for current trial
                 trial_pos_bool = (positions.index >= start_t[i])\
-                            & (positions.index <= end_t[i])
-                trial_bin_pos = positions[trial_pos_bool]
+                            & (positions.index < end_t[i])
+                trial_pos = positions[trial_pos_bool]
 
                 # initiate binary spike times array for current trial
                 # NOTE: dtype must be float otherwise would get all 0 when
