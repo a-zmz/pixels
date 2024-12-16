@@ -1978,7 +1978,7 @@ class Behaviour(ABC):
                 # bin positions and only save the bin index
                 # NOTE: here position bin index starts at 1, for alfredo
                 # to make it back to 0-indexing, remove +1 at the end
-                bin_trial['positions'] = bin_trial['positions'] // pos_bin + 1
+                bin_trial['pos_bin'] = bin_trial['positions'] // pos_bin + 1
 
                 bin_trials[i] = bin_trial
 
