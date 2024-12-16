@@ -2051,40 +2051,15 @@ class Behaviour(ABC):
         # TODO july 10 2024 shuffle spike times for each unit across the whole
         # recording
 
-        trials = pd.concat(raw_dfs, axis=1, names=["trial", "unit"])
-        trials = trials.reorder_levels(["unit", "trial"], axis=1)
-        trials.sort_index(level=0, axis=1)
+        fr = pd.concat(raw_dfs, axis=1, names=["trial", "unit"])
+        fr = fr.reorder_levels(["unit", "trial"], axis=1)
+        fr.sort_index(level=0, axis=1)
 
-        return {"trials": trials, "positions": positions}
-
-    def si_select_units(self, sa_dir, min_depth=0, max_depth=None, name=None):
-        """
-        Use spikeinterface sorting analyser to select units.
-        """
-        # load sorting analyser
-        sa = si.load_sorting_analyzer(sa_dir)
-
-        # get units
-        unit_ids = sa.unit_ids
-
-        # init units class
-        selected_units = SelectedUnits()
-        if name is not None:
-            selected_units.name = name
-
-        # get coordinates of channel with max. amplitude
-        max_chan_coords = sa.sorting.get_property("max_chan_coords")
-        # get depths
-        depths = max_chan_coords[:, 1]
-        # select units within depths range
-        in_range = unit_ids[(depths >= min_depth) & (depths < max_depth)]
-        selected_units.extend(in_range)
-
-        return selected_units
+        return {"fr": fr, "positions": positions}
 
     def select_units(
         self, group='good', min_depth=0, max_depth=None, min_spike_width=None,
-        max_spike_width=None, uncurated=False, name=None
+        max_spike_width=None, uncurated=False, name=None, use_si=False,
     ):
         """
         Select units based on specified criteria. The output of this can be passed to
