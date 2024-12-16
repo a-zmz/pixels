@@ -1946,23 +1946,31 @@ class Behaviour(ABC):
                 rates = signal.convolve_spike_trains(
                     times=spiked,
                     sigma=sigma,
+                    sample_rate=self.SAMPLE_RATE,
                 )
                 # keep the original index
                 rates.index = spiked.index
                 # remove 1s padding from the start and end
                 rates = rates.iloc[scan_pad: -scan_pad]
                 # reset index to zero at the beginning of the trial
-                #rates.reset_index(inplace=True, drop=True)
-                rec_trials[i] = rates
+                rates.reset_index(inplace=True, drop=True)
+                # add position here to bin together
+                rates['positions'] = trial_pos.values
+
+                rec_trials[trial_ids[i]] = rates
 
                 bin_trial = rates.copy()
-                # add position here to bin together
-                bin_trial['positions'] = positions
 
+                # get inter-sample-interval, time interval between each sample
+                # in milliseconds
+                isi = (1 / self.SAMPLE_RATE) * 1000
                 # reset index to zero at the beginning of the trial
                 bin_trial.reset_index(inplace=True, drop=True)
                 # convert index to datetime index for resampling
-                bin_trial.index = pd.to_timedelta(bin_trial.index, unit='ms')
+                bin_trial.index = pd.to_timedelta(
+                    arg=bin_trial.index * isi,
+                    unit="ms",
+                )
                 # resample to 100ms bin
                 bin_trial = bin_trial.resample(time_bin).mean()
                 # use numeric index
