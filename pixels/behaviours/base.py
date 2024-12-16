@@ -1898,6 +1898,7 @@ class Behaviour(ABC):
 
         cursor = 0  # In sample points
         rec_trials = {}
+        trial_positions = {}
         bin_trials = {}
 
         for rec_num in range(len(self.files)):
@@ -1979,12 +1980,14 @@ class Behaviour(ABC):
                 rates = rates.iloc[scan_pad: -scan_pad]
                 # reset index to zero at the beginning of the trial
                 rates.reset_index(inplace=True, drop=True)
-                # add position here to bin together
-                rates['positions'] = trial_pos.values
+                trial_pos.reset_index(inplace=True, drop=True)
 
                 rec_trials[trial_ids[i]] = rates
+                trial_positions[trial_ids[i]] = trial_pos
 
                 bin_trial = rates.copy()
+                # add position here to bin together
+                bin_trial['positions'] = trial_pos.values
 
                 # get inter-sample-interval, time interval between each sample
                 # in milliseconds
@@ -2040,9 +2043,10 @@ class Behaviour(ABC):
         # reindex all trials by the longest trial
         raw_dfs = {key: df.reindex(index=rec_indices)
                for key, df in rec_trials.items()}
+        raw_pos = {key: df.reindex(index=rec_indices)
+               for key, df in trial_positions.items()}
 
-        # TODO dec 13 2024: mixing position in unit level cause performance
-        # warning during save, fix it
+        positions = pd.concat(raw_pos, axis=1, names="trial")
 
         # TODO july 10 2024 shuffle spike times for each unit across the whole
         # recording
@@ -2051,7 +2055,7 @@ class Behaviour(ABC):
         trials = trials.reorder_levels(["unit", "trial"], axis=1)
         trials.sort_index(level=0, axis=1)
 
-        return trials
+        return {"trials": trials, "positions": positions}
 
     def si_select_units(self, sa_dir, min_depth=0, max_depth=None, name=None):
         """
