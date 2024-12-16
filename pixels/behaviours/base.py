@@ -1998,17 +1998,34 @@ class Behaviour(ABC):
         ).T # reshape into trials x units x bins
 
         # save output, for alfredo
-        np.save(output_path, output)
+        # use label as array key name
+        arr_to_save = {
+            "fr": output[:, :-2, :],
+            "pos": output[:, -2:, :],
+        }
+        np.savez_compressed(output_path, **arr_to_save)
         print(f"> Output saved at {output_path}.")
 
         if not rec_trials:
             return None
 
-        # TODO july 10 2024 shuffle spike times for each unit across 
+        # align all trials by index
+        rec_indices = list(set().union(
+            *[df.index for df in rec_trials.values()])
+        )
+        # reindex all trials by the longest trial
+        raw_dfs = {key: df.reindex(index=rec_indices)
+               for key, df in rec_trials.items()}
 
-        trials = pd.concat(dfs, axis=1, names=["trial", "unit"])
+        # TODO dec 13 2024: mixing position in unit level cause performance
+        # warning during save, fix it
+
+        # TODO july 10 2024 shuffle spike times for each unit across the whole
+        # recording
+
+        trials = pd.concat(raw_dfs, axis=1, names=["trial", "unit"])
         trials = trials.reorder_levels(["unit", "trial"], axis=1)
-        trials = trials.sort_index(level=0, axis=1)
+        trials.sort_index(level=0, axis=1)
 
         return trials
 
