@@ -1986,7 +1986,6 @@ class Behaviour(ABC):
         all_indices = list(set().union(
             *[df.index for df in bin_trials.values()])
         )
-
         # reindex all trials by the longest trial
         dfs = {key: df.reindex(index=all_indices)
                for key, df in bin_trials.items()}
