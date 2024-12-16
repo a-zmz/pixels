@@ -1884,10 +1884,13 @@ class Behaviour(ABC):
             meta = self.spike_meta[rec_num]
             samples = int(meta["fileSizeBytes"]) / int(meta["nSavedChans"]) / 2
             assert samples.is_integer()
-            milliseconds = samples / 30
-            cursor_duration = cursor / 30
+            in_SAMPLE_RATE_scale = (samples * self.SAMPLE_RATE)\
+                           / int(self.spike_meta[0]['imSampRate'])
+            cursor_duration = (cursor * self.SAMPLE_RATE)\
+                              / int(self.spike_meta[0]['imSampRate'])
             rec_spikes = spikes[
-                (cursor_duration <= spikes) & (spikes < (cursor_duration + milliseconds))
+                (cursor_duration <= spikes)\
+                & (spikes < (cursor_duration + in_SAMPLE_RATE_scale))
             ] - cursor_duration
             cursor += samples
 
