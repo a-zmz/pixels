@@ -1682,7 +1682,7 @@ class Behaviour(ABC):
 
         return spike_times[0] # NOTE: only deal with one stream for now
 
-    def _get_spike_times(self, remapped=False):
+    def _get_spike_times(self, remapped=False, use_si=False):
         """
         Returns the sorted spike times.
 
@@ -1694,41 +1694,44 @@ class Behaviour(ABC):
         spike_times = self._spike_times_data
 
         for stream_num, stream in enumerate(range(len(spike_times))):
-            if remapped and stream_num > 0:
-                times = self.ks_outputs[stream_num] / f'spike_times_remapped.npy'
-                print(f"""\n> Found remapped spike times from\r
-                {self.ks_outputs[stream_num]}, try to load this.""")
+            if use_si:
+                spike_times[stream_num] = self._get_si_spike_times()
             else:
-                times = self.ks_outputs[stream_num] / f'spike_times.npy'
+                if remapped and stream_num > 0:
+                    times = self.ks_outputs[stream_num] / f'spike_times_remapped.npy'
+                    print(f"""\n> Found remapped spike times from\r
+                    {self.ks_outputs[stream_num]}, try to load this.""")
+                else:
+                    times = self.ks_outputs[stream_num] / f'spike_times.npy'
 
-            clust = self.ks_outputs[stream_num] / f'spike_clusters.npy'
+                clust = self.ks_outputs[stream_num] / f'spike_clusters.npy'
 
-            try:
-                times = np.load(times)
-                clust = np.load(clust)
-            except FileNotFoundError:
-                msg = ": Can't load spike times that haven't been extracted!"
-                raise PixelsError(self.name + msg)
+                try:
+                    times = np.load(times)
+                    clust = np.load(clust)
+                except FileNotFoundError:
+                    msg = ": Can't load spike times that haven't been extracted!"
+                    raise PixelsError(self.name + msg)
 
-            times = np.squeeze(times)
-            clust = np.squeeze(clust)
-            by_clust = {}
+                times = np.squeeze(times)
+                clust = np.squeeze(clust)
+                by_clust = {}
 
-            for c in np.unique(clust):
-                c_times = times[clust == c]
-                uniques, counts = np.unique(
-                    c_times,
-                    return_counts=True,
-                )
-                repeats = c_times[np.where(counts>1)]
-                if len(repeats>1):
-                    print(f"> removed {len(repeats)} double-counted spikes from cluster {c}.")
+                for c in np.unique(clust):
+                    c_times = times[clust == c]
+                    uniques, counts = np.unique(
+                        c_times,
+                        return_counts=True,
+                    )
+                    repeats = c_times[np.where(counts>1)]
+                    if len(repeats>1):
+                        print(f"> removed {len(repeats)} double-counted spikes from cluster {c}.")
 
-                by_clust[c] = pd.Series(uniques)
-            spike_times[stream_num]  = pd.concat(by_clust, axis=1, names=['unit'])
-            # Convert to time into sample rate index
-            spike_times[stream_num] /= int(self.spike_meta[0]['imSampRate'])\
-                                        / self.SAMPLE_RATE 
+                    by_clust[c] = pd.Series(uniques)
+                spike_times[stream_num]  = pd.concat(by_clust, axis=1, names=['unit'])
+                # Convert to time into sample rate index
+                spike_times[stream_num] /= int(self.spike_meta[0]['imSampRate'])\
+                                            / self.SAMPLE_RATE 
 
         return spike_times[0]
 
