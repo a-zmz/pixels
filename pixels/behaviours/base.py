@@ -1904,7 +1904,8 @@ class Behaviour(ABC):
         cursor = 0  # In sample points
         rec_trials = {}
         trial_positions = {}
-        bin_trials = {}
+        bin_frs = {}
+        bin_counts = {}
 
         for rec_num in range(len(self.files)):
             # TODO jun 12 2024 skip other streams for now
