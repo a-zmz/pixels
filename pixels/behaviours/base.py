@@ -1980,88 +1980,73 @@ class Behaviour(ABC):
                     sigma=sigma,
                     sample_rate=self.SAMPLE_RATE,
                 )
-                # keep the original index
-                rates.index = spiked.index
                 # remove 1s padding from the start and end
                 rates = rates.iloc[scan_pad: -scan_pad]
+                spiked = spiked.iloc[scan_pad: -scan_pad]
                 # reset index to zero at the beginning of the trial
                 rates.reset_index(inplace=True, drop=True)
+                spiked.reset_index(inplace=True, drop=True)
                 trial_pos.reset_index(inplace=True, drop=True)
 
                 rec_trials[trial_ids[i]] = rates
                 trial_positions[trial_ids[i]] = trial_pos
 
-                bin_trial = rates.copy()
-                # add position here to bin together
-                bin_trial['positions'] = trial_pos.values
-
-                # get inter-sample-interval, time interval between each sample
-                # in milliseconds
-                isi = (1 / self.SAMPLE_RATE) * 1000
-                # reset index to zero at the beginning of the trial
-                bin_trial.reset_index(inplace=True, drop=True)
-                # convert index to datetime index for resampling
-                bin_trial.index = pd.to_timedelta(
-                    arg=bin_trial.index * isi,
-                    unit="ms",
+                # get bin firing rates
+                bin_frs[i] = self.bin_vr_trial(
+                    data=rates,
+                    positions=trial_pos,
+                    time_bin=time_bin,
+                    pos_bin=pos_bin,
+                    bin_method="mean",
                 )
-                # resample to 100ms bin
-                bin_trial = bin_trial.resample(time_bin).mean()
-                # use numeric index
-                bin_trial.index = np.arange(0, len(bin_trial))
-                # bin positions and only save the bin index
-                # NOTE: here position bin index starts at 1, for alfredo
-                # to make it back to 0-indexing, remove +1 at the end
-                bin_trial['pos_bin'] = bin_trial['positions'] // pos_bin + 1
-
-                bin_trials[i] = bin_trial
-
-        # align all trials by index
-        all_indices = list(set().union(
-            *[df.index for df in bin_trials.values()])
-        )
-        # reindex bin_trial by the longest trial
-        bin_dfs = {key: df.reindex(index=all_indices)
-               for key, df in bin_trials.items()}
+                # get bin spike count
+                bin_counts[i] = self.bin_vr_trial(
+                    data=spiked,
+                    positions=trial_pos,
+                    time_bin=time_bin,
+                    pos_bin=pos_bin,
+                    bin_method="sum",
+                )
 
         # stack df values into np array
-        bin_arr = np.stack(
-            [df.values for df in bin_dfs.values()],
-            axis=2,
-        ).T # reshape into trials x units x bins
+        # reshape into trials x units x bins
+        bin_count_arr = ioutils.reindex_by_longest(bin_counts).T
+        bin_fr_arr = ioutils.reindex_by_longest(bin_frs).T
 
-        # save bin_arr, for alfredo
+        # save bin_fr and bin_count, for alfredo & andrew
         # use label as array key name
-        arr_to_save = {
-            "fr": bin_arr[:, :-2, :],
-            "pos": bin_arr[:, -2:, :],
+        fr_to_save = {
+            "fr": bin_fr_arr[:, :-2, :],
+            "pos": bin_fr_arr[:, -2:, :],
         }
-        np.savez_compressed(output_al_path, **arr_to_save)
-        print(f"> Output saved at {output_al_path}.")
+        np.savez_compressed(output_fr_path, **fr_to_save)
+        print(f"> Output saved at {output_fr_path}.")
+        count_to_save = {
+            "count": bin_count_arr[:, :-2, :],
+            "pos": bin_count_arr[:, -2:, :],
+        }
+        np.savez_compressed(output_count_path, **count_to_save)
+        print(f"> Output saved at {output_count_path}.")
 
         if not rec_trials:
             return None
 
-        # align all trials by index
-        rec_indices = list(set().union(
-            *[df.index for df in rec_trials.values()])
+        # concat trial df
+        positions = ioutils.reindex_by_longest(
+            dfs=trial_positions,
+            return_format="dataframe",
+            names="trial",
         )
-        # reindex all trials by the longest trial
-        raw_dfs = {key: df.reindex(index=rec_indices)
-               for key, df in rec_trials.items()}
-        raw_pos = {key: df.reindex(index=rec_indices)
-               for key, df in trial_positions.items()}
-
-        positions = pd.concat(raw_pos, axis=1, names="trial")
-
-        # TODO july 10 2024 shuffle spike times for each unit across the whole
-        # recording
-
-        fr = pd.concat(raw_dfs, axis=1, names=["trial", "unit"])
+        fr = ioutils.reindex_by_longest(
+            dfs=rec_trials,
+            return_format="dataframe",
+            names=["trial", "unit"],
+        )
         fr = fr.reorder_levels(["unit", "trial"], axis=1)
-        fr.sort_index(level=0, axis=1)
+        fr = fr.sort_index(level=0, axis=1)
 
         return {"fr": fr, "positions": positions}
+
 
     def select_units(
         self, group='good', min_depth=0, max_depth=None, min_spike_width=None,
