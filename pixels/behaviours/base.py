@@ -1849,9 +1849,11 @@ class Behaviour(ABC):
         """
         action_labels = self.get_action_labels()[0]
 
-        # define output path for alfredo
-        output_al_path = self.interim/\
-                f'cache/{self.name}_{label}_{units}_fr_for_AL.npz'
+        # define output path for binned spike rate
+        output_fr_path = self.interim/\
+                f'cache/{self.name}_{label}_{units}_{time_bin}_spike_rate.npz'
+        output_count_path = self.interim/\
+                f'cache/{self.name}_{label}_{units}_{time_bin}_spike_count.npz'
 
         if units is None:
             units = self.select_units()
