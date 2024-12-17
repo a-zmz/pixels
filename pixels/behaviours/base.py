@@ -2951,3 +2951,42 @@ class Behaviour(ABC):
         df = pd.concat(cis, axis=1, names=['unit', 'bin'])
         df.set_index(pd.Index(percentiles, name="percentile"), inplace=True)
         return df
+
+
+    def bin_vr_trial(self, data, positions, time_bin, pos_bin, bin_method="mean"):
+        """
+        Bin virtual reality trials by given temporal bin and positional bin.
+        """
+        data = data.copy()
+        positions = positions.copy()
+
+        # convert index to datetime index for resampling
+        isi = (1 / self.SAMPLE_RATE) * 1000
+        data.index = pd.to_timedelta(
+            arg=data.index * isi,
+            unit="ms",
+        )
+
+        # set position index too
+        positions.index = data.index
+
+        # resample to 100ms bin, and get position mean
+        mean_pos = positions.resample(time_bin).mean()
+
+        if bin_method == "sum":
+            # resample to Xms bin, and get sum
+            bin_data = data.resample(time_bin).sum()
+        elif bin_method == "mean":
+            # resample to Xms bin, and get mean
+            bin_data = data.resample(time_bin).mean()
+
+        # add position here to bin together
+        bin_data['positions'] = mean_pos.values
+        # add bin positions
+        bin_pos = mean_pos // pos_bin + 1
+        bin_data['bin_pos'] = bin_pos.values
+
+        # use numeric index
+        bin_data.reset_index(inplace=True, drop=True)
+
+        return bin_data
