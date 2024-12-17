@@ -449,8 +449,8 @@ class Behaviour(ABC):
         if output.exists():
             print(f'\n> Spike times from {self.ks_outputs[remap_stream_idx]}\
             already remapped, next session.')
-            cluster_times = self._get_spike_times()[remap_stream_idx]
-            remapped_cluster_times = self._get_spike_times(
+            cluster_times = self.get_spike_times()[remap_stream_idx]
+            remapped_cluster_times = self.get_spike_times(
                 remapped=True)[remap_stream_idx]
 
             # get first spike time from each cluster, and their difference
@@ -544,8 +544,8 @@ class Behaviour(ABC):
         print(f'\n> Spike times remapping output saved to\n {output}.')
 
         # load remapped spike times of each cluster
-        cluster_times = self._get_spike_times()[remap_stream_idx]
-        remapped_cluster_times = self._get_spike_times(
+        cluster_times = self.get_spike_times()[remap_stream_idx]
+        remapped_cluster_times = self.get_spike_times(
             remapped=True)[remap_stream_idx]
 
         # get first spike time from each cluster, and their difference
@@ -1682,7 +1682,7 @@ class Behaviour(ABC):
 
         return spike_times[0] # NOTE: only deal with one stream for now
 
-    def _get_spike_times(self, remapped=False, use_si=False):
+    def get_spike_times(self, remapped=False, use_si=False):
         """
         Returns the sorted spike times.
 
@@ -1751,7 +1751,7 @@ class Behaviour(ABC):
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
         #TODO: spike times cannot be indexed by unit ids anymore
-        spikes = self._get_spike_times()[units]
+        spikes = self.get_spike_times()[units]
 
         if rate:
             # pad ends with 1 second extra to remove edge effects from convolution
@@ -1866,7 +1866,7 @@ class Behaviour(ABC):
 
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
-        spikes = self._get_spike_times(use_si=True)[units]
+        spikes = self.get_spike_times(use_si=True)[units]
         # drop rows if all nans
         spikes = spikes.dropna(how="all")
 
