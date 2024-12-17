@@ -1866,9 +1866,7 @@ class Behaviour(ABC):
 
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
-        #spikes = self._get_spike_times()[units]
-        sa_dir="/home/amz/synology/arthur/data/npx/interim/20240812_az_VDCN09/ks4/curated_sa.zarr"
-        spikes = self._get_si_spike_times(sa_dir)[units]
+        spikes = self._get_spike_times(use_si=True)[units]
         # drop rows if all nans
         spikes = spikes.dropna(how="all")
 
