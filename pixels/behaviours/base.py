@@ -2956,6 +2956,20 @@ class Behaviour(ABC):
     def bin_vr_trial(self, data, positions, time_bin, pos_bin, bin_method="mean"):
         """
         Bin virtual reality trials by given temporal bin and positional bin.
+
+        params
+        ===
+        data: pandas dataframe, neural data needed binning.
+
+        positions: pandas dataframe, position of current trial.
+
+        time_bin: str, temporal bin for neural data.
+
+        pos_bin: int, positional bin for positions.
+
+        bin_method: str, method to concatenate data within each temporal bin.
+            "mean": taking the mean of all frames.
+            "sum": taking sum of all frames.
         """
         data = data.copy()
         positions = positions.copy()
