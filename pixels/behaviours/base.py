@@ -1650,15 +1650,17 @@ class Behaviour(ABC):
         return self._get_processed_data("_lfp_data", "lfp_processed")
 
 
-    def _get_si_spike_times(self, sa_dir):
+    def _get_si_spike_times(self):
         """
         get spike times in second with spikeinterface
         """
+        self.sa_dir = self.find_file(self.files[0]["sorting_analyser"])
+
         spike_times = self._spike_times_data
 
         for stream_num, stream in enumerate(range(len(spike_times))):
             # load sorting analyser
-            sa = si.load_sorting_analyzer(sa_dir)
+            sa = si.load_sorting_analyzer(self.sa_dir)
 
             times = {}
             # get spike train
