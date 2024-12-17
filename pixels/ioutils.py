@@ -670,3 +670,41 @@ def stream_video(video, length=None):
             length -= 1
             if length == 0:
                 break
+
+def reindex_by_longest(dfs, return_format="array", names=None):
+    """
+    params
+    ===
+    dfs: dict, dictionary with pandas dataframe as values.
+
+    return_format: str, format of return value.
+        "array": stacked np array.
+        "dataframe": concatenated pandas dataframe.
+
+    names: str or list of str, names for levels of concatenated dataframe.
+
+    return
+    ===
+    np.array or pd.DataFrame.
+    """
+    # align all trials by index
+    indices = list(set().union(
+        *[df.index for df in dfs.values()])
+    )
+
+    # reindex by the longest
+    reidx_dfs = {key: df.reindex(index=indices)
+           for key, df in dfs.items()}
+
+    if return_format == "array":
+        # stack df values into np array
+        output = np.stack(
+            [df.values for df in reidx_dfs.values()],
+            axis=-1,
+        )
+    elif return_format == "dataframe":
+        # concatenate dfs
+        output = pd.concat(reidx_dfs, axis=1, names=names)
+
+    return output
+
