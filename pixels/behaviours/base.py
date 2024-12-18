@@ -2995,3 +2995,99 @@ class Behaviour(ABC):
         bin_data.reset_index(inplace=True, drop=True)
 
         return bin_data
+
+
+    @_cacheable
+    def get_positional_rate(
+        self, self, label, event, end_event=None, sigma=None, time_bin=None,
+        pos_bin=None, units=None,
+    ):
+        """
+        Get positional firing rate of selected units in vr, and spatial
+        occupancy of each position.
+        """
+        # TODO dec 18 2024:
+        # rearrange vr specific funcs to vr module
+        # put pixels specific funcs in pixels module
+
+        TUNNEL_RESET = 600 # cm
+
+        # get aligned firing rates and positions
+        trials = self.align_trials(
+            label=label,
+            event=event,
+            data="trial_rate",
+            end_event=end_event,
+            sigma=sigma,
+            time_bin=time_bin,
+            pos_bin=pos_bin,
+            units=units,
+        )
+        fr = trials["fr"]
+        positions = trials["positions"]
+
+        # get unit_ids
+        unit_ids = fr.columns.get_level_values("unit").unique()
+
+        # create position indices
+        indices = np.arange(0, TUNNEL_RESET+2)
+        # create occupancy array for trials
+        occupancy = np.full(
+            (TUNNEL_RESET+2, positions.shape[1]),
+            np.nan,
+        )
+        # create array for positional firing rate
+        pos_fr = {}
+
+        for t, trial in enumerate(positions):
+            # get trial position
+            trial_pos = positions[trial].dropna()
+
+            # floor pre reward zone and end ceil post zone end
+            trial_pos = trial_pos.apply(
+                lambda x: np.floor(x) if x <= ZONE_END else np.ceil(x)
+            )
+            # set to int
+            trial_pos = trial_pos.astype(int)
+
+            # exclude positions after tunnel reset
+            trial_pos = trial_pos[trial_pos <= TUNNEL_RESET+1]
+
+            # get firing rates for current trial of all units
+            trial_fr = fr.xs(
+                key=trial,
+                axis=1,
+                level="trial",
+            ).dropna(how="all").copy()
+
+            # get all indices before post reset
+            no_post_reset = trial_fr.index.intersection(trial_pos.index)
+            # remove post reset rows
+            trial_fr = trial_fr.loc[no_post_reset]
+            trial_pos = trial_pos.loc[no_post_reset]
+
+            # put trial positions in trial fr df
+            trial_fr["position"] = trial_pos.values
+            # group values by position and get mean
+            mean_fr = trial_fr.groupby("position")[unit_ids].mean()
+            # reindex into full tunnel length
+            pos_fr[trial] = mean_fr.reindex(indices)
+            # get trial occupancy
+            pos_count = trial_fr.groupby("position").size()
+            occupancy[pos_count.index.values, t] = pos_count.values
+
+        # concatenate dfs
+        pos_fr = pd.concat(pos_fr, axis=1, names=["trial", "unit"])
+        pos_fr = pos_fr.reorder_levels(["unit", "trial"], axis=1)
+        pos_fr = pos_fr.sort_index(level="unit", axis=1)
+        # convert to df
+        occupancy = pd.DataFrame(
+            data=occupancy,
+            index=indices,
+            columns=positions.columns,
+        )
+
+        return {"pos_fr": pos_fr, "occupancy": occupancy}
+
+
+
