@@ -86,10 +86,13 @@ def _cacheable(method):
                 as_list[i] = name
 
         as_list.insert(0, method.__name__)
+
         output = self.interim / 'cache' / ('_'.join(str(i) for i in as_list) + '.h5')
         if output.exists() and self._use_cache != "overwrite":
+            # load cache
             try:
                 df = ioutils.read_hdf5(output)
+                print(f"> Cache loaded from {output}.")
             except HDF5ExtError:
                 df = None
             except (KeyError, ValueError):
@@ -107,6 +110,7 @@ def _cacheable(method):
                         key_name = key.lstrip("/")
                         # use key name as dict key
                         df[key_name] = data
+                print(f"> Cache loaded from {output}.")
         else:
             df = method(*args, **kwargs)
             output.parent.mkdir(parents=True, exist_ok=True)
