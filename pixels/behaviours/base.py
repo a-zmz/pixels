@@ -1839,8 +1839,8 @@ class Behaviour(ABC):
 
 
     def _get_aligned_trials(
-        self, label, event, end_event=None, sigma=None, time_bin=None,
-        pos_bin=None, units=None,
+        self, label, event, units=None, sigma=None, end_event=None,
+        time_bin=None, pos_bin=None,
     ):
         """
         Returns spike rate for each unit within a trial.
@@ -2208,9 +2208,9 @@ class Behaviour(ABC):
 
     @_cacheable
     def align_trials(
-        self, label, event, data='spike_times', raw=False, duration=1, sigma=None,
-        units=None, dlc_project=None, video_match=None, end_event=None,
-        time_bin=None, pos_bin=False,
+        self, label, event, units=None, data='spike_times', raw=False,
+        duration=1, sigma=None, dlc_project=None, video_match=None,
+        end_event=None, time_bin=None, pos_bin=False,
     ):
         """
         Get trials aligned to an event. This finds all instances of label in the action
@@ -2291,8 +2291,8 @@ class Behaviour(ABC):
             print(f"Aligning {data} to trials.")
             # we let a dedicated function handle aligning spike times
             return self._get_aligned_trials(
-                label, event, end_event=end_event, sigma=sigma,
-                time_bin=time_bin, pos_bin=pos_bin, units=units,
+                label, event, units=units, sigma=sigma, end_event=end_event,
+                time_bin=time_bin, pos_bin=pos_bin,
             )
 
         if data == "motion_tracking" and not dlc_project:
@@ -3003,7 +3003,7 @@ class Behaviour(ABC):
 
     @_cacheable
     def get_positional_rate(
-        self, self, label, event, end_event=None, sigma=None, time_bin=None,
+        self, label, event, end_event=None, sigma=None, time_bin=None,
         pos_bin=None, units=None,
     ):
         """
@@ -3013,19 +3013,23 @@ class Behaviour(ABC):
         # TODO dec 18 2024:
         # rearrange vr specific funcs to vr module
         # put pixels specific funcs in pixels module
-
         TUNNEL_RESET = 600 # cm
+        ZONE_END = 495 # cm
+
+        # NOTE: order of args matters for loading the cache!
+        # always put units first, cuz it is like that in
+        # experiemnt.align_trials, otherwise the same cache cannot be loaded
 
         # get aligned firing rates and positions
         trials = self.align_trials(
+            units=units,
             label=label,
             event=event,
             data="trial_rate",
-            end_event=end_event,
             sigma=sigma,
+            end_event=end_event,
             time_bin=time_bin,
             pos_bin=pos_bin,
-            units=units,
         )
         fr = trials["fr"]
         positions = trials["positions"]
