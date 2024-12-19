@@ -466,3 +466,52 @@ class Experiment:
             if session.name == name:
                 return session
         raise PixelsError
+
+
+    def get_positional_rate(self, *args, units=None, **kwargs):
+        """
+        Get positional firing rate for aligned vr trials.
+        Check behaviours.base.Behaviour.align_trials for usage information.
+        """
+        trials = {}
+        for i, session in enumerate(self.sessions):
+            result = None
+            if units:
+                if units[i]:
+                    result = session.get_positional_rate(
+                        *args,
+                        units=units[i],
+                        **kwargs,
+                    )
+            else:
+                result = session.get_positional_rate(*args, **kwargs)
+            if result is not None:
+                trials[i] = result
+
+        pos_frs = {}
+        occupancies = {}
+        for s in trials:
+            pos_frs[s] = trials[s]["pos_fr"]
+            occupancies[s] = trials[s]["occupancy"]
+
+        pos_frs_df = pd.concat(
+            pos_frs.values(),
+            axis=1,
+            copy=False,
+            keys=pos_frs.keys(),
+            names=["session"]
+        )
+        occu_df = pd.concat(
+            occupancies.values(),
+            axis=1,
+            copy=False,
+            keys=occupancies.keys(),
+            names=["session"]
+        )
+        df = {
+            "pos_fr": pos_frs_df,
+            "occupancy": occu_df,
+        }
+
+        return df
+
