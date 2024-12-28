@@ -3087,14 +3087,29 @@ class Behaviour(ABC):
 
         # concatenate dfs
         pos_fr = pd.concat(pos_fr, axis=1, names=["trial", "unit"])
-        pos_fr = pos_fr.reorder_levels(["unit", "trial"], axis=1)
-        pos_fr = pos_fr.sort_index(level="unit", axis=1)
         # convert to df
         occupancy = pd.DataFrame(
             data=occupancy,
             index=indices,
             columns=positions.columns,
         )
+
+        # add another level of starting position
+        # Get the starting index for each trial (column)
+        starts = occupancy.apply(lambda col: col.first_valid_index())
+        # Group trials by their starting index
+        trial_level = pos_fr.columns.get_level_values("trial")
+        unit_level = pos_fr.columns.get_level_values("unit")
+        # map start level
+        start_level = trial_level.map(starts)
+        # define new columns
+        new_cols = pd.MultiIndex.from_arrays(
+            [start_level, unit_level, trial_level],
+            names=["start", "unit", "trial"],
+        )
+        pos_fr.columns = new_cols
+        # sort by unit
+        pos_fr = pos_fr.sort_index(level="unit", axis=1)
 
         return {"pos_fr": pos_fr, "occupancy": occupancy}
 
