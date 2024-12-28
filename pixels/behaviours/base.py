@@ -3010,11 +3010,12 @@ class Behaviour(ABC):
         Get positional firing rate of selected units in vr, and spatial
         occupancy of each position.
         """
+        # get constants from vd
+        from vision_in_darkness.constants import TUNNEL_RESET, ZONE_END
+
         # TODO dec 18 2024:
         # rearrange vr specific funcs to vr module
         # put pixels specific funcs in pixels module
-        TUNNEL_RESET = 600 # cm
-        ZONE_END = 495 # cm
 
         # NOTE: order of args matters for loading the cache!
         # always put units first, cuz it is like that in
@@ -3022,7 +3023,7 @@ class Behaviour(ABC):
 
         # get aligned firing rates and positions
         trials = self.align_trials(
-            units=units,
+            units=units, # NOTE: ALWAYS the first arg
             label=label,
             event=event,
             data="trial_rate",
