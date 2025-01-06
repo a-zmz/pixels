@@ -51,18 +51,12 @@ def get_data_files(data_dir, session_name):
 
     spike_data = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.bin*'))
     spike_meta = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.meta*'))
-    lfp_data = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].lf.bin*'))
-    lfp_meta = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].lf.meta*'))
     behaviour = sorted(glob.glob(f'{data_dir}/[0-9a-zA-Z_-]*([0-9]).tdms*'))
 
     if not spike_data:
         raise PixelsError(f"{session_name}: could not find raw AP data file.")
     if not spike_meta:
         raise PixelsError(f"{session_name}: could not find raw AP metadata file.")
-    #if not lfp_data:
-    #    raise PixelsError(f"{session_name}: could not find raw LFP data file.")
-    #if not lfp_meta:
-    #    raise PixelsError(f"{session_name}: could not find raw LFP metadata file.")
 
     camera_data = []
     camera_meta = []
