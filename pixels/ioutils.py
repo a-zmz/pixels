@@ -106,19 +106,13 @@ def get_data_files(data_dir, session_name):
             recording['behaviour_processed'] = None
 
         recording['action_labels'] = Path(f'action_labels_{num}.npz')
-        recording['spike_processed'] = recording['spike_data'].with_name(
-            recording['spike_data'].stem + '_processed.h5'
+        recording['preprocessed'] = recording['spike_data'].with_name(
+                recording['spike_data'].stem[:-3] + '.preprocessed.zarr'
         )
         recording['spike_rate_processed'] = Path(f'spike_rate_{num}.h5')
-        #recording['lfp_processed'] = recording['lfp_data'].with_name(
-        #    recording['lfp_data'].stem + '_processed.npy'
-        #)
-        #recording['lfp_sd'] = recording['lfp_data'].with_name(
-        #    recording['lfp_data'].stem + '_sd.json'
-        #)
-        #recording['clustered_channels'] = recording['lfp_data'].with_name(
-        #    f'channel_clustering_results_{num}.h5'
-        #)
+        recording['clustered_channels'] = recording['spike_data'].with_name(
+            f'channel_clustering_results_{num}.h5'
+        )
         recording['depth_info'] = recording['spike_data'].with_name(
             f'depth_info_{num}.json'
         )
