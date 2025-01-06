@@ -610,20 +610,100 @@ class Behaviour(ABC):
 
         print("> Done!")
 
+
+    def preprocess_fullband(self, mc_method="dredge"):
+        """
+        Preprocess full-band pixels data.
+
+        params
+        ===
+        mc_method: str, motion correction method.
+            Default: "dredge".
+                (as of jan 2025, dredge performs better than ks motion correction.)
+
+        return
+        ===
+        preprocessed: spikeinterface recording.
+        """
+        for rec_num, recording in enumerate(self.files):
+            print(
+                f">>>>> Preprocessing data for recording {rec_num+1} "
+                f"of {len(self.files)}"
+            )
+
+            output = self.interim / recording['preprocessed']
+            if output.exists():
+                continue
+
+            # load recording data
+            rec = se.read_spikeglx(
+                folder_path=self.interim,
+                stream_id="imec0.ap",
+                stream_name=recording['spike_data'],
+                all_annotations=True, # include all annotations
+            )
+
+            # correct phase shift
+            print("> do phase shift correction on raw.")
+            rec_ps = spre.phase_shift(rec)
+
+            print("> do common average referencing.")
+            cmr = spre.common_reference(
+                rec_ps,
+                dtype=np.float32, # change to float for motion correction
+            )
+
+            print(f"> correct motion with {mc_method}.")
+            mcd = spre.correct_motion(
+                cmr, 
+                preset=mc_method, 
+                #interpolate_motion_kwargs={'border_mode':'force_extrapolate'},
+                #folder=self.interim,
+            )
+
+            mcd.save(
+                format="zarr",
+                folder=output,
+                compressor=wv_compressor,
+            )
+
+
     def process_spikes(self):
         """
         Process the spike data from the raw neural recording data.
         """
+        # preprocess data
+        self.preprocess_fullband()
+
         for rec_num, recording in enumerate(self.files):
             print(
                 f">>>>> Processing spike data for recording {rec_num + 1} of {len(self.files)}"
             )
             output = self.processed / recording['spike_processed']
-
             if output.exists():
                 continue
 
-            data_file = self.find_file(recording['spike_data'])
+            # load preprocessed
+            preprocessed = self.find_file(recording['preprocessed'])
+            rec = si.load_extractor(preprocessed)
+
+            print("> create ap band by high-pass filtering.")
+            ap_band = spre.bandpass_filter(
+                rec,
+                freq_min=300,
+                freq_max=9000,
+                ftype="butterworth",
+            )
+
+            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
+            downsampled = spre.resample(ap_band, self.SAMPLE_RATE)
+
+            downsampled.save(
+                format="zarr",
+                folder=output,
+                compressor=wv_compressor,
+            )
+
             """
             orig_rate = self.spike_meta[rec_num]['imSampRate']
             num_chans = self.spike_meta[rec_num]['nSavedChans']
