@@ -234,11 +234,8 @@ class Behaviour(ABC):
         self.drop_data()
 
         self.spike_meta = [
-            ioutils.read_meta(self.find_file(f['spike_meta'], copy=False)) for f in self.files
+            ioutils.read_meta(self.find_file(f['spike_meta'], copy=True)) for f in self.files
         ]
-        #self.lfp_meta = [
-        #    ioutils.read_meta(self.find_file(f['lfp_meta'], copy=False)) for f in self.files
-        #]
 
         # environmental variable PIXELS_CACHE={0,1} can be {disable,enable} cache
         self.set_cache(bool(int(os.environ.get("PIXELS_CACHE", 1))))
