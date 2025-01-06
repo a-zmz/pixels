@@ -35,6 +35,7 @@ import spikeinterface.preprocessing as spre
 import spikeinterface.postprocessing as spost
 from scipy import interpolate
 from tables import HDF5ExtError
+from wavpack_numcodecs import WavPack
 
 from pixels import ioutils
 from pixels import signal
