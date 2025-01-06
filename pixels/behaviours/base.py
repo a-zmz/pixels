@@ -738,13 +738,42 @@ class Behaviour(ABC):
         """
         Process the LFP data from the raw neural recording data.
         """
+        # preprocess data
+        self.preprocess_fullband()
+
         for rec_num, recording in enumerate(self.files):
             print(f">>>>> Processing LFP for recording {rec_num + 1} of {len(self.files)}")
 
             output = self.processed / recording['lfp_processed']
             if output.exists():
                 continue
+            assert 0
 
+            # load preprocessed
+            preprocessed = self.processed / recording['preprocessed']
+            rec = se.load_extractor(preprocessed)
+
+            # get lfp band
+            lfp_band = spre.bandpass_filter(
+                rec,
+                freq_min=0.5,
+                freq_max=300,
+                ftype="butterworth",
+            )
+
+            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
+            downsampled = spre.resample(lfp_band, self.SAMPLE_RATE)
+
+            downsampled.save(
+                format="zarr",
+                folder=output,
+                compressor=wv_compressor,
+            )
+            assert 0
+            # get traces
+            traces = downsampled.get_traces()
+
+            """
             data_file = self.find_file(recording['lfp_data'])
             orig_rate = int(self.lfp_meta[rec_num]['imSampRate'])
             num_chans = int(self.lfp_meta[rec_num]['nSavedChans'])
@@ -770,12 +799,13 @@ class Behaviour(ABC):
             #if self._lag[rec_num] is None:
             #    self.sync_data(rec_num, sync_channel=data[:, -1])
             #lag_start, lag_end = self._lag[rec_num]
+            """
 
             sd = self.processed / recording['lfp_sd']
             if sd.exists():
                 continue
 
-            SDs = np.std(downsampled, axis=0)
+            SDs = np.std(traces, axis=0)
             results = dict(
                 median=np.median(SDs),
                 SDs=SDs.tolist(),
@@ -790,11 +820,11 @@ class Behaviour(ABC):
             #    data = data[- lag_start:]
             #print(f"> Saving median subtracted & downsampled LFP to {output}")
             # save in .npy format
-            np.save(
-                file=output,
-                arr=downsampled,
-                allow_pickle=True,
-            )
+            #np.save(
+            #    file=output,
+            #    arr=downsampled,
+            #    allow_pickle=True,
+            #)
             #downsampled = pd.DataFrame(downsampled)
             #ioutils.write_hdf5(output, downsampled)
 
