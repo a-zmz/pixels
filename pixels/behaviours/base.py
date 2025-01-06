@@ -50,13 +50,18 @@ np.random.seed(BEHAVIOUR_HZ)
 
 # set si job_kwargs
 job_kwargs = dict(
-    n_jobs=-1,
+    n_jobs=0.8, # 80% core
     chunk_duration='1s',
     progress_bar=True,
 )
 
 si.set_global_job_kwargs(**job_kwargs)
 
+# instantiate WavPack compressor
+wv_compressor = WavPack(
+    level=3, # high compression
+    bps=None, # lossless
+)
 
 def _cacheable(method):
     """
