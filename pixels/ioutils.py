@@ -76,15 +76,19 @@ def get_data_files(data_dir, session_name):
             recording['spike_data'].stem[:-3] + '.lf.zarr'
         )
 
+        stream_id = recording['spike_data'].stem[-8:-3]
+        recording['preprocessed'] = recording['spike_data'].with_name(
+            f'{session_name}_{stream_id}.preprocessed.zarr'
+        )
         recording['spike_processed'] = recording['spike_data'].with_name(
-            recording['spike_data'].stem[:-3] + '.ap.processed.zarr'
+            f'{session_name}_{stream_id}.ap.processed.zarr'
         )
         recording['lfp_processed'] = recording['spike_data'].with_name(
-            recording['spike_data'].stem[:-3] + '.lf.processed.zarr'
+            f'{session_name}_{stream_id}.lf.processed.zarr'
         )
-        recording['lfp_sd'] = recording['spike_data'].with_name(
-            recording['spike_data'].stem[:-3] + '_lf_sd.json'
-        )
+        #recording['lfp_sd'] = recording['spike_data'].with_name(
+        #    f'{session_name}_{stream_id}_lf_sd.json'
+        #)
 
         if behaviour:
             if len(behaviour) == len(spike_data):
