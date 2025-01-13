@@ -33,100 +33,127 @@ def get_data_files(data_dir, session_name):
 
     Returns
     -------
-    A list of dicts, where each dict corresponds to one recording. The dict will contain
-    these keys to identify data files:
+    A nested dicts, where each dict corresponds to one session. Data is
+    separated to two main categories: pixels and behaviour.
 
-        - spike_data
-        - spike_meta
-        - lfp_data
-        - lfp_meta
-        - behaviour
-        - camera_data
-        - camera_meta
+    In `pixels`, data is separated by their stream id, this is to allow:
+        - easy concatenation of recordings files from the same probe, i.e.,
+          stream id,
+        - different numbers of pixels recordings and behaviour recordings,
 
+    {session_name:{
+        'pixels':{
+            'imec0':{
+                'ap_raw': [PosixPath('name.bin')],
+                'ap_meta': [PosixPath('name.meta')],
+                'preprocessed': PosixPath('name.zarr'),
+                'ap_downsampled': PosixPath('name.zarr'),
+                'lfp_downsampled': PosixPath('name.zarr'),
+                'depth_info': PosixPath('name.json'), <== ??
+                'sorting_analyser': PosixPath('name.zarr'),
+            },
+            'imecN':{
+            },
+        },
+        'behaviour':{
+            'vr': PosixPath('name.h5'),
+            'action_labels': PosixPath('name.npz'),
+        },
+    }
     """
     if session_name != data_dir.stem:
         data_dir = list(data_dir.glob(f'{session_name}*'))[0]
-    files = []
 
-    spike_data = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.bin*'))
-    spike_meta = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.meta*'))
-    behaviour = sorted(glob.glob(f'{data_dir}/[0-9a-zA-Z_-]*([0-9]).tdms*'))
+    files = {}
 
-    if not spike_data:
+    ap_raw = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.bin*'))
+    ap_meta = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.meta*'))
+
+    if not ap_raw:
         raise PixelsError(f"{session_name}: could not find raw AP data file.")
-    if not spike_meta:
+    if not ap_meta:
         raise PixelsError(f"{session_name}: could not find raw AP metadata file.")
 
-    camera_data = []
-    camera_meta = []
-    for rec in behaviour:
-        name = Path(rec).stem
-        rec_vids = sorted(glob.glob(f'{data_dir}/*{name}-*.tdms*'))
-        vids = [v for v in rec_vids if 'meta' not in v]
-        camera_data.append(vids)
-        meta = [v for v in rec_vids if 'meta' in v]
-        camera_meta.append(meta)
+    pixels = {}
+    for r, rec in enumerate(ap_raw):
+        stream_id = rec[-12:-4]
+        # separate recordings by their stream ids
+        if stream_id not in pixels:
+            pixels[stream_id] = {
+                "ap_raw": [], # there could be mutliple, thus list
+                "ap_meta": [],
+                "si_rec": None, # there could be only one, thus None
+                "CatGT_ap_data": [],
+                "CatGT_ap_meta": [],
+            }
 
-    for num, spike_recording in enumerate(spike_data):
-        recording = {}
-        recording['spike_data'] = original_name(spike_recording)
-        recording['spike_meta'] = original_name(spike_meta[num])
-        recording['lfp_data'] = recording['spike_data'].with_name(
-            recording['spike_data'].stem[:-3] + '.lf.zarr'
-        )
+        base_name = original_name(rec)
+        pixels[stream_id]["ap_raw"].append(base_name)
+        pixels[stream_id]["ap_meta"].append(original_name(ap_meta[r]))
 
-        stream_id = recording['spike_data'].stem[-8:-3]
-        recording['preprocessed'] = recording['spike_data'].with_name(
+        # spikeinterface cache
+        pixels[stream_id]["preprocessed"] = base_name.with_name(
             f'{session_name}_{stream_id}.preprocessed.zarr'
         )
-        recording['spike_processed'] = recording['spike_data'].with_name(
-            f'{session_name}_{stream_id}.ap.processed.zarr'
-        )
-        recording['lfp_processed'] = recording['spike_data'].with_name(
-            f'{session_name}_{stream_id}.lf.processed.zarr'
-        )
-        #recording['lfp_sd'] = recording['spike_data'].with_name(
-        #    f'{session_name}_{stream_id}_lf_sd.json'
-        #)
-
-        if behaviour:
-            if len(behaviour) == len(spike_data):
-                recording['behaviour'] = original_name(behaviour[num])
-            else:
-                recording['behaviour'] = original_name(behaviour[0])
-            recording['behaviour_processed'] = recording['behaviour'].with_name(
-                recording['behaviour'].stem + '_processed.h5'
-            )
-
-            # We only have videos if we also have behavioural TDMS data
-            if len(camera_data) > num:
-                recording['camera_data'] = [original_name(d) for d in camera_data[num]]
-                recording['camera_meta'] = [original_name(d) for d in camera_meta[num]]
-                recording['motion_index'] = Path(f'motion_index_{num}.npy')
-                recording['motion_tracking'] = Path(f'motion_tracking_{num}.h5')
-        else:
-            recording['behaviour'] = None
-            recording['behaviour_processed'] = None
-
-        recording['action_labels'] = Path(f'action_labels_{num}.npz')
-        recording['spike_rate_processed'] = Path(f'spike_rate_{num}.h5')
-        recording['clustered_channels'] = recording['spike_data'].with_name(
-            f'channel_clustering_results_{num}.h5'
-        )
-        recording['depth_info'] = recording['spike_data'].with_name(
-            f'depth_info_{num}.json'
-        )
-        recording['CatGT_ap_data'] = str(recording['spike_data']).replace("t0", "tcat")
-        recording['CatGT_ap_meta'] = str(recording['spike_meta']).replace("t0", "tcat")
-        recording['vr'] = recording['spike_data'].with_name(
-            f'{session_name}_vr_synched.h5'
-        )
-        recording['sorting_analyser'] = recording['spike_meta'].with_name(
+        pixels[stream_id]['sorting_analyser'] = base_name.with_name(
             f'curated_sa.zarr'
         )
 
-        files.append(recording)
+        # downsampled ap stream, 300Hz+
+        pixels[stream_id]["ap_downsampled"] = base_name.with_name(
+            f'{session_name}_{stream_id}.downsampled.zarr'
+        )
+        # downsampled lfp stream, 300Hz-
+        pixels[stream_id]["lfp_downsampled"] = base_name.with_name(
+            f'{session_name}_{stream_id[:-3]}.lf.downsampled.zarr'
+        )
+
+        # depth info of probe
+        pixels[stream_id]['depth_info'] = base_name.with_name(
+            f'depth_info_{stream_id}.json'
+        )
+        pixels[stream_id]['clustered_channels'] = base_name.with_name(
+            f'channel_clustering_results_{stream_id}.h5'
+        )
+
+        # old catgt data
+        pixels[stream_id]['CatGT_ap_data'].append(
+            str(base_name).replace("t0", "tcat")
+        )
+        pixels[stream_id]['CatGT_ap_meta'].append(
+            str(base_name).replace("t0", "tcat")
+        )
+
+        #pixels[stream_id]['spike_rate_processed'] = base_name.with_name(
+        #    f'spike_rate_{stream_id}.h5'
+        #)
+
+    pupil_raw = sorted(glob.glob(f'{data_dir}/behaviour/pupil_cam/*.avi*'))
+
+    behaviour = {
+        "pupil_raw": pupil_raw,
+    }
+
+    behaviour['vr_synched'] = base_name.with_name(
+        f'{session_name}_vr_synched.h5'
+    )
+    behaviour['action_labels'] = base_name.with_name(f'action_labels.npz')
+
+    if pupil_raw:
+        behaviour['pupil_processed'] = base_name.with_name(
+            session_name + '_pupil_processed.h5'
+        )
+        behaviour['motion_index'] = base_name.with_name(
+            session_name + 'motion_index.npz'
+        )
+        behaviour['motion_tracking'] = base_name.with_name(
+            session_name + 'motion_tracking.h5'
+        )
+
+    files = {
+        "pixels": pixels,
+        "behaviour": behaviour,
+    }
 
     return files
 
