@@ -793,31 +793,6 @@ class Behaviour(ABC):
                 compressor=wv_compressor,
             )
             assert 0
-            # get traces
-            traces = downsampled.get_traces()
-
-            """
-            data_file = self.find_file(recording['lfp_data'])
-            orig_rate = int(self.lfp_meta[rec_num]['imSampRate'])
-            num_chans = int(self.lfp_meta[rec_num]['nSavedChans'])
-
-            print("> Mapping LFP data")
-            data = se.read_binary(data_file, orig_rate, np.int16, num_chans-1)
-            #data = ioutils.read_bin(data_file, num_chans)
-
-            print("> Performing median subtraction across channels for each timepoint")
-            #subtracted = signal.median_subtraction(data, axis=1)
-            cmred = spre.common_reference(data)
-
-            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
-            #downsampled = signal.resample(subtracted, orig_rate, self.SAMPLE_RATE, False)
-            downsampled = spre.resample(cmred, self.SAMPLE_RATE)
-            # get traces
-            downsampled = downsampled.get_traces()
-
-            # TODO jun 10 2024 to get sync channel here and find lag?
-            #sync_chan = downsampled[:, -1]
-            #downsampled = downsampled[:, :-1]
 
             #if self._lag[rec_num] is None:
             #    self.sync_data(rec_num, sync_channel=data[:, -1])
