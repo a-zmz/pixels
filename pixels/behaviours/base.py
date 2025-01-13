@@ -894,82 +894,66 @@ class Behaviour(ABC):
             str(self.interim) +'/' + f'catgt_{self.name}_g[0-9]'
         ))
 
-
-    def load_recording(self):
+    def load_raw_ap(self):
         """
-        Write a function to load recording.
+        Write a function to load and concatenate raw recording files for each
+        stream (i.e., probe), so that data from all runs of the same probe can
+        be preprocessed and sorted together.
         """
-        try:
-            recording = si.load_extractor(self.interim / 'cache/recording.json')
-            concat_rec = recording
-            output = os.path.dirname(self.ks_output)
-            return recording, output
+        # if multiple runs for the same probe, concatenate them
+        streams = self.files["pixels"]
 
-        except:
-            for _, files in enumerate(self.files):
-                # TODO jan 4 check if can put line 798-808 here 
+        for stream_id in streams:
+            stream_files = streams[stream_id]
+            recs = []
+            for r, raw in enumerate(stream_files["ap_raw"]):
                 try:
-                    print("\n> Getting catgt-ed recording...")
                     self.CatGT_dir = Path(self.CatGT_dir[0])
                     data_dir = self.CatGT_dir
-                    data_file = data_dir / files['CatGT_ap_data']
-                    metadata = data_dir / files['CatGT_ap_meta']
+                    data_file = data_dir / stream_files['CatGT_ap_data'][r]
+                    print("\n> Got catgt-ed recording.")
                 except:
                     print(f"\n> Getting the orignial recording...")
-                    data_file = self.find_file(files['spike_data'])
-                    metadata = self.find_file(files['spike_meta'])
+                    data_file = self.find_file(raw)
 
-            assert 0
-            stream_id = data_file.as_posix()[-12:-4]
-            if stream_id not in streams:
-                streams[stream_id] = metadata
+                # load recording file
+                rec = se.read_spikeglx(
+                    folder_path=data_file.parent,
+                    stream_id=stream_id,
+                    stream_name=data_file.stem,
+                    all_annotations=True, # include all annotations
+                )
+                recs.append(rec)
 
-            for stream_num, stream in enumerate(streams.items()):
-                stream_id, metadata = stream
-                # find spike sorting output folder
-                if len(re.findall('_t[0-9]+', data_file.as_posix())) == 0:
-                    output = self.processed / f'sorted_stream_cat_{stream_num}'
-                else:
-                    output = self.processed / f'sorted_stream_{stream_num}'
+            if len(recs) > 1:
+                # concatenate runs for each probe
+                concat_recs = si.concatenate_recordings(recs)
+            else:
+                concat_recs = recs[0]
 
-                try:
-                    recording = se.SpikeGLXRecordingExtractor(self.CatGT_dir, stream_id=stream_id)
-                except ValueError as e:
-                    raise PixelsError(
-                        f"Did the raw data get fully copied to interim? Full error: {e}\n"
-                    )
+            # now the value for streams dict is recording extractor
+            stream_files["si_rec"] = concat_recs
 
-                # this recording is filtered
-                recording.annotate(is_filtered=True)
-
-                # concatenate recording segments
-                concat_rec = si.concatenate_recordings([recording])
-                probe = pi.read_spikeglx(metadata.as_posix())
-                concat_rec = concat_rec.set_probe(probe)
-                # annotate spike data is filtered
-                concat_rec.annotate(is_filtered=True)
-
-        return concat_rec, output
+        return None
 
 
     def sort_spikes(self, CatGT_app=None, old=False):
         """
         Run kilosort spike sorting on raw spike data.
         """
-        streams = {}
-        # set chunks for spikeinterface operations
-        #job_kwargs = dict(
-        #    n_jobs=-3, # -1: num of job equals num of cores
-        #    chunk_duration="1s",
-        #    progress_bar=True,
-        #)
+        # preprocess raw
+        self.preprocess_raw()
+
+        assert 0
+        # TODO jan 13 2025:
+        # CONTINUE HERE!
+        # put ks4 here
 
         #concat_rec, output = self.load_recording()
         #assert 0
         #TODO: jan 3 see if ks can run normally now using load_recording()
 
         self.run_catgt(CatGT_app=CatGT_app)
-        assert 0
 
         for _, files in enumerate(self.files):
             if not CatGT_app == None:
