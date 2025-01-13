@@ -233,9 +233,12 @@ class Behaviour(ABC):
         self._probe_depths = None
         self.drop_data()
 
-        self.spike_meta = [
-            ioutils.read_meta(self.find_file(f['spike_meta'], copy=True)) for f in self.files
-        ]
+        self.ap_meta = []
+        for stream_id in self.files["pixels"]:
+            for meta in self.files["pixels"][stream_id]["ap_meta"]:
+                self.ap_meta.append(
+                    ioutils.read_meta(self.find_file(meta, copy=True))
+                )
 
         # environmental variable PIXELS_CACHE={0,1} can be {disable,enable} cache
         self.set_cache(bool(int(os.environ.get("PIXELS_CACHE", 1))))
