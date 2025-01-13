@@ -613,10 +613,32 @@ class Behaviour(ABC):
 
         print("> Done!")
 
-
-    def preprocess_fullband(self, mc_method="dredge"):
+    def _preprocess_raw(self, rec, mc_method):
         """
-        Preprocess full-band pixels data.
+        Implementation of preprocessing on raw pixels data.
+        """
+        # correct phase shift
+        print("> do phase shift correction on raw.")
+        rec_ps = spre.phase_shift(rec)
+
+        print("> do common average referencing.")
+        # NOTE: dtype will be converted to float32 during motion correction
+        cmr = spre.common_reference(
+            rec_ps,
+        )
+
+        print(f"> correct motion with {mc_method}.")
+        mcd = spre.correct_motion(
+            cmr, 
+            preset=mc_method, 
+            #interpolate_motion_kwargs={'border_mode':'force_extrapolate'},
+        )
+
+        return mcd
+
+    def preprocess_raw(self, mc_method="dredge"):
+        """
+        Preprocess full-band raw pixels data.
 
         params
         ===
@@ -628,55 +650,53 @@ class Behaviour(ABC):
         ===
         preprocessed: spikeinterface recording.
         """
-        for rec_num, recording in enumerate(self.files):
-            print(
-                f">>>>> Preprocessing data for recording {rec_num+1} "
-                f"of {len(self.files)}"
-            )
+        # load raw recording as si recording extractor
+        self.load_raw_ap()
 
-            output = self.interim / recording['preprocessed']
+        # get pixels streams
+        streams = self.files["pixels"]
+
+        for stream_id in streams:
+            # check if exists
+            output = self.interim / streams[stream_id]['preprocessed']
             if output.exists():
                 continue
 
-            # load recording data
-            rec = se.read_spikeglx(
-                folder_path=self.interim,
-                stream_id="imec0.ap",
-                stream_name=recording['spike_data'],
-                all_annotations=True, # include all annotations
+            # load si rec
+            rec = streams[stream_id]["si_rec"]
+
+            print(
+                f">>>>> Preprocessing data for recording from {stream_id} "
+                f"of {len(streams)}"
             )
 
-            # correct phase shift
-            print("> do phase shift correction on raw.")
-            rec_ps = spre.phase_shift(rec)
+            shank_groups = rec.get_channel_groups()
+            if not np.all(shank_groups == shank_groups[0]):
+                preprocessed = []
+                # split by groups
+                groups = rec.split_by("group")
+                for group in groups.values():
+                    preprocessed.append(self._preprocess_raw(group))
+                # aggregate groups together
+                preprocessed = si.aggregate_channels(preprocessed)
+            else:
+                preprocessed = self._preprocess_raw(rec, mc_method)
 
-            print("> do common average referencing.")
-            cmr = spre.common_reference(
-                rec_ps,
-                dtype=np.float32, # change to float for motion correction
-            )
-
-            print(f"> correct motion with {mc_method}.")
-            mcd = spre.correct_motion(
-                cmr, 
-                preset=mc_method, 
-                #interpolate_motion_kwargs={'border_mode':'force_extrapolate'},
-                #folder=self.interim,
-            )
-
-            mcd.save(
+            preprocessed.save(
                 format="zarr",
                 folder=output,
                 compressor=wv_compressor,
             )
+
+        return None
 
 
     def process_spikes(self):
         """
         Process the spike data from the raw neural recording data.
         """
-        # preprocess data
-        self.preprocess_fullband()
+        # preprocess raw data
+        self.preprocess_raw()
 
         for rec_num, recording in enumerate(self.files):
             print(
@@ -742,7 +762,7 @@ class Behaviour(ABC):
         Process the LFP data from the raw neural recording data.
         """
         # preprocess data
-        self.preprocess_fullband()
+        self.preprocess_raw()
 
         for rec_num, recording in enumerate(self.files):
             print(f">>>>> Processing LFP for recording {rec_num + 1} of {len(self.files)}")
