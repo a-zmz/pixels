@@ -251,18 +251,19 @@ class Behaviour(ABC):
         """
         Clear attributes that store data to clear some memory.
         """
-        # assume each pixels session only has one behaviour session, no matter
-        # number of probes
-        #self._action_labels = None
-        self._action_labels = [None] * len(self.files)
-        self._behavioural_data = [None] * len(self.files)
-        self._spike_data = [None] * len(self.files)
-        self._spike_times_data = [None] * len(self.files)
-        self._spike_rate_data = [None] * len(self.files)
-        self._lfp_data = [None] * len(self.files)
-        self._motion_index = [None] * len(self.files)
-        self._cluster_info = [None] * len(self.files)
-        self._probe_depths = [None] * len(self.files)
+        # NOTE: number of behaviour session is independent of number of probes
+        self.stream_count = len(self.files["pixels"])
+        self.behaviour_count = len(self.files["behaviour"]["action_labels"])
+
+        self._action_labels = [None] * self.behaviour_count
+        self._behavioural_data = [None] * self.behaviour_count
+        self._ap_data = [None] * self.stream_count
+        self._spike_times_data = [None] * self.stream_count
+        self._spike_rate_data = [None] * self.stream_count
+        self._lfp_data = [None] * self.stream_count
+        self._motion_index = [None] * self.behaviour_count
+        self._cluster_info = [None] * self.stream_count
+        self._probe_depths = [None] * self.stream_count
         self._load_lag()
 
     def set_cache(self, on: bool | Literal["overwrite"]) -> None:
