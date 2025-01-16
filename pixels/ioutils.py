@@ -42,32 +42,32 @@ def get_data_files(data_dir, session_name):
         - different numbers of pixels recordings and behaviour recordings,
 
     {session_name:{
-        'pixels':{
-            'imec0':{
-                'ap_raw': [PosixPath('name.bin')],
-                'ap_meta': [PosixPath('name.meta')],
-                'preprocessed': PosixPath('name.zarr'),
-                'ap_downsampled': PosixPath('name.zarr'),
-                'lfp_downsampled': PosixPath('name.zarr'),
-                'depth_info': PosixPath('name.json'), <== ??
-                'sorting_analyser': PosixPath('name.zarr'),
+        "pixels":{
+            "imec0":{
+                "ap_raw": [PosixPath("name.bin")],
+                "ap_meta": [PosixPath("name.meta")],
+                "preprocessed": PosixPath("name.zarr"),
+                "ap_downsampled": PosixPath("name.zarr"),
+                "lfp_downsampled": PosixPath("name.zarr"),
+                "depth_info": PosixPath("name.json"), <== ??
+                "sorting_analyser": PosixPath("name.zarr"),
             },
-            'imecN':{
+            "imecN":{
             },
         },
-        'behaviour':{
-            'vr': PosixPath('name.h5'),
-            'action_labels': PosixPath('name.npz'),
+        "behaviour":{
+            "vr": PosixPath("name.h5"),
+            "action_labels": PosixPath("name.npz"),
         },
     }
     """
     if session_name != data_dir.stem:
-        data_dir = list(data_dir.glob(f'{session_name}*'))[0]
+        data_dir = list(data_dir.glob(f"{session_name}*"))[0]
 
     files = {}
 
-    ap_raw = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.bin*'))
-    ap_meta = sorted(glob.glob(f'{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.meta*'))
+    ap_raw = sorted(glob.glob(f"{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.bin*"))
+    ap_meta = sorted(glob.glob(f"{data_dir}/{session_name}_g[0-9]_t0.imec[0-9].ap.meta*"))
 
     if not ap_raw:
         raise PixelsError(f"{session_name}: could not find raw AP data file.")
@@ -93,62 +93,68 @@ def get_data_files(data_dir, session_name):
 
         # spikeinterface cache
         pixels[stream_id]["preprocessed"] = base_name.with_name(
-            f'{session_name}_{stream_id}.preprocessed.zarr'
+            f"{session_name}_{stream_id}.preprocessed.zarr"
         )
-        pixels[stream_id]['sorting_analyser'] = base_name.with_name(
-            f'curated_sa.zarr'
+        pixels[stream_id]["sorting_analyser"] = base_name.with_name(
+            f"curated_sa.zarr"
         )
 
-        # downsampled ap stream, 300Hz+
-        pixels[stream_id]["ap_downsampled"] = base_name.with_name(
-            f'{session_name}_{stream_id}.downsampled.zarr'
+        # extracted ap stream, 300Hz+
+        pixels[stream_id]["ap_extracted"] = base_name.with_name(
+            f"{session_name}_{stream_id}.extracted.zarr"
         )
-        # downsampled lfp stream, 300Hz-
-        pixels[stream_id]["lfp_downsampled"] = base_name.with_name(
-            f'{session_name}_{stream_id[:-3]}.lf.downsampled.zarr'
+        # extracted lfp stream, 300Hz-
+        pixels[stream_id]["lfp_extracted"] = base_name.with_name(
+            f"{session_name}_{stream_id[:-3]}.lf.extracted.zarr"
         )
 
         # depth info of probe
-        pixels[stream_id]['depth_info'] = base_name.with_name(
-            f'depth_info_{stream_id}.json'
+        pixels[stream_id]["depth_info"] = base_name.with_name(
+            f"depth_info_{stream_id}.json"
         )
-        pixels[stream_id]['clustered_channels'] = base_name.with_name(
-            f'channel_clustering_results_{stream_id}.h5'
+        pixels[stream_id]["clustered_channels"] = base_name.with_name(
+            f"channel_clustering_results_{stream_id}.h5"
         )
 
         # old catgt data
-        pixels[stream_id]['CatGT_ap_data'].append(
+        pixels[stream_id]["CatGT_ap_data"].append(
             str(base_name).replace("t0", "tcat")
         )
-        pixels[stream_id]['CatGT_ap_meta'].append(
+        pixels[stream_id]["CatGT_ap_meta"].append(
             str(base_name).replace("t0", "tcat")
         )
 
-        #pixels[stream_id]['spike_rate_processed'] = base_name.with_name(
-        #    f'spike_rate_{stream_id}.h5'
+        #pixels[stream_id]["spike_rate_processed"] = base_name.with_name(
+        #    f"spike_rate_{stream_id}.h5"
         #)
 
-    pupil_raw = sorted(glob.glob(f'{data_dir}/behaviour/pupil_cam/*.avi*'))
+    pupil_raw = sorted(glob.glob(f"{data_dir}/behaviour/pupil_cam/*.avi*"))
 
     behaviour = {
+        "vr_synched": [],
+        "action_labels": [],
         "pupil_raw": pupil_raw,
     }
 
-    behaviour['vr_synched'] = base_name.with_name(
-        f'{session_name}_vr_synched.h5'
-    )
-    behaviour['action_labels'] = base_name.with_name(f'action_labels.npz')
+    behaviour["vr_synched"].append(base_name.with_name(
+        f"{session_name}_vr_synched.h5"
+    ))
+    behaviour["action_labels"].append(base_name.with_name(f"action_labels.npz"))
 
     if pupil_raw:
-        behaviour['pupil_processed'] = base_name.with_name(
-            session_name + '_pupil_processed.h5'
-        )
-        behaviour['motion_index'] = base_name.with_name(
-            session_name + 'motion_index.npz'
-        )
-        behaviour['motion_tracking'] = base_name.with_name(
-            session_name + 'motion_tracking.h5'
-        )
+        behaviour["pupil_processed"] = []
+        behaviour["motion_index"] = []
+        behaviour["motion_tracking"] = []
+        for r, rec in enumerate(pupil_raw):
+            behaviour["pupil_processed"].append(base_name.with_name(
+                session_name + "_pupil_processed.h5"
+            ))
+            behaviour["motion_index"] = base_name.with_name(
+                session_name + "motion_index.npz"
+            )
+            behaviour["motion_tracking"] = base_name.with_name(
+                session_name + "motion_tracking.h5"
+            )
 
     files = {
         "pixels": pixels,
@@ -163,7 +169,7 @@ def original_name(path):
     Get the original name of a file, uncompressed, as a pathlib.Path.
     """
     name = os.path.basename(path)
-    if name.endswith('.tar.gz'):
+    if name.endswith(".tar.gz"):
         name = name[:-7]
     return Path(name)
 
@@ -208,13 +214,13 @@ def read_bin(path, num_chans, channel=None):
     Returns
     -------
     numpy.memmap array : A 2D memory-mapped array containing containing the binary
-        file's data.
+        file"s data.
 
     """
     if not isinstance(num_chans, int):
         num_chans = int(num_chans)
 
-    mapping = np.memmap(path, np.int16, mode='r').reshape((-1, num_chans))
+    mapping = np.memmap(path, np.int16, mode="r").reshape((-1, num_chans))
 
     if channel is not None:
         mapping = mapping[:, channel]
@@ -263,10 +269,10 @@ def save_ndarray_as_video(video, path, frame_rate, dims=None):
     Parameters
     ----------
     video : numpy.ndarray, or generator
-        Video data to save to file. It's dimensions should be (duration, height, width)
+        Video data to save to file. It"s dimensions should be (duration, height, width)
         and data should be of uint8 type. The file extension determines the resultant
         file type. Alternatively, this can be a generator that yields frames of this
-        description, in which case 'dims' must also be passed.
+        description, in which case "dims" must also be passed.
 
     path : string / pathlib.Path object
         File to which the video will be saved.
@@ -275,7 +281,7 @@ def save_ndarray_as_video(video, path, frame_rate, dims=None):
         The frame rate of the output video.
 
     dims : (int, int)
-        (height, width) of video. This is only needed if 'video' is a generator that
+        (height, width) of video. This is only needed if "video" is a generator that
         yields frames, as then the shape cannot be taken from it directly.
 
     """
@@ -288,8 +294,8 @@ def save_ndarray_as_video(video, path, frame_rate, dims=None):
 
     process = (
         ffmpeg
-        .input('pipe:', format='rawvideo', pix_fmt='rgb24', s=f'{width}x{height}', r=frame_rate)
-        .output(path.as_posix(), pix_fmt='yuv420p', r=frame_rate, crf=0, vcodec='libx264')
+        .input("pipe:", format="rawvideo", pix_fmt="rgb24", s=f"{width}x{height}", r=frame_rate)
+        .output(path.as_posix(), pix_fmt="yuv420p", r=frame_rate, crf=0, vcodec="libx264")
         .overwrite_output()
         .run_async(pipe_stdin=True)
     )
@@ -321,12 +327,12 @@ def read_hdf5(path):
 
     Returns
     -------
-    pandas.DataFrame : The dataframe stored within the hdf5 file under the name 'df'.
+    pandas.DataFrame : The dataframe stored within the hdf5 file under the name "df".
 
     """
     df = pd.read_hdf(
         path_or_buf=path,
-        key='df',
+        key="df",
     )
     return df
 
@@ -363,7 +369,7 @@ def write_hdf5(path, df, key="df", mode="w"):
         complib="blosc:lz4hc",
     )
     
-    print('HDF5 saved to ', path)
+    print("HDF5 saved to ", path)
 
     return
 
@@ -371,7 +377,7 @@ def write_hdf5(path, df, key="df", mode="w"):
 def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt):
     """
     Get a list of recording sessions for the specified mice, excluding those whose
-    metadata contain '"exclude" = True'.
+    metadata contain "'exclude' = True".
 
     Parameters
     ----------
@@ -398,13 +404,13 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt):
     if not isinstance(mouse_ids, (list, tuple, set)):
         mouse_ids = [mouse_ids]
     sessions = {}
-    raw_dir = data_dir / 'raw'
+    raw_dir = data_dir / "raw"
 
     for mouse in mouse_ids:
-        mouse_sessions = list(raw_dir.glob(f'*{mouse}'))
+        mouse_sessions = list(raw_dir.glob(f"*{mouse}"))
 
         if not mouse_sessions:
-            print(f'Found no sessions for: {mouse}')
+            print(f"Found no sessions for: {mouse}")
             continue
 
         if not meta_dir:
@@ -419,7 +425,7 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt):
                 ))
             continue
 
-        meta_file = meta_dir / (mouse + '.json')
+        meta_file = meta_dir / (mouse + ".json")
         with meta_file.open() as fd:
             mouse_meta = json.load(fd)
         # az: change date format into yyyymmdd
@@ -433,15 +439,15 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt):
         included_sessions = set()
         for i, session in enumerate(mouse_meta):
             try:
-                meta_date = datetime.datetime.strptime(session['date'], '%Y-%m-%d')
+                meta_date = datetime.datetime.strptime(session["date"], "%Y-%m-%d")
             except ValueError:
                 # also allow this format
-                meta_date = datetime.datetime.strptime(session['date'], '%Y%m%d')
+                meta_date = datetime.datetime.strptime(session["date"], "%Y%m%d")
             except TypeError:
                 raise PixelsError(f"{mouse} session #{i}: 'date' not found in JSON.")
 
             for index, ses_date in enumerate(session_dates):
-                if ses_date == meta_date and not session.get('exclude', False):
+                if ses_date == meta_date and not session.get("exclude", False):
                     name = mouse_sessions[index].stem
                     if name not in sessions:
                         sessions[name] = []
@@ -452,9 +458,9 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt):
                     included_sessions.add(name)
 
         if included_sessions:
-            print(f'{mouse} has {len(included_sessions)} sessions:', ", ".join(included_sessions))
+            print(f"{mouse} has {len(included_sessions)} sessions:", ", ".join(included_sessions))
         else:
-            print(f'No session dates match between folders and metadata for: {mouse}')
+            print(f"No session dates match between folders and metadata for: {mouse}")
 
     return sessions
 
@@ -564,8 +570,8 @@ def tdms_to_video(tdms_path, meta_path, output_path):
 
     process = (
         ffmpeg
-        .input('pipe:', format='rawvideo', pix_fmt='rgb24', s=f'{width}x{height}', r=fps)
-        .output(output_path.as_posix(), pix_fmt='yuv420p', r=fps, crf=20, vcodec='libx264')
+        .input("pipe:", format="rawvideo", pix_fmt="rgb24", s=f"{width}x{height}", r=fps)
+        .output(output_path.as_posix(), pix_fmt="yuv420p", r=fps, crf=20, vcodec="libx264")
         .overwrite_output()
         .run_async(pipe_stdin=True)
     )
