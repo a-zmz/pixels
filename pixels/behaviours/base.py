@@ -875,8 +875,7 @@ class Behaviour(ABC):
         # if multiple runs for the same probe, concatenate them
         streams = self.files["pixels"]
 
-        for stream_id in streams:
-            stream_files = streams[stream_id]
+        for stream_id, stream_files in streams.items():
             recs = []
             for r, raw in enumerate(stream_files["ap_raw"]):
                 try:
