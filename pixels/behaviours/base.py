@@ -631,21 +631,37 @@ class Behaviour(ABC):
         Implementation of preprocessing on raw pixels data.
         """
         # correct phase shift
-        print("> do phase shift correction on raw.")
+        print("> step 1: do phase shift correction.")
         rec_ps = spre.phase_shift(rec)
 
-        print("> do common average referencing.")
+        # remove bad channels from sorting
+        print("> step 2: remove bad channels.")
+        bad_chan_ids, chan_labels = spre.detect_bad_channels(
+            rec_ps,
+            outside_channels_location="top",
+        )
+        labels, counts = np.unique(chan_labels, return_counts=True)
+
+        for label, count in zip(labels, counts):
+            print(f"\t> Found {count} channels labelled as {label}.")
+        rec_clean = rec_ps.remove_channels(bad_chan_ids)
+
+        print("> step 3: do common median referencing.")
         # NOTE: dtype will be converted to float32 during motion correction
         cmr = spre.common_reference(
-            rec_ps,
+            rec_clean,
         )
 
-        print(f"> correct motion with {mc_method}.")
-        mcd = spre.correct_motion(
-            cmr, 
-            preset=mc_method, 
-            #interpolate_motion_kwargs={'border_mode':'force_extrapolate'},
-        )
+        if not mc_method == "ks":
+            print(f"> step 4: correct motion with {mc_method}.")
+            mcd = spre.correct_motion(
+                cmr, 
+                preset=mc_method, 
+                #interpolate_motion_kwargs={'border_mode':'force_extrapolate'},
+            )
+        else:
+            print(f"> correct motion later with {mc_method}.")
+            mcd = cmr
 
         return mcd
 
@@ -669,22 +685,26 @@ class Behaviour(ABC):
         # get pixels streams
         streams = self.files["pixels"]
 
-        for stream_id in streams:
+        for stream_id, stream_files in streams.items():
             # check if exists
-            output = self.interim / streams[stream_id]['preprocessed']
+            output = self.interim / stream_files["preprocessed"]
             if output.exists():
+                print(
+                    f"> Preprocessed data from {stream_id} loaded."
+                )
                 continue
 
-            # load si rec
-            rec = streams[stream_id]["si_rec"]
+            # load raw si rec
+            rec = stream_files["si_rec"]
 
             print(
                 f">>>>> Preprocessing data for recording from {stream_id} "
-                f"of {len(streams)}"
+                f"in total of {self.stream_count} stream(s)"
             )
 
             shank_groups = rec.get_channel_groups()
             if not np.all(shank_groups == shank_groups[0]):
+                print("> Preprocessing shanks separately.")
                 preprocessed = []
                 # split by groups
                 groups = rec.split_by("group")
