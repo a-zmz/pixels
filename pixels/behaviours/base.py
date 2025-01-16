@@ -908,79 +908,215 @@ class Behaviour(ABC):
         return None
 
 
-    def sort_spikes(self, CatGT_app=None, old=False):
+    def sort_spikes(self, mc_method="dredge"):
         """
         Run kilosort spike sorting on raw spike data.
+
+        params
+        ===
+        mc_method: str, motion correction method.
+            Default: "dredge".
+                (as of jan 2025, dredge performs better than ks motion correction.)
+
         """
+        if not (self.interim.parent/"ks4_with_wavpack.sif").exists():
+            raise PixelsError("Have you craeted Singularity image for sorting?")
+
         # preprocess raw
-        self.preprocess_raw()
+        self.preprocess_raw(mc_method=mc_method)
 
-        assert 0
-        # TODO jan 13 2025:
-        # CONTINUE HERE!
-        # put ks4 here
+        if mc_method == "ks":
+            ks_mc = True
+        else:
+            ks_mc = False
+        # set ks4 parameters
+        ks4_params = {
+            "do_correction": ks_mc,
+            "do_CAR": False, # do not common average reference
+            "save_preprocessed_copy": True, # save ks4 preprocessed data
+        }
 
-        #concat_rec, output = self.load_recording()
-        #assert 0
-        #TODO: jan 3 see if ks can run normally now using load_recording()
-
-        self.run_catgt(CatGT_app=CatGT_app)
-
-        for _, files in enumerate(self.files):
-            if not CatGT_app == None:
-                print("\n> Sorting catgt-ed spikes.\n")
-                basename = self.CatGT_dir[0].split('/')[-1]
-                files['CatGT_ap_data'] =  basename + "/" + files['CatGT_ap_data']
-                files['CatGT_ap_meta'] = basename + "/" + files['CatGT_ap_meta']
-                data_type = 'CatGT_ap_data'
-                meta_type = 'CatGT_ap_meta'
-            else:
-                print(f"\n> using the orignial spike data.\n")
-                data_type = 'spike_data'
-                meta_type = 'spike_meta'
-
-            data_file = self.find_file(files[data_type])
-            metadata = self.find_file(files[meta_type])
-
-            stream_id = data_file.as_posix()[-12:-4]
-            if stream_id not in streams:
-                streams[stream_id] = metadata
-
-        for stream_num, stream in enumerate(streams.items()):
-            stream_id, metadata = stream
-            # find spike sorting output folder
-            if len(re.findall('_t[0-9]+', data_file.as_posix())) == 0:
-                output = self.processed / f'sorted_stream_cat_{stream_num}'
-            else:
-                output = self.processed / f'sorted_stream_{stream_num}'
+        streams = self.files["pixels"]
+        for stream_id, stream_files in streams.items():
+            stream_num = stream_id[-4]
+            assert 0
 
             # check if already sorted and exported
-            for_phy = output / "phy_ks3"
-            if not for_phy.exists() or not len(os.listdir(for_phy)) > 1:
+            sa_dir = output / stream_files["sorting_analyser"]
+            if not sa_dir.exists() or not len(os.listdir(sa_dir)) > 1:
                 print(f"> {self.name} {stream_id} not sorted/exported.\n")
             else:
                 print("> Already sorted and exported, next session.\n")
                 continue
 
-            try:
-                recording = se.SpikeGLXRecordingExtractor(
-                    self.CatGT_dir[0],
-                    stream_id=stream_id,
+            # load preprocessed
+            preprocessed = self.find_file(stream_files["preprocessed"])
+
+            # find spike sorting output folder
+            if not len(re.findall("_t[0-9]+", preprocessed.as_posix())) == 0:
+                output = self.processed / f"sorted_stream_cat_{stream_num}"
+            else:
+                output = self.processed / f"sorted_stream_{stream_num}"
+
+            # load preprocessed rec
+            rec = si.load_extractor(preprocessed)
+
+            # move current working directory to interim
+            os.chdir(self.interim)
+
+            # run sorter
+            sorting = ss.run_sorter(
+                sorter_name="kilosort4",
+                recording=rec,
+                folder=output,
+                singularity_image=self.interim.parent/"ks4_with_wavpack.sif",
+                remove_existing_folder=True,
+                verbose=True,
+                **ks4_params,
+            )
+
+            # load ks preprocessed recording for sorting analyser
+            ks_preprocessed = se.read_binary(
+                file_paths=output/"sorter_output/temp_wh.dat",
+                sampling_frequency=rec.sampling_frequency,
+                dtype=np.int16,
+                num_channels=rec.get_num_channels(),
+                is_filtered=True,
+            )
+
+            # attach probe to ks4 preprocessed recording, from the raw
+            recording = ks_preprocessed.set_probe(rec.get_probe())
+            # set properties to make sure sorting & sorting sa have all
+            # probe properties to form correct rec_attributes, esp `group`
+            recording._properties = rec._properties
+
+            # >>> annotations >>>
+            annotations = ["probe_0_planar_contour", "probes_info",
+                           "stream_name", "stream_id"]
+            for ann in annotations:
+                recording.set_annotation(
+                    annotation_key=ann,
+                    value=rec.get_annotation(ann),
+                    overwrite=True,
                 )
-                # this recording is filtered
-                recording.annotate(is_filtered=True)
-            except ValueError as e:
-                raise PixelsError(
-                    f"Did the raw data get fully copied to interim? Full error: {e}\n"
+            # original file info
+            recording.annotate(file_origin=str(preprocessed))
+            # <<< annotations <<<
+
+            # curate sorter output
+            # remove duplicate spikes
+            sorting = sc.remove_duplicated_spikes(
+                sorting,
+                censored_period_ms=0.3,
+                method="keep_first_iterative",
+            )
+            # remove spikes exceeding recording number of samples
+            sorting = sc.remove_excess_spikes(sorting, recording)
+
+            # remove redundant units created by ks
+            sorting = sc.remove_redundant_units(
+                sorting,
+                duplicate_threshold=0.9, # default is 0.8
+                align=False,
+                remove_strategy="max_spikes",
+            )
+
+            # create sorting analyser
+            sa = si.create_sorting_analyzer(
+                sorting=sorting,
+                recording=recording,
+            )
+
+            # calculate all extensions BEFORE further steps
+            # list required extensions for redundant units removal and quality
+            # metrics
+            required_extensions = [
+                "random_spikes",
+                "waveforms",
+                "templates",
+                "noise_levels",
+                "unit_locations",
+                "template_similarity",
+                "spike_amplitudes",
+                "correlograms"
+            ]
+            sa.compute(
+                required_extensions,
+                save=True,
+            )
+
+            # make sure to have group id for each unit
+            if not "group" in sa.sorting.get_property_keys():
+                # get shank id, i.e., group
+                group = sa.recording.get_channel_groups()
+                # get max peak channel for each unit
+                max_chan = si.get_template_extremum_channel(sa).values()
+                # get group id for each unit
+                unit_group = group[list(max_chan)]
+                # set unit group as a property for sorting
+                sa.sorting.set_property(
+                    key="group",
+                    values=unit_group,
                 )
 
-            # concatenate recording segments
-            concat_rec = si.concatenate_recordings([recording])
-            probe = pi.read_spikeglx(metadata.as_posix())
-            concat_rec = concat_rec.set_probe(probe)
-            # annotate spike data is filtered
-            concat_rec.annotate(is_filtered=True)
+            # calculate quality metrics
+            qms = sqm.compute_quality_metrics(sa)
 
+            # export pre curation report
+            sexp.export_report(
+                sorting_analyzer=sa,
+                output_folder=output/"report",
+            )
+
+            # >>> get depth of units on each shank >>>
+            # get probe geometry coordinates
+            coords = sa.get_probe().contact_positions
+            # get coordinates of max channel of each unit on probe, column 0 is x-axis,
+            # column 1 is y-axis/depth, 0 at bottom-left channel.
+            max_chan_coords = coords[sa.channel_ids_to_indices(max_chan)]
+            # set coordinates of max channel of each unit as a property of sorting
+            sa.sorting.set_property(
+                key="max_chan_coords",
+                values=max_chan_coords,
+            )
+            # <<< get depth of units on each shank <<<
+
+            # save pre-curated analyser to disk
+            sa.save_as(
+                format="zarr",
+                folder=output/"sa.zarr",
+            )
+
+            # remove bad units
+            #rule = "sliding_rp_violation <= 0.1 & amplitude_median <= -50\
+            #        & amplitude_cutoff < 0.05 & sd_ratio < 1.5 & presence_ratio > 0.9\
+            #        & snr > 1.1 & rp_contamination < 0.2 & firing_rate > 0.1"
+            # use the ibl methods, but amplitude_cutoff rather than noise_cutoff
+            rule = "snr > 1.1 & rp_contamination < 0.2 & amplitude_median <= -50\
+                    & presence_ratio > 0.9"
+            good_qms = qms.query(rule)
+            # TODO nov 26 2024
+            # wait till noise cutoff implemented and include that.
+            # also see why sliding rp violation gives loads nan.
+     
+            # get unit ids
+            curated_unit_ids = list(good_qms.index)
+     
+            # select curated
+            curated_sa = sa.select_units(curated_unit_ids)
+     
+            # save sa to disk
+            curated_sa.save_as(
+                format="zarr",
+                folder=sa_dir,
+            )
+     
+            # export report
+            sexp.export_report(
+                sorting_analyzer=curated_sa,
+                output_folder=output/"curated_report",
+            )
+            assert 0
             if old:
                 print("\n> loading old kilosort 3 results to spikeinterface")
                 sorting = se.read_kilosort(old_ks_output_dir) # avoid re-sort old
