@@ -715,6 +715,9 @@ class Behaviour(ABC):
             else:
                 preprocessed = self._preprocess_raw(rec, mc_method)
 
+            # NOTE jan 16 2025:
+            # BUG: cannot set dtype back to int16, units from ks4 will have
+            # incorrect amp & loc
             preprocessed.save(
                 format="zarr",
                 folder=output,
