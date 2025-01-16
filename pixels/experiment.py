@@ -109,21 +109,21 @@ class Experiment:
         for session in self.sessions:
             session.set_cache(on)
 
-    def process_spikes(self):
+    def extract_ap(self):
         """
-        Process the spike data from the raw neural recording data for all sessions.
+        Process the ap band from the raw neural recording data for all sessions.
         """
         for i, session in enumerate(self.sessions):
-            print(">>>>> Processing spikes for session {} ({} / {})"
+            print(">>>>> Processing ap band for session {} ({} / {})"
                    .format(session.name, i + 1, len(self.sessions)))
-            session.process_spikes()
+            session.extract_ap()
 
-    def sort_spikes(self, CatGT_app=None):
+    def sort_spikes(self, mc_method="dredge"):
         """ Extract the spikes from raw spike data for all sessions.  """
         for i, session in enumerate(self.sessions):
             print(">>>>> Sorting spikes for session {} ({} / {})"
                    .format(session.name, i + 1, len(self.sessions)))
-            session.sort_spikes(CatGT_app=CatGT_app)
+            session.sort_spikes(mc_method=mc_method)
 
     def assess_noise(self):
         """
@@ -134,14 +134,15 @@ class Experiment:
                    .format(session.name, i + 1, len(self.sessions)))
             session.assess_noise()
 
-    def process_lfp(self):
+    def extract_bands(self):
         """
-        Process the LFP data from the raw neural recording data for all sessions.
+        Extract ap & lfp data from the raw neural recording data for all
+        sessions.
         """
         for i, session in enumerate(self.sessions):
-            print(">>>>> Processing LFP data for session {} ({} / {})"
+            print(">>>>> Extracting ap & lfp data for session {} ({} / {})"
                    .format(session.name, i + 1, len(self.sessions)))
-            session.process_lfp()
+            session.extract_bands()
 
     def process_behaviour(self):
         """
