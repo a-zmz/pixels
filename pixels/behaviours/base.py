@@ -33,6 +33,7 @@ import spikeinterface.curation as sc
 import spikeinterface.exporters as sexp
 import spikeinterface.preprocessing as spre
 import spikeinterface.postprocessing as spost
+import spikeinterface.qualitymetrics as sqm
 from scipy import interpolate
 from tables import HDF5ExtError
 from wavpack_numcodecs import WavPack
@@ -40,6 +41,7 @@ from wavpack_numcodecs import WavPack
 from pixels import ioutils
 from pixels import signal
 from pixels.error import PixelsError
+from pixels.constants import *
 
 if TYPE_CHECKING:
     from typing import Optional, Literal
