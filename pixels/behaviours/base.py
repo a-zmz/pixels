@@ -278,16 +278,16 @@ class Behaviour(ABC):
         Load previously-calculated lag information from a saved file if it exists,
         otherwise return Nones.
         """
-        lag_file = self.processed / 'lag.json'
-        self._lag = [None] * len(self.files)
+        lag_file = self.processed / "lag.json"
+        self._lag = [None] * self.behaviour_count
         if lag_file.exists():
             with lag_file.open() as fd:
                 lag = json.load(fd)
             for rec_num, rec_lag in enumerate(lag):
-                if rec_lag['lag_start'] is None:
+                if rec_lag["lag_start"] is None:
                     self._lag[rec_num] = None
                 else:
-                    self._lag[rec_num] = (rec_lag['lag_start'], rec_lag['lag_end'])
+                    self._lag[rec_num] = (rec_lag["lag_start"], rec_lag["lag_end"])
 
     def get_probe_depth(self):
         """
@@ -299,7 +299,7 @@ class Behaviour(ABC):
                 continue
             if depth is None:
                 try:
-                    depth_file = self.processed / 'depth.txt'
+                    depth_file = self.processed / "depth.txt"
                     with depth_file.open() as fd:
                         self._probe_depths[stream_num] = [float(line) for line in
                                                           fd.readlines()][0]
