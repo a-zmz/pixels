@@ -227,7 +227,7 @@ class Behaviour(ABC):
 
         self._action_labels = None
         self._behavioural_data = None
-        self._spike_data = None
+        self._ap_data = None
         self._spike_times_data = None
         self._lfp_data = None
         self._lag = None
@@ -1745,7 +1745,7 @@ class Behaviour(ABC):
         """
         Returns the processed and downsampled spike data.
         """
-        return self._get_processed_data("_spike_data", "spike_processed")
+        return self._get_processed_data("_ap_data", "spike_processed")
 
     def get_lfp_data(self):
         """
