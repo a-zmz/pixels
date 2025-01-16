@@ -390,6 +390,9 @@ class Behaviour(ABC):
             The sync channel from either the spike or LFP data.
 
         """
+        # TODO jan 14 2025:
+        # this func is not used in vr behaviour, since they are synched
+        # in vd.session
         print("    Finding lag between sync channels")
         recording = self.files[rec_num]
 
@@ -455,6 +458,9 @@ class Behaviour(ABC):
         SYNC_BIN: int, number of rising sync edges for calculating the scaling
         factor.
         """ 
+        # TODO jan 14 2025:
+        # this func does not work with the new self.files structure
+
         edges_list = []
         stream_ids = []
         #self.CatGT_dir = Path(self.CatGT_dir[0])
@@ -575,6 +581,8 @@ class Behaviour(ABC):
         """
         Process behavioural data from raw tdms and align to neuropixels data.
         """
+        # NOTE jan 14 2025:
+        # this func is not used by vr behaviour
         for rec_num, recording in enumerate(self.files):
             print(
                 f">>>>> Processing behaviour for recording {rec_num + 1} of {len(self.files)}"
@@ -845,6 +853,9 @@ class Behaviour(ABC):
         args: str, arguments in catgt.
             default is None.
         """
+        # TODO jan 14 2025:
+        # this func is deprecated
+        assert 0, "deprecated"
         if CatGT_app == None:
             CatGT_app = "~/CatGT3.4"
         # move cwd to catgt
