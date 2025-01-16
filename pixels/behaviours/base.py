@@ -726,60 +726,63 @@ class Behaviour(ABC):
 
         return None
 
+    def estimate_drift(self):
 
-    def process_spikes(self):
+        from spikeinterface.sortingcomponents.peak_detection\
+            import detect_peaks
+        from spikeinterface.sortingcomponents.peak_localization\
+            import localize_peaks
+        # detect peaks
+
+        return None
+
+
+    def extract_bands(self, bands=None):
         """
-        Process the spike data from the raw neural recording data.
+        extract data of ap and lfp frequency bands from the raw neural recording
+        data.
         """
+        if bands == None:
+            bands = freq_bands
+
         # preprocess raw data
         self.preprocess_raw()
 
-        for rec_num, recording in enumerate(self.files):
-            print(
-                f">>>>> Processing spike data for recording {rec_num + 1} of {len(self.files)}"
-            )
-            output = self.processed / recording['spike_processed']
-            if output.exists():
-                continue
+        streams = self.files["pixels"]
+        for stream_id, stream_files in streams.items():
+            for name, freqs in bands.items():
+                output = self.processed / stream_files[f"{name}_extracted"]
+                if output.exists():
+                    print(f"> {name} bands from {stream_id} loaded."
+                    )
+                    continue
+                
+                print(
+                    f">>>>> Extracting {name} bands from {stream_id} "
+                    f"in total of {self.stream_count} stream(s)"
+                )
 
-            # load preprocessed
-            preprocessed = self.find_file(recording['preprocessed'])
-            rec = si.load_extractor(preprocessed)
+                # load preprocessed
+                preprocessed = self.find_file(stream_files['preprocessed'])
+                rec = si.load_extractor(preprocessed)
 
-            print("> create ap band by high-pass filtering.")
-            ap_band = spre.bandpass_filter(
-                rec,
-                freq_min=300,
-                freq_max=9000,
-                ftype="butterworth",
-            )
+                extracted = spre.bandpass_filter(
+                    rec,
+                    freq_min=freqs[0],
+                    freq_max=freqs[1],
+                    ftype="butterworth",
+                )
 
-            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
-            downsampled = spre.resample(ap_band, self.SAMPLE_RATE)
+                print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
+                downsampled = spre.resample(extracted, self.SAMPLE_RATE)
 
-            downsampled.save(
-                format="zarr",
-                folder=output,
-                compressor=wv_compressor,
-            )
+                downsampled.save(
+                    format="zarr",
+                    folder=output,
+                    compressor=wv_compressor,
+                )
 
             """
-            orig_rate = self.spike_meta[rec_num]['imSampRate']
-            num_chans = self.spike_meta[rec_num]['nSavedChans']
-
-            print("> Mapping spike data")
-            data = ioutils.read_bin(data_file, num_chans)
-
-            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
-            data = signal.resample(data, orig_rate, self.SAMPLE_RATE)
-
-            # Ideally we would median subtract before downsampling, but that takes a
-            # very long time and is at risk of memory errors, so let's do it after.
-            print("> Performing median subtraction across rows")
-            data = signal.median_subtraction(data, axis=0)
-            print("> Performing median subtraction across columns")
-            data = signal.median_subtraction(data, axis=1)
-
             if self._lag[rec_num] is None:
                 self.sync_data(rec_num, sync_channel=data[:, -1])
             lag_start, lag_end = self._lag[rec_num]
@@ -793,76 +796,6 @@ class Behaviour(ABC):
             ioutils.write_hdf5(output, data)
             """
 
-    def process_lfp(self):
-        """
-        Process the LFP data from the raw neural recording data.
-        """
-        # preprocess data
-        self.preprocess_raw()
-
-        for rec_num, recording in enumerate(self.files):
-            print(f">>>>> Processing LFP for recording {rec_num + 1} of {len(self.files)}")
-
-            output = self.processed / recording['lfp_processed']
-            if output.exists():
-                continue
-            assert 0
-
-            # load preprocessed
-            preprocessed = self.processed / recording['preprocessed']
-            rec = se.load_extractor(preprocessed)
-
-            # get lfp band
-            lfp_band = spre.bandpass_filter(
-                rec,
-                freq_min=0.5,
-                freq_max=300,
-                ftype="butterworth",
-            )
-
-            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
-            downsampled = spre.resample(lfp_band, self.SAMPLE_RATE)
-
-            downsampled.save(
-                format="zarr",
-                folder=output,
-                compressor=wv_compressor,
-            )
-            assert 0
-
-            #if self._lag[rec_num] is None:
-            #    self.sync_data(rec_num, sync_channel=data[:, -1])
-            #lag_start, lag_end = self._lag[rec_num]
-            """
-
-            sd = self.processed / recording['lfp_sd']
-            if sd.exists():
-                continue
-
-            SDs = np.std(traces, axis=0)
-            results = dict(
-                median=np.median(SDs),
-                SDs=SDs.tolist(),
-            )
-            print(f"> Saving standard deviation (and their median) of each channel")
-            with open(sd, 'w') as fd:
-                json.dump(results, fd)
-
-            #if lag_end < 0:
-            #    data = data[:lag_end]
-            #if lag_start < 0:
-            #    data = data[- lag_start:]
-            #print(f"> Saving median subtracted & downsampled LFP to {output}")
-            # save in .npy format
-            #np.save(
-            #    file=output,
-            #    arr=downsampled,
-            #    allow_pickle=True,
-            #)
-            #downsampled = pd.DataFrame(downsampled)
-            #ioutils.write_hdf5(output, downsampled)
-
-    
     def run_catgt(self, CatGT_app=None, args=None) -> None:
         """
         This func performs CatGT on copied AP data in the interim.
