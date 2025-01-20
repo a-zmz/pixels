@@ -407,11 +407,24 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None):
     raw_dir = data_dir / "raw"
 
     for mouse in mouse_ids:
-        mouse_sessions = list(raw_dir.glob(f"*{mouse}"))
+        mouse_sessions = sorted(list(raw_dir.glob(f"*{mouse}")))
 
         if not mouse_sessions:
             print(f"Found no sessions for: {mouse}")
             continue
+
+        # allows different session date formats
+        session_dates = sorted([
+            datetime.datetime.strptime(s.stem.split("_")[0], session_date_fmt)
+            for s in mouse_sessions
+        ])
+
+        if of_date is not None:
+            date_struct = datetime.datetime.strptime(of_date, session_date_fmt)
+            mouse_sessions = [mouse_sessions[session_dates.index(date_struct)]]
+            print(f"\n> Getting 1 session from {mouse} of "
+                    f"{datetime.datetime.strftime(date_struct, '%Y %B %d')}."
+            )
 
         if not meta_dir:
             # Do not collect metadata
