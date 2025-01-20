@@ -733,13 +733,74 @@ class Behaviour(ABC):
 
         return None
 
-    def estimate_drift(self):
+    def estimate_drift(self, rec, loc_method="monopolar_triangulation"):
+            
+        """
+        Get a sense of possible drifts in the recordings by looking at a
+        "positional raster plot", i.e. the depth of the spike as function of
+        time. To do so, we need to detect the peaks, and then to localize them
+        in space.
+
+        params
+        ===
+        rec: spikeinterface recording extractor.
+
+        loc_method: str, peak location method.
+            Default: "monopolar_triangulation"
+            list of methods:
+            "center_of_mass", "monopolar_triangulation", "grid_convolution"
+            to learn more, check:
+            https://spikeinterface.readthedocs.io/en/stable/modules/motion_correction.html
+        """
 
         from spikeinterface.sortingcomponents.peak_detection\
             import detect_peaks
         from spikeinterface.sortingcomponents.peak_localization\
             import localize_peaks
-        # detect peaks
+
+        # step 1: detect peaks
+        peaks = detect_peaks(
+            recording=rec,
+            method="locally_exclusive",
+            detect_threshold=5,
+            exclude_sweep_ms=2,
+            radius_um=50.,
+        )
+        # step 2: localize the peaks to get a sense of their putative depths
+        peak_locations = localize_peaks(
+            recording=rec,
+            peaks=peaks,
+            method=loc_method,
+        )
+
+        # step 3: plot
+        fs = rec.sampling_frequency
+        fig, ax = plt.subplots(
+            ncols=2,
+            squeeze=False,
+            figsize=(5, 5),
+            sharey=True,
+        )
+        ax[0, 0].scatter(
+            peaks["sample_index"] / fs,
+            peaks["y"],
+            color="k",
+            marker=".",
+            alpha=0.002,
+        )
+        ax[0, 0].set_title(loc_method)
+        si.plot_probe_map(rec, ax=ax[0, 1])
+        ax[0, 1].scatter(
+            peaks["x"],
+            peaks["y"],
+            color="purple",
+            alpha=0.002,
+        )
+
+        assert 0, "test needed"
+        stream_id = rec.stream_id
+        fig_name = f"{self.name}_{stream_id}_positional_raster_plot.pdf"
+        plt.imsave(self.processed/fig_name, fig)
 
         return None
 
