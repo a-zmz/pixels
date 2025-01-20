@@ -52,6 +52,7 @@ class Experiment:
         interim_dir=None,
         processed_dir=None,
         session_date_fmt="%y%m%d",
+        of_date=None,
     ):
         if not isinstance(mouse_ids, (list, tuple, set)):
             mouse_ids = [mouse_ids]
@@ -71,10 +72,17 @@ class Experiment:
             self.meta_dir = None
 
         self.sessions = []
-        sessions = ioutils.get_sessions(mouse_ids, self.data_dir, self.meta_dir, session_date_fmt)
+        sessions = ioutils.get_sessions(
+            mouse_ids,
+            self.data_dir,
+            self.meta_dir,
+            session_date_fmt,
+            of_date,
+        )
 
         for name, metadata in sessions.items():
-            assert len(set(s['data_dir'] for s in metadata)) == 1, "All JSON items with same day must use same data folder."
+            assert len(set(s['data_dir'] for s in metadata)) == 1,\
+            "All JSON items with same day must use same data folder."
             self.sessions.append(
                 behaviour(
                     name,
