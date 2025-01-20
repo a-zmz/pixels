@@ -437,43 +437,36 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None):
                     data_dir=data_dir,
                 ))
             continue
-
-        meta_file = meta_dir / (mouse + ".json")
-        with meta_file.open() as fd:
-            mouse_meta = json.load(fd)
-        # az: change date format into yyyymmdd
-        session_dates = [
-            datetime.datetime.strptime(s.stem.split("_")[0], session_date_fmt) for s in mouse_sessions
-        ]
-
-        if len(session_dates) != len(set(session_dates)):
-            raise PixelsError(f"{mouse}: Data folder dates must be unique.")
-
-        included_sessions = set()
-        for i, session in enumerate(mouse_meta):
-            try:
-                meta_date = datetime.datetime.strptime(session["date"], "%Y-%m-%d")
-            except ValueError:
-                # also allow this format
-                meta_date = datetime.datetime.strptime(session["date"], "%Y%m%d")
-            except TypeError:
-                raise PixelsError(f"{mouse} session #{i}: 'date' not found in JSON.")
-
-            for index, ses_date in enumerate(session_dates):
-                if ses_date == meta_date and not session.get("exclude", False):
-                    name = mouse_sessions[index].stem
-                    if name not in sessions:
-                        sessions[name] = []
-                    sessions[name].append(dict(
-                        metadata=session,
-                        data_dir=data_dir,
-                    ))
-                    included_sessions.add(name)
-
-        if included_sessions:
-            print(f"{mouse} has {len(included_sessions)} sessions:", ", ".join(included_sessions))
         else:
-            print(f"No session dates match between folders and metadata for: {mouse}")
+            meta_file = meta_dir / (mouse + ".json")
+            with meta_file.open() as fd:
+                mouse_meta = json.load(fd)
+
+            if len(session_dates) != len(set(session_dates)):
+                raise PixelsError(f"{mouse}: Data folder dates must be unique.")
+
+            included_sessions = set()
+            for i, session in enumerate(mouse_meta):
+                try:
+                    meta_date = datetime.datetime.strptime(session["date"], session_date_fmt)
+                except TypeError:
+                    raise PixelsError(f"{mouse} session #{i}: 'date' not found in JSON.")
+
+                for index, ses_date in enumerate(session_dates):
+                    if ses_date == meta_date and not session.get("exclude", False):
+                        name = mouse_sessions[index].stem
+                        if name not in sessions:
+                            sessions[name] = []
+                        sessions[name].append(dict(
+                            metadata=session,
+                            data_dir=data_dir,
+                        ))
+                        included_sessions.add(name)
+
+            if included_sessions:
+                print(f"{mouse} has {len(included_sessions)} sessions:", ", ".join(included_sessions))
+            else:
+                print(f"No session dates match between folders and metadata for: {mouse}")
 
     return sessions
 
