@@ -826,8 +826,8 @@ class Behaviour(ABC):
                     continue
                 
                 print(
-                    f">>>>> Extracting {name} bands from {stream_id} "
-                    f"in total of {self.stream_count} stream(s)"
+                    f">>>>> Extracting {name} bands from {self.name} "
+                    f"{stream_id} in total of {self.stream_count} stream(s)"
                 )
 
                 # load preprocessed
