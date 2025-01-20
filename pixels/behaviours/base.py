@@ -631,11 +631,11 @@ class Behaviour(ABC):
         Implementation of preprocessing on raw pixels data.
         """
         # correct phase shift
-        print("> step 1: do phase shift correction.")
+        print("\t> step 1: do phase shift correction.")
         rec_ps = spre.phase_shift(rec)
 
         # remove bad channels from sorting
-        print("> step 2: remove bad channels.")
+        print("\t> step 2: remove bad channels.")
         bad_chan_ids, chan_labels = spre.detect_bad_channels(
             rec_ps,
             outside_channels_location="top",
@@ -643,20 +643,27 @@ class Behaviour(ABC):
         labels, counts = np.unique(chan_labels, return_counts=True)
 
         for label, count in zip(labels, counts):
-            print(f"\t> Found {count} channels labelled as {label}.")
+            print(f"\t\t> Found {count} channels labelled as {label}.")
         rec_clean = rec_ps.remove_channels(bad_chan_ids)
 
-        print("> step 3: do common median referencing.")
+        print("\t> step 3: do common median referencing.")
         # NOTE: dtype will be converted to float32 during motion correction
         cmr = spre.common_reference(
             rec_clean,
         )
 
         if not mc_method == "ks":
-            print(f"> step 4: correct motion with {mc_method}.")
+            print(f"\t> step 4: correct motion with {mc_method}.")
+            # reduce spatial window size for four-shank
+            estimate_motion_kwargs = {
+                "win_step_um": 100,
+                "win_margin_um": -150,
+            }
+
             mcd = spre.correct_motion(
                 cmr, 
                 preset=mc_method, 
+                estimate_motion_kwargs=estimate_motion_kwargs,
                 #interpolate_motion_kwargs={'border_mode':'force_extrapolate'},
             )
         else:
