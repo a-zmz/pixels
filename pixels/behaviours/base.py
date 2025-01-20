@@ -711,12 +711,12 @@ class Behaviour(ABC):
 
             shank_groups = rec.get_channel_groups()
             if not np.all(shank_groups == shank_groups[0]):
-                print("> Preprocessing shanks separately.")
                 preprocessed = []
                 # split by groups
                 groups = rec.split_by("group")
-                for group in groups.values():
-                    preprocessed.append(self._preprocess_raw(group))
+                for g, group in enumerate(groups.values()):
+                    print(f"> Preprocessing shank {g}")
+                    preprocessed.append(self._preprocess_raw(group, mc_method))
                 # aggregate groups together
                 preprocessed = si.aggregate_channels(preprocessed)
             else:
