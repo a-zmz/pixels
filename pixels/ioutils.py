@@ -110,10 +110,10 @@ def get_data_files(data_dir, session_name):
 
         # depth info of probe
         pixels[stream_id]["depth_info"] = base_name.with_name(
-            f"depth_info_{stream_id}.json"
+            f"{session_name}_{stream_id}_depth_info.h5"
         )
         pixels[stream_id]["clustered_channels"] = base_name.with_name(
-            f"channel_clustering_results_{stream_id}.h5"
+            f"{session_name}_{stream_id}_channel_clustering_results.h5"
         )
 
         # old catgt data
