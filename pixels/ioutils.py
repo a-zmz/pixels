@@ -374,7 +374,7 @@ def write_hdf5(path, df, key="df", mode="w"):
     return
 
 
-def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt):
+def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None):
     """
     Get a list of recording sessions for the specified mice, excluding those whose
     metadata contain "'exclude' = True".
