@@ -95,9 +95,8 @@ def get_data_files(data_dir, session_name):
         pixels[stream_id]["preprocessed"] = base_name.with_name(
             f"{session_name}_{stream_id}.preprocessed.zarr"
         )
-        pixels[stream_id]["sorting_analyser"] = base_name.with_name(
-            f"curated_sa.zarr"
-        )
+        pixels[stream_id]["sorting_analyser"] = base_name.parent/\
+            f"sorted_stream_{stream_id[-4]}/curated_sa.zarr"
 
         # extracted ap stream, 300Hz+
         pixels[stream_id]["ap_extracted"] = base_name.with_name(
