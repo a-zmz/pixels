@@ -714,8 +714,8 @@ class Behaviour(ABC):
 
         return None
 
+
     def estimate_drift(self, rec, loc_method="monopolar_triangulation"):
-            
         """
         Get a sense of possible drifts in the recordings by looking at a
         "positional raster plot", i.e. the depth of the spike as function of
@@ -733,57 +733,96 @@ class Behaviour(ABC):
             to learn more, check:
             https://spikeinterface.readthedocs.io/en/stable/modules/motion_correction.html
         """
+        shank_groups = rec.get_channel_groups()
+        if not np.all(shank_groups == shank_groups[0]):
+            # split by groups
+            groups = rec.split_by("group")
+            chan_with_spikes = []
+            for g, group in enumerate(groups.values()):
+                print(f"> Estimate drift of shank {g}")
+                chan_with_spikes.append(
+                    self._estimate_drift(group, loc_method)
+                )
+        else:
+            self._estimate_drift(rec, loc_method)
 
+        assert 0
+        np.concatenate(chan_with_spikes)
+
+
+    def _estimate_drift(self, rec, loc_method="monopolar_triangulation"):
+        """
+        implementation of drift estimation.
+        """
         from spikeinterface.sortingcomponents.peak_detection\
             import detect_peaks
         from spikeinterface.sortingcomponents.peak_localization\
             import localize_peaks
+        import spikeinterface.widgets as sw
 
-        # step 1: detect peaks
+        print("> step 1: detect peaks")
         peaks = detect_peaks(
             recording=rec,
-            method="locally_exclusive",
+            method="by_channel",
             detect_threshold=5,
             exclude_sweep_ms=2,
-            radius_um=50.,
         )
-        # step 2: localize the peaks to get a sense of their putative depths
+
+        print("> step 2: localize the peaks to get a sense of their putative "
+                "depths")
         peak_locations = localize_peaks(
             recording=rec,
             peaks=peaks,
             method=loc_method,
         )
+        # TODO jan 22 2025 save peaks and plot later?
+        # save it as df
+        assert 0
 
         # step 3: plot
         fs = rec.sampling_frequency
         fig, ax = plt.subplots(
             ncols=2,
             squeeze=False,
-            figsize=(5, 5),
+            figsize=(10, 10),
             sharey=True,
         )
+        # plot peak time vs depth
         ax[0, 0].scatter(
             peaks["sample_index"] / fs,
-            peaks["y"],
+            peak_locations["y"],
             color="k",
             marker=".",
             alpha=0.002,
         )
-        ax[0, 0].set_title(loc_method)
-        si.plot_probe_map(rec, ax=ax[0, 1])
+        # plot peak locations on probe
+        sw.plot_probe_map(rec, ax=ax[0, 1])
         ax[0, 1].scatter(
-            peaks["x"],
-            peaks["y"],
+            peak_locations["x"],
+            peak_locations["y"],
             color="purple",
             alpha=0.002,
         )
+        y_max = rec.get_channel_locations()[:,1].max()
+        y_min = int(peak_locations["y"].min()) - 200
+        y_min = np.min([y_min, -200])
 
-        assert 0, "test needed"
-        stream_id = rec.stream_id
-        fig_name = f"{self.name}_{stream_id}_positional_raster_plot.pdf"
-        plt.imsave(self.processed/fig_name, fig)
+        ax[0, 0].set_title(loc_method)
+        ax[0, 0].set_xlabel("Time (ms)")
+        ax[0, 0].set_ylabel("Depth (um)")
+        ax[0, 0].set_ylim([y_min, y_max])
 
-        return None
+        chan_idx = rec._parent_channel_indices
+        idx_with_spikes = np.unique(peaks["channel_index"])
+        chan_with_spikes = rec.channel_ids[np.isin(chan_idx, idx_with_spikes)]
+
+        stream_id = rec.channel_ids[0][:-4]
+        group_id = rec.get_channel_groups()[0]
+        fig_name = (f"{self.name}_{stream_id}_shank{group_id}_"
+            f"{loc_method}_positional_spike_raster_plot.png")
+        fig.savefig(self.processed/fig_name, dpi=300)
+
+        return chan_with_spikes
 
 
     def extract_bands(self, bands=None):
