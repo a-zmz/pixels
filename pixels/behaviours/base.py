@@ -986,12 +986,9 @@ class Behaviour(ABC):
         }
 
         streams = self.files["pixels"]
-        for stream_id, stream_files in streams.items():
-            stream_num = stream_id[-4]
-            assert 0
-
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             # check if already sorted and exported
-            sa_dir = output / stream_files["sorting_analyser"]
+            sa_dir = self.find_file(stream_files["sorting_analyser"])
             if not sa_dir.exists() or not len(os.listdir(sa_dir)) > 1:
                 print(f"> {self.name} {stream_id} not sorted/exported.\n")
             else:
