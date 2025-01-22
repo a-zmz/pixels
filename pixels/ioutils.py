@@ -93,18 +93,18 @@ def get_data_files(data_dir, session_name):
 
         # spikeinterface cache
         pixels[stream_id]["preprocessed"] = base_name.with_name(
-            f"{session_name}_{stream_id}.preprocessed.zarr"
+            f"{base_name.stem}.preprocessed.zarr"
         )
         pixels[stream_id]["sorting_analyser"] = base_name.parent/\
             f"sorted_stream_{stream_id[-4]}/curated_sa.zarr"
 
         # extracted ap stream, 300Hz+
         pixels[stream_id]["ap_extracted"] = base_name.with_name(
-            f"{session_name}_{stream_id}.extracted.zarr"
+            f"{base_name.stem}.extracted.zarr"
         )
         # extracted lfp stream, 300Hz-
         pixels[stream_id]["lfp_extracted"] = base_name.with_name(
-            f"{session_name}_{stream_id[:-3]}.lf.extracted.zarr"
+            f"{base_name.stem[:-3]}.lf.extracted.zarr"
         )
 
         # depth info of probe
