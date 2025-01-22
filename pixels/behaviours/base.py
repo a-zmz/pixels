@@ -1832,13 +1832,13 @@ class Behaviour(ABC):
         """
         get spike times in second with spikeinterface
         """
-        self.sa_dir = self.find_file(self.files[0]["sorting_analyser"])
-
         spike_times = self._spike_times_data
 
-        for stream_num, stream in enumerate(range(len(spike_times))):
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            sa_dir = self.find_file(stream_files["sorting_analyser"])
             # load sorting analyser
-            sa = si.load_sorting_analyzer(self.sa_dir)
+            sa = si.load_sorting_analyzer(sa_dir)
 
             times = {}
             # get spike train
@@ -1854,9 +1854,10 @@ class Behaviour(ABC):
                 axis=1,
                 names="unit",
             )
+            # get sampling frequency
+            fs = int(sa.sampling_frequency)
             # Convert to time into sample rate index
-            spike_times[stream_num] /= int(self.spike_meta[0]['imSampRate'])\
-                                        / self.SAMPLE_RATE 
+            spike_times[stream_num] /= fs / self.SAMPLE_RATE 
 
         return spike_times[0] # NOTE: only deal with one stream for now
 
