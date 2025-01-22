@@ -705,6 +705,7 @@ class Behaviour(ABC):
             # NOTE jan 16 2025:
             # BUG: cannot set dtype back to int16, units from ks4 will have
             # incorrect amp & loc
+            #preprocessed = spre.astype(preprocessed, dtype=np.int16)
             preprocessed.save(
                 format="zarr",
                 folder=output,
