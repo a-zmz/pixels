@@ -198,26 +198,6 @@ class Behaviour(ABC):
 
         self.files = ioutils.get_data_files(self.raw, name)
 
-        sorted_streams = sorted(glob.glob(
-            str(self.processed) +'/' + f'sorted_stream_*'
-        ))
-        self.ks_outputs = [None] * len(sorted_streams)
-        if not len(sorted_streams) == 0:
-            for s, stream in enumerate(sorted_streams):
-                path = Path(stream)
-                # use si sorting analyser
-                sa = self.files["pixels"]["imec0.ap"]["sorting_analyser"]
-                if stream.split('_')[-2] == 'cat':
-                    if not ((path / 'phy_ks3').exists() and
-                            len(os.listdir(path / 'phy_ks3'))>17): 
-                        self.ks_outputs[s] = path
-                    else:
-                        self.ks_outputs[s] = path / 'phy_ks3'
-                elif (path / sa).exists():
-                    self.ks_outputs[s] = path / "sorter_output"
-        else:
-            print(f"\n> {self.name} has not been spike-sorted.")
-
         self.CatGT_dir = sorted(glob.glob(
             str(self.interim) +'/' + f'catgt_{self.name}_g[0-9]'
         ))
