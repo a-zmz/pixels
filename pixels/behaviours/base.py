@@ -2269,9 +2269,11 @@ class Behaviour(ABC):
 
         """
         if use_si:
-            self.sa_dir = self.find_file(self.files[0]["sorting_analyser"])
+            # NOTE: only deal with one stream for now
+            stream_files = self.files["pixels"]["imec0.ap"]
+            sa_dir = self.find_file(stream_files["sorting_analyser"])
             # load sorting analyser
-            sa = si.load_sorting_analyzer(self.sa_dir)
+            sa = si.load_sorting_analyzer(sa_dir)
 
             # get units
             unit_ids = sa.unit_ids
