@@ -1002,7 +1002,7 @@ class Behaviour(ABC):
             if not len(re.findall("_t[0-9]+", preprocessed.as_posix())) == 0:
                 output = self.processed / f"sorted_stream_cat_{stream_num}"
             else:
-                output = self.processed / f"sorted_stream_{stream_num}"
+                output = sa_dir.parent
 
             # load preprocessed rec
             rec = si.load_extractor(preprocessed)
