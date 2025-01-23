@@ -2141,19 +2141,20 @@ class Behaviour(ABC):
         bin_frs = {}
         bin_counts = {}
 
-        for rec_num in range(len(self.files)):
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             # TODO jun 12 2024 skip other streams for now
-            if rec_num > 0:
+            if stream_num > 0:
                 continue
 
             # Account for multiple raw data files
-            meta = self.spike_meta[rec_num]
+            meta = self.ap_meta[stream_num]
             samples = int(meta["fileSizeBytes"]) / int(meta["nSavedChans"]) / 2
             assert samples.is_integer()
             in_SAMPLE_RATE_scale = (samples * self.SAMPLE_RATE)\
-                           / int(self.spike_meta[0]['imSampRate'])
+                           / int(self.ap_meta[0]['imSampRate'])
             cursor_duration = (cursor * self.SAMPLE_RATE)\
-                              / int(self.spike_meta[0]['imSampRate'])
+                              / int(self.ap_meta[0]['imSampRate'])
             rec_spikes = spikes[
                 (cursor_duration <= spikes)\
                 & (spikes < (cursor_duration + in_SAMPLE_RATE_scale))
@@ -2162,8 +2163,8 @@ class Behaviour(ABC):
 
             # Account for lag, in case the ephys recording was started before the
             # behaviour
-            if not self._lag[rec_num] == None:
-                lag_start, _ = self._lag[rec_num]
+            if not self._lag[stream_num] == None:
+                lag_start, _ = self._lag[stream_num]
             else:
                 lag_start = timestamps[0]
 
