@@ -861,10 +861,13 @@ class Behaviour(ABC):
                     ftype="butterworth",
                 )
 
-                print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
-                downsampled = spre.resample(extracted, self.SAMPLE_RATE)
+                if downsample:
+                    print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
+                    band_data = spre.resample(extracted, self.SAMPLE_RATE)
+                else:
+                    band_data = extracted
 
-                downsampled.save(
+                band_data.save(
                     format="zarr",
                     folder=output,
                     compressor=wv_compressor,
