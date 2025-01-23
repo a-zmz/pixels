@@ -2091,7 +2091,9 @@ class Behaviour(ABC):
             units = self.select_units()
 
         if not pos_bin is None:
-            vr_dir = self.find_file(self.files[0]['vr'])
+            behaviour_files = self.files["behaviour"]
+            # assume only one vr session for now
+            vr_dir = self.find_file(behaviour_files["vr_synched"][0])
             vr_data = ioutils.read_hdf5(vr_dir)
             # get positions
             positions = vr_data.position_in_tunnel
