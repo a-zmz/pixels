@@ -766,7 +766,7 @@ class Behaviour(ABC):
             recording=rec,
             method="by_channel",
             detect_threshold=5,
-            exclude_sweep_ms=2,
+            exclude_sweep_ms=0.2,
         )
 
         print("> step 2: localize the peaks to get a sense of their putative "
