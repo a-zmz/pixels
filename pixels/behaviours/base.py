@@ -716,7 +716,8 @@ class Behaviour(ABC):
         return None
 
 
-    def estimate_drift(self, rec, loc_method="monopolar_triangulation"):
+    def estimate_drift(self, stream_files,
+                       loc_method="monopolar_triangulation"):
         """
         Get a sense of possible drifts in the recordings by looking at a
         "positional raster plot", i.e. the depth of the spike as function of
@@ -734,21 +735,38 @@ class Behaviour(ABC):
             to learn more, check:
             https://spikeinterface.readthedocs.io/en/stable/modules/motion_correction.html
         """
+        output = self.processed / stream_files["detected_peaks"]
+        if output.exists():
+            return ioutils.read_hdf5(output)
+
+        self.preprocess_raw(mc_method="ks")
+        self.extract_bands(downsample=False)
+
+        # get ap band
+        ap_file = self.find_file(stream_files["ap_extracted"])
+        rec = si.load_extractor(ap_file)
+
         shank_groups = rec.get_channel_groups()
         if not np.all(shank_groups == shank_groups[0]):
             # split by groups
             groups = rec.split_by("group")
-            chan_with_spikes = []
+            dfs = []
             for g, group in enumerate(groups.values()):
-                print(f"> Estimate drift of shank {g}")
-                chan_with_spikes.append(
-                    self._estimate_drift(group, loc_method)
-                )
+                print(f"\n> Estimate drift of shank {g}")
+                dfs.append(self._estimate_drift(group, loc_method))
+            # concat shanks
+            df = pd.concat(
+                dfs,
+                axis=1,
+                keys=groups.keys(),
+                names=["shank", "spike_properties"]
+            )
         else:
-            self._estimate_drift(rec, loc_method)
+            df = self._estimate_drift(rec, loc_method)
 
-        assert 0
-        np.concatenate(chan_with_spikes)
+        ioutils.write_hdf5(output, df)
+
+        return df
 
 
     def _estimate_drift(self, rec, loc_method="monopolar_triangulation"):
