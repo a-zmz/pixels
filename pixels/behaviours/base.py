@@ -661,6 +661,7 @@ class Behaviour(ABC):
         mc_method: str, motion correction method.
             Default: "dredge".
                 (as of jan 2025, dredge performs better than ks motion correction.)
+            "ks": let kilosort do motion correction.
 
         return
         ===
@@ -1008,7 +1009,7 @@ class Behaviour(ABC):
         mc_method: str, motion correction method.
             Default: "dredge".
                 (as of jan 2025, dredge performs better than ks motion correction.)
-
+            "ks": do motion correction with kilosort.
         """
         if not (self.interim.parent/"ks4_with_wavpack.sif").exists():
             raise PixelsError("Have you craeted Singularity image for sorting?")
