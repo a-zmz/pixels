@@ -152,7 +152,7 @@ def get_data_files(data_dir, session_name):
                 session_name + "motion_index.npz"
             )
             behaviour["motion_tracking"] = base_name.with_name(
-                session_name + "motion_tracking.h5"
+                session_name + "_motion_tracking.h5"
             )
 
     files = {
