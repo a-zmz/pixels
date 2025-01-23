@@ -776,57 +776,64 @@ class Behaviour(ABC):
             peaks=peaks,
             method=loc_method,
         )
-        # TODO jan 22 2025 save peaks and plot later?
-        # save it as df
-        assert 0
 
-        # step 3: plot
+        # get sampling frequency
         fs = rec.sampling_frequency
-        fig, ax = plt.subplots(
-            ncols=2,
-            squeeze=False,
-            figsize=(10, 10),
-            sharey=True,
-        )
-        # plot peak time vs depth
-        ax[0, 0].scatter(
-            peaks["sample_index"] / fs,
-            peak_locations["y"],
-            color="k",
-            marker=".",
-            alpha=0.002,
-        )
-        # plot peak locations on probe
-        sw.plot_probe_map(rec, ax=ax[0, 1])
-        ax[0, 1].scatter(
-            peak_locations["x"],
-            peak_locations["y"],
-            color="purple",
-            alpha=0.002,
-        )
-        y_max = rec.get_channel_locations()[:,1].max()
-        y_min = int(peak_locations["y"].min()) - 200
-        y_min = np.min([y_min, -200])
 
-        ax[0, 0].set_title(loc_method)
-        ax[0, 0].set_xlabel("Time (ms)")
-        ax[0, 0].set_ylabel("Depth (um)")
-        ax[0, 0].set_ylim([y_min, y_max])
+        # save it as df
+        df_peaks = pd.DataFrame(peaks)
+        df_peak_locs = pd.DataFrame(peak_locations)
+        df = pd.concat([df_peaks, df_peak_locs], axis=1)
+        # add timestamps and channel ids
+        df["timestamp"] = df.sample_index / fs
+        df["channel_id"] = rec.get_channel_ids()[df.channel_index.values]
 
-        chan_idx = rec._parent_channel_indices
-        idx_with_spikes = np.unique(peaks["channel_index"])
-        chan_with_spikes = rec.channel_ids[np.isin(chan_idx, idx_with_spikes)]
+        return df
 
-        stream_id = rec.channel_ids[0][:-4]
-        group_id = rec.get_channel_groups()[0]
-        fig_name = (f"{self.name}_{stream_id}_shank{group_id}_"
-            f"{loc_method}_positional_spike_raster_plot.png")
-        fig.savefig(self.processed/fig_name, dpi=300)
+    ## step 3: plot
+    #    fig, ax = plt.subplots(
+    #        ncols=2,
+    #        squeeze=False,
+    #        figsize=(10, 10),
+    #        sharey=True,
+    #    )
+    #    # plot peak time vs depth
+    #    ax[0, 0].scatter(
+    #        peaks["sample_index"] / fs,
+    #        peak_locations["y"],
+    #        color="k",
+    #        marker=".",
+    #        alpha=0.002,
+    #    )
+    #    # plot peak locations on probe
+    #    sw.plot_probe_map(rec, ax=ax[0, 1])
+    #    ax[0, 1].scatter(
+    #        peak_locations["x"],
+    #        peak_locations["y"],
+    #        color="purple",
+    #        alpha=0.002,
+    #    )
+    #    y_max = rec.get_channel_locations()[:,1].max()
+    #    y_min = int(peak_locations["y"].min()) - 200
+    #    y_min = np.min([y_min, -200])
 
-        return chan_with_spikes
+    #    ax[0, 0].set_title(loc_method)
+    #    ax[0, 0].set_xlabel("Time (ms)")
+    #    ax[0, 0].set_ylabel("Depth (um)")
+    #    ax[0, 0].set_ylim([y_min, y_max])
+
+    #    chan_idx = rec._parent_channel_indices
+    #    idx_with_spikes = np.unique(peaks["channel_index"])
+    #    chan_with_spikes = rec.channel_ids[np.isin(chan_idx, idx_with_spikes)]
+
+    #    stream_id = rec.channel_ids[0][:-4]
+    #    group_id = rec.get_channel_groups()[0]
+    #    fig_name = (f"{self.name}_{stream_id}_shank{group_id}_"
+    #        f"{loc_method}_positional_spike_raster_plot.png")
+    #    fig.savefig(self.processed/fig_name, dpi=300)
 
 
-    def extract_bands(self, bands=None):
+    def extract_bands(self, bands=None, downsample=True):
         """
         extract data of ap and lfp frequency bands from the raw neural recording
         data.
