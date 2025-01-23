@@ -849,8 +849,7 @@ class Behaviour(ABC):
             for name, freqs in bands.items():
                 output = self.processed / stream_files[f"{name}_extracted"]
                 if output.exists():
-                    print(f"> {name} bands from {stream_id} loaded."
-                    )
+                    print(f"> {name} bands from {stream_id} loaded.")
                     continue
                 
                 print(
@@ -1777,7 +1776,7 @@ class Behaviour(ABC):
 
         """
 
-    def _get_processed_data(self, attr, key):
+    def _get_processed_data(self, attr, key, category):
         """
         Used by the following get_X methods to load processed data.
 
@@ -1794,18 +1793,21 @@ class Behaviour(ABC):
         saved = getattr(self, attr)
 
         if saved[0] is None:
-            for rec_num, recording in enumerate(self.files):
-                if key in recording:
-                    file_path = self.processed / recording[key]
-                    if file_path.exists():
-                        if re.search(r'\.np[yz]$', file_path.suffix):
-                            saved[rec_num] = np.load(file_path)
-                        elif file_path.suffix == '.h5':
-                            saved[rec_num] = ioutils.read_hdf5(file_path)
-                    else:
-                        msg = f"Could not find {attr[1:]} for recording {rec_num}."
-                        msg += f"\nFile should be at: {file_path}"
-                        raise PixelsError(msg)
+            files = self.files[category]
+
+        if key in files:
+            dirs = files[key]
+            for f, file_dir in enumerate(dirs):
+                file_path = self.processed / file_dir
+                if file_path.exists():
+                    if re.search(r'\.np[yz]$', file_path.suffix):
+                        saved[f] = np.load(file_path)
+                    elif file_path.suffix == '.h5':
+                        saved[f] = ioutils.read_hdf5(file_path)
+        else:
+            msg = f"Could not find {attr[1:]} for recording {rec_num}."
+            msg += f"\nFile should be at: {file_path}"
+            raise PixelsError(msg)
         return saved
 
     def get_action_labels(self):
@@ -1815,7 +1817,8 @@ class Behaviour(ABC):
         """
         # TODO jul 5 2024: only one action label for a session, make sure it
         # does not error
-        return self._get_processed_data("_action_labels", "action_labels")
+        return self._get_processed_data("_action_labels", "action_labels",
+            "behaviour")
 
     def get_behavioural_data(self):
         """
