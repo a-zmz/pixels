@@ -95,6 +95,9 @@ def get_data_files(data_dir, session_name):
         pixels[stream_id]["preprocessed"] = base_name.with_name(
             f"{base_name.stem}.preprocessed.zarr"
         )
+        pixels[stream_id]["detected_peaks"] = base_name.with_name(
+            f"{base_name.stem}_detected_peaks.h5"
+        )
         pixels[stream_id]["sorting_analyser"] = base_name.parent/\
             f"sorted_stream_{stream_id[-4]}/curated_sa.zarr"
 
