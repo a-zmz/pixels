@@ -294,7 +294,7 @@ def _sort_spikes(rec, output, ks_image_path, ks4_params):
         sorter_name="kilosort4",
         recording=rec,
         folder=output,
-        singularity_image=ks_image_path/"ks4_with_wavpack.sif",
+        singularity_image=ks_image_path,
         remove_existing_folder=True,
         verbose=True,
         **ks4_params,
