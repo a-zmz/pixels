@@ -889,7 +889,9 @@ class Behaviour(ABC):
                 (as of jan 2025, dredge performs better than ks motion correction.)
             "ks": do motion correction with kilosort.
         """
-        if not (self.interim.parent/"ks4_with_wavpack.sif").exists():
+        ks_image_path = self.interim.parent/"ks4_with_wavpack.sif"
+
+        if not ks_image_path.exists():
             raise PixelsError("Have you craeted Singularity image for sorting?")
 
         # preprocess and motion correct raw
