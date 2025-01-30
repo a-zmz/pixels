@@ -40,6 +40,7 @@ from wavpack_numcodecs import WavPack
 
 from pixels import ioutils
 from pixels import signal
+import pixels.pixels_utils as xut
 from pixels.error import PixelsError
 from pixels.constants import *
 
@@ -606,53 +607,57 @@ class Behaviour(ABC):
 
         print("> Done!")
 
-    def _preprocess_raw(self, rec, mc_method):
+    def correct_motion(self, mc_method="dredge"):
         """
-        Implementation of preprocessing on raw pixels data.
+        Correct motion of recording.
+
+        params
+        ===
+        mc_method: str, motion correction method.
+            Default: "dredge".
+                (as of jan 2025, dredge performs better than ks motion correction.)
+            "ks": let kilosort do motion correction.
+
+        return
+        ===
+        None
         """
-        # correct phase shift
-        print("\t> step 1: do phase shift correction.")
-        rec_ps = spre.phase_shift(rec)
+        if mc_method == "ks":
+            print(f"> Correct motion later with {mc_method}.")
+            return None
 
-        # remove bad channels from sorting
-        print("\t> step 2: remove bad channels.")
-        bad_chan_ids, chan_labels = spre.detect_bad_channels(
-            rec_ps,
-            outside_channels_location="top",
-        )
-        labels, counts = np.unique(chan_labels, return_counts=True)
+        # get pixels streams
+        streams = self.files["pixels"]
 
-        for label, count in zip(labels, counts):
-            print(f"\t\t> Found {count} channels labelled as {label}.")
-        rec_clean = rec_ps.remove_channels(bad_chan_ids)
+        for stream_id, stream_files in streams.items():
+            output = self.interim / stream_files["motion_corrected"]
+            if output.exists():
+                print(f"> Motion corrected {stream_id} loaded.")
+                continue
 
-        print("\t> step 3: do common median referencing.")
-        # NOTE: dtype will be converted to float32 during motion correction
-        cmr = spre.common_reference(
-            rec_clean,
-        )
+            # preprocess raw recording
+            self.preprocess_raw()
 
-        if not mc_method == "ks":
-            print(f"\t> step 4: correct motion with {mc_method}.")
-            # reduce spatial window size for four-shank
-            estimate_motion_kwargs = {
-                "win_step_um": 100,
-                "win_margin_um": -150,
-            }
+            # load preprocessed rec
+            rec = stream_files["preprocessed"]
 
-            mcd = spre.correct_motion(
-                cmr, 
-                preset=mc_method, 
-                estimate_motion_kwargs=estimate_motion_kwargs,
-                #interpolate_motion_kwargs={'border_mode':'force_extrapolate'},
+            print(
+                f">>>>> Correcting motion for recording from {stream_id} "
+                f"in total of {self.stream_count} stream(s) with {mc_method}"
             )
-        else:
-            print(f"> correct motion later with {mc_method}.")
-            mcd = cmr
 
-        return mcd
+            mcd = xut.correct_motion(rec)
 
-    def preprocess_raw(self, mc_method="dredge"):
+            mcd.save(
+                format="zarr",
+                folder=output,
+                compressor=wv_compressor,
+            )
+
+        return None
+
+
+    def preprocess_raw(self):
         """
         Preprocess full-band raw pixels data.
 
@@ -674,50 +679,19 @@ class Behaviour(ABC):
         streams = self.files["pixels"]
 
         for stream_id, stream_files in streams.items():
-            # check if exists
-            output = self.interim / stream_files["preprocessed"]
-            if output.exists():
-                print(
-                    f"> Preprocessed data from {stream_id} loaded."
-                )
-                continue
-
             # load raw si rec
             rec = stream_files["si_rec"]
-
             print(
                 f">>>>> Preprocessing data for recording from {stream_id} "
                 f"in total of {self.stream_count} stream(s)"
             )
 
-            shank_groups = rec.get_channel_groups()
-            if not np.all(shank_groups == shank_groups[0]):
-                preprocessed = []
-                # split by groups
-                groups = rec.split_by("group")
-                for g, group in enumerate(groups.values()):
-                    print(f"> Preprocessing shank {g}")
-                    preprocessed.append(self._preprocess_raw(group, mc_method))
-                # aggregate groups together
-                preprocessed = si.aggregate_channels(preprocessed)
-            else:
-                preprocessed = self._preprocess_raw(rec, mc_method)
-
-            # NOTE jan 16 2025:
-            # BUG: cannot set dtype back to int16, units from ks4 will have
-            # incorrect amp & loc
-            #preprocessed = spre.astype(preprocessed, dtype=np.int16)
-            preprocessed.save(
-                format="zarr",
-                folder=output,
-                compressor=wv_compressor,
-            )
+            stream_files["preprocessed"] = xut.preprocess_raw(rec)
 
         return None
 
 
-    def estimate_drift(self, stream_files,
-                       loc_method="monopolar_triangulation"):
+    def detect_n_localise_peaks(self, loc_method="monopolar_triangulation"):
         """
         Get a sense of possible drifts in the recordings by looking at a
         "positional raster plot", i.e. the depth of the spike as function of
@@ -735,132 +709,41 @@ class Behaviour(ABC):
             to learn more, check:
             https://spikeinterface.readthedocs.io/en/stable/modules/motion_correction.html
         """
-        output = self.processed / stream_files["detected_peaks"]
-        if output.exists():
-            return ioutils.read_hdf5(output)
+        self.extract_bands("ap")
 
-        self.preprocess_raw(mc_method="ks")
-        self.extract_bands(downsample=False)
+        # get pixels streams
+        streams = self.files["pixels"]
 
-        # get ap band
-        ap_file = self.find_file(stream_files["ap_extracted"])
-        rec = si.load_extractor(ap_file)
+        for stream_id, stream_files in streams.items():
+            output = self.processed / stream_files["detected_peaks"]
+            if output.exists():
+                print(f"> Peaks from {stream_id} already detected.")
+                continue
 
-        shank_groups = rec.get_channel_groups()
-        if not np.all(shank_groups == shank_groups[0]):
-            # split by groups
-            groups = rec.split_by("group")
-            dfs = []
-            for g, group in enumerate(groups.values()):
-                print(f"\n> Estimate drift of shank {g}")
-                dfs.append(self._estimate_drift(group, loc_method))
-            # concat shanks
-            df = pd.concat(
-                dfs,
-                axis=1,
-                keys=groups.keys(),
-                names=["shank", "spike_properties"]
-            )
-        else:
-            df = self._estimate_drift(rec, loc_method)
+            # get ap band
+            ap_file = self.find_file(stream_files["ap_extracted"])
+            rec = si.load_extractor(ap_file)
 
-        ioutils.write_hdf5(output, df)
+            # detect and localise peaks
+            df = xut.detect_n_localise_peaks(rec)
 
-        return df
+            # write to disk
+            ioutils.write_hdf5(output, df)
+
+        return None
 
 
-    def _estimate_drift(self, rec, loc_method="monopolar_triangulation"):
-        """
-        implementation of drift estimation.
-        """
-        from spikeinterface.sortingcomponents.peak_detection\
-            import detect_peaks
-        from spikeinterface.sortingcomponents.peak_localization\
-            import localize_peaks
-        import spikeinterface.widgets as sw
-
-        print("> step 1: detect peaks")
-        peaks = detect_peaks(
-            recording=rec,
-            method="by_channel",
-            detect_threshold=5,
-            exclude_sweep_ms=0.2,
-        )
-
-        print("> step 2: localize the peaks to get a sense of their putative "
-                "depths")
-        peak_locations = localize_peaks(
-            recording=rec,
-            peaks=peaks,
-            method=loc_method,
-        )
-
-        # get sampling frequency
-        fs = rec.sampling_frequency
-
-        # save it as df
-        df_peaks = pd.DataFrame(peaks)
-        df_peak_locs = pd.DataFrame(peak_locations)
-        df = pd.concat([df_peaks, df_peak_locs], axis=1)
-        # add timestamps and channel ids
-        df["timestamp"] = df.sample_index / fs
-        df["channel_id"] = rec.get_channel_ids()[df.channel_index.values]
-
-        return df
-
-    ## step 3: plot
-    #    fig, ax = plt.subplots(
-    #        ncols=2,
-    #        squeeze=False,
-    #        figsize=(10, 10),
-    #        sharey=True,
-    #    )
-    #    # plot peak time vs depth
-    #    ax[0, 0].scatter(
-    #        peaks["sample_index"] / fs,
-    #        peak_locations["y"],
-    #        color="k",
-    #        marker=".",
-    #        alpha=0.002,
-    #    )
-    #    # plot peak locations on probe
-    #    sw.plot_probe_map(rec, ax=ax[0, 1])
-    #    ax[0, 1].scatter(
-    #        peak_locations["x"],
-    #        peak_locations["y"],
-    #        color="purple",
-    #        alpha=0.002,
-    #    )
-    #    y_max = rec.get_channel_locations()[:,1].max()
-    #    y_min = int(peak_locations["y"].min()) - 200
-    #    y_min = np.min([y_min, -200])
-
-    #    ax[0, 0].set_title(loc_method)
-    #    ax[0, 0].set_xlabel("Time (ms)")
-    #    ax[0, 0].set_ylabel("Depth (um)")
-    #    ax[0, 0].set_ylim([y_min, y_max])
-
-    #    chan_idx = rec._parent_channel_indices
-    #    idx_with_spikes = np.unique(peaks["channel_index"])
-    #    chan_with_spikes = rec.channel_ids[np.isin(chan_idx, idx_with_spikes)]
-
-    #    stream_id = rec.channel_ids[0][:-4]
-    #    group_id = rec.get_channel_groups()[0]
-    #    fig_name = (f"{self.name}_{stream_id}_shank{group_id}_"
-    #        f"{loc_method}_positional_spike_raster_plot.png")
-    #    fig.savefig(self.processed/fig_name, dpi=300)
-
-
-    def extract_bands(self, bands=None, downsample=True):
+    def extract_bands(self, freqs=None):
         """
         extract data of ap and lfp frequency bands from the raw neural recording
         data.
         """
-        if bands == None:
+        if freqs == None:
             bands = freq_bands
-
-        # preprocess raw data
-        self.preprocess_raw()
+        elif isinstance(freqs, str) and freqs in freq_bands.keys():
+            bands = {freqs: freq_bands[freqs]}
+        elif isinstance(freqs, dict):
+            bands = freqs
 
         streams = self.files["pixels"]
         for stream_id, stream_files in streams.items():
@@ -992,34 +875,11 @@ class Behaviour(ABC):
         streams = self.files["pixels"]
 
         for stream_id, stream_files in streams.items():
-            recs = []
-            for r, raw in enumerate(stream_files["ap_raw"]):
-                try:
-                    self.CatGT_dir = Path(self.CatGT_dir[0])
-                    data_dir = self.CatGT_dir
-                    data_file = data_dir / stream_files['CatGT_ap_data'][r]
-                    print("\n> Got catgt-ed recording.")
-                except:
-                    print(f"\n> Getting the orignial recording...")
-                    data_file = self.find_file(raw)
-
-                # load recording file
-                rec = se.read_spikeglx(
-                    folder_path=data_file.parent,
-                    stream_id=stream_id,
-                    stream_name=data_file.stem,
-                    all_annotations=True, # include all annotations
-                )
-                recs.append(rec)
-
-            if len(recs) > 1:
-                # concatenate runs for each probe
-                concat_recs = si.concatenate_recordings(recs)
-            else:
-                concat_recs = recs[0]
+            # get paths of raw
+            paths = [self.find_file(path) for path in stream_files["ap_raw"]]
 
             # now the value for streams dict is recording extractor
-            stream_files["si_rec"] = concat_recs
+            stream_files["si_rec"] = xut.load_raw(paths, stream_id)
 
         return None
 
