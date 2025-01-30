@@ -221,6 +221,29 @@ def extract_band(rec, freq_min, freq_max):
 
 
 def sort_spikes(rec, output, curated_sa_dir, ks_image_path, ks4_params):
+    """
+    Sort spikes with kilosort 4, curate sorting, save sorting analyser to disk,
+    and export results to disk.
+    
+    params
+    ===
+    rec: spikeinterface recording object.
+
+    output: path object, directory of output.
+
+    curated_sa_dir: path object, directory to save curated sorting analyser.
+
+    ks_image_path: path object, directory of local kilosort 4 singularity image.
+
+    ks4_params: dict, parameters for kilosort 4.
+
+    return
+    ===
+    sorting: spikeinterface sorting object.
+
+    recording: spikeinterface recording object.
+    """
+    # sort spikes
     sorting, recording = _sort_spikes(
         rec,
         output,
@@ -228,12 +251,14 @@ def sort_spikes(rec, output, curated_sa_dir, ks_image_path, ks4_params):
         ks4_params,
     )
 
+    # curate sorting
     sa, curated_sa = _curate_sorting(
         sorting,
         recording,
         output,
     )
 
+    # export sorting analyser
     _export_sorting_analyser(
         sa,
         curated_sa,
@@ -245,7 +270,25 @@ def sort_spikes(rec, output, curated_sa_dir, ks_image_path, ks4_params):
 
 
 def _sort_spikes(rec, output, ks_image_path, ks4_params):
-    assert 0
+    """
+    Sort spikes with kilosort 4.
+    
+    params
+    ===
+    rec: spikeinterface recording object.
+
+    output: path object, directory of output.
+
+    ks_image_path: path object, directory of local kilosort 4 singularity image.
+
+    ks4_params: dict, parameters for kilosort 4.
+
+    return
+    ===
+    sorting: spikeinterface sorting object.
+
+    recording: spikeinterface recording object.
+    """
     # run sorter
     sorting = ss.run_sorter(
         sorter_name="kilosort4",
@@ -285,7 +328,24 @@ def _sort_spikes(rec, output, ks_image_path, ks4_params):
     return sorting, recording
 
 
-def _curate_n_export(sorting, recording, output):
+def _curate_sorting(sorting, recording, output):
+    """
+    Curate spike sorting results, and export to disk.
+    
+    params
+    ===
+    sorting: spikeinterface sorting object.
+
+    recording: spikeinterface recording object.
+
+    output: path object, directory of output.
+
+    return
+    ===
+    sa: spikeinterface sorting analyser.
+
+    curated_sa: curated spikeinterface sorting analyser.
+    """
     # curate sorter output
     # remove spikes exceeding recording number of samples
     sorting = sc.remove_excess_spikes(sorting, recording)
@@ -375,7 +435,21 @@ def _curate_n_export(sorting, recording, output):
 
 
 def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
+    """
+    Export sorting analyser to disk.
+    
+    params
+    ===
+    sa: spikeinterface sorting analyser.
 
+    curated_sa_dir: path object, directory to save curated sorting analyser.
+
+    output: path object, directory of output.
+
+    return
+    ===
+    None
+    """
     # export pre curation report
     sexp.export_report(
         sorting_analyzer=sa,
