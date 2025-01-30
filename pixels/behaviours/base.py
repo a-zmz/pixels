@@ -1055,7 +1055,7 @@ class Behaviour(ABC):
 
             # >>> get depth of units on each shank >>>
             # get probe geometry coordinates
-            coords = sa.get_probe().contact_positions
+            coords = sa.get_channel_locations()
             # get coordinates of max channel of each unit on probe, column 0 is x-axis,
             # column 1 is y-axis/depth, 0 at bottom-left channel.
             max_chan_coords = coords[sa.channel_ids_to_indices(max_chan)]
