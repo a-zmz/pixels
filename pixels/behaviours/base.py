@@ -30,8 +30,6 @@ import spikeinterface.extractors as se
 import spikeinterface.sorters as ss
 import spikeinterface.curation as sc
 import spikeinterface.exporters as sexp
-import spikeinterface.preprocessing as spre
-import spikeinterface.postprocessing as spost
 import spikeinterface.qualitymetrics as sqm
 from scipy import interpolate
 from tables import HDF5ExtError
