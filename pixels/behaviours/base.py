@@ -750,29 +750,26 @@ class Behaviour(ABC):
                     print(f"> {name} bands from {stream_id} loaded.")
                     continue
                 
+                # preprocess raw data
+                self.preprocess_raw()
+
                 print(
                     f">>>>> Extracting {name} bands from {self.name} "
                     f"{stream_id} in total of {self.stream_count} stream(s)"
                 )
 
                 # load preprocessed
-                preprocessed = self.find_file(stream_files['preprocessed'])
-                rec = si.load_extractor(preprocessed)
+                rec = stream_files["preprocessed"]
 
-                extracted = spre.bandpass_filter(
+                # do bandpass filtering
+                extracted = xut.extract_band(
                     rec,
                     freq_min=freqs[0],
                     freq_max=freqs[1],
-                    ftype="butterworth",
                 )
 
-                if downsample:
-                    print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
-                    band_data = spre.resample(extracted, self.SAMPLE_RATE)
-                else:
-                    band_data = extracted
-
-                band_data.save(
+                # write to disk
+                extracted.save(
                     format="zarr",
                     folder=output,
                     compressor=wv_compressor,
