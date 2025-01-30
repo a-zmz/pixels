@@ -207,3 +207,204 @@ def _detect_n_localise_peaks(rec, loc_method="monopolar_triangulation"):
     df["channel_id"] = rec.get_channel_ids()[df.channel_index.values]
 
     return df
+
+
+def extract_band(rec, freq_min, freq_max):
+    band = spre.bandpass_filter(
+        rec,
+        freq_min=freq_min,
+        freq_max=freq_min,
+        ftype="butterworth",
+    )
+
+    return band
+
+
+def sort_spikes(rec, output, curated_sa_dir, ks_image_path, ks4_params):
+    sorting, recording = _sort_spikes(
+        rec,
+        output,
+        ks_image_path,
+        ks4_params,
+    )
+
+    sa, curated_sa = _curate_sorting(
+        sorting,
+        recording,
+        output,
+    )
+
+    _export_sorting_analyser(
+        sa,
+        curated_sa,
+        output,
+        curated_sa_dir,
+    )
+
+    return None
+
+
+def _sort_spikes(rec, output, ks_image_path, ks4_params):
+    assert 0
+    # run sorter
+    sorting = ss.run_sorter(
+        sorter_name="kilosort4",
+        recording=rec,
+        folder=output,
+        singularity_image=ks_image_path/"ks4_with_wavpack.sif",
+        remove_existing_folder=True,
+        verbose=True,
+        **ks4_params,
+    )
+
+    # load ks preprocessed recording for # sorting analyser
+    ks_preprocessed = se.read_binary(
+        file_paths=output/"sorter_output/temp_wh.dat",
+        sampling_frequency=rec.sampling_frequency,
+        dtype=np.int16,
+        num_channels=rec.get_num_channels(),
+        is_filtered=True,
+    )
+    # attach probe # to ks4 preprocessed recording, from the raw
+    recording = ks_preprocessed.set_probe(rec.get_probe())
+    # set properties to make sure sorting & sorting sa have all
+    # probe # properties to form correct rec_attributes, esp
+    recording._properties = rec._properties
+
+    # >>> annotations >>>
+    annotations = rec.get_annotation_keys()
+    annotations.remove("is_filtered")
+    for ann in annotations:
+        recording.set_annotation(
+            annotation_key=ann,
+            value=rec.get_annotation(ann),
+            overwrite=True,
+        )
+    # <<< annotations <<<
+
+    return sorting, recording
+
+
+def _curate_n_export(sorting, recording, output):
+    # curate sorter output
+    # remove spikes exceeding recording number of samples
+    sorting = sc.remove_excess_spikes(sorting, recording)
+    # remove duplicate spikes
+    sorting = sc.remove_duplicated_spikes(
+        sorting,
+        censored_period_ms=0.3,
+        method="keep_first_iterative",
+    )
+    # remove redundant units created by ks
+    sorting = sc.remove_redundant_units(
+        sorting,
+        duplicate_threshold=0.9, # default is 0.8
+        align=False,
+        remove_strategy="max_spikes",
+    )
+
+    # create sorting analyser
+    sa = si.create_sorting_analyzer(
+        sorting=sorting,
+        recording=recording,
+    )
+
+    # calculate all extensions BEFORE further steps
+    # list required extensions for redundant units removal and quality
+    # metrics
+    required_extensions = [
+        "random_spikes",
+        "waveforms",
+        "templates",
+        "noise_levels",
+        "unit_locations",
+        "template_similarity",
+        "spike_amplitudes",
+        "correlograms",
+        "principal_components", # for # phy
+    ]
+    sa.compute(required_extensions, save=True)
+
+    # make sure to have group id for each unit
+    if not "group" in sa.sorting.get_property_keys():
+        # get shank id, i.e., group
+        group = sa.recording.get_channel_groups()
+        # get max peak channel for each unit
+        max_chan = si.get_template_extremum_channel(sa).values()
+        # get group id for each unit
+        unit_group = group[list(max_chan)]
+        # set unit group as a property for sorting
+        sa.sorting.set_property(
+            key="group",
+            values=unit_group,
+        )
+
+    # calculate quality metrics
+    qms = sqm.compute_quality_metrics(sa)
+
+    # >>> get depth of units on each shank >>>
+    # get probe geometry coordinates
+    coords = sa.get_channel_locations()
+    # get coordinates of max channel of each unit on probe, column 0 is
+    # x-axis, column 1 is y-axis/depth, 0 at bottom-left channel.
+    max_chan_coords = coords[sa.channel_ids_to_indices(max_chan)]
+    # set coordinates of max channel of each unit as a property of sorting
+    sa.sorting.set_property(
+        key="max_chan_coords",
+        values=max_chan_coords,
+    )
+    # <<< get depth of units on each shank <<<
+
+    # remove bad units
+    #rule = "sliding_rp_violation <= 0.1 & amplitude_median <= -50\
+    #        & amplitude_cutoff < 0.05 & sd_ratio < 1.5 & presence_ratio > 0.9\
+    #        & snr > 1.1 & rp_contamination < 0.2 & firing_rate > 0.1"
+    # use the ibl methods, but amplitude_cutoff rather than noise_cutoff
+    rule = "snr > 1.1 & rp_contamination < 0.2 & amplitude_median <= -50\
+            & presence_ratio > 0.9"
+    good_qms = qms.query(rule)
+    # TODO nov 26 2024
+    # wait till noise cutoff implemented and include that.
+    # also see why sliding rp violation gives loads nan.
+    # get unit ids
+    curated_unit_ids = list(good_qms.index)
+    # select curated
+    curated_sa = sa.select_units(curated_unit_ids)
+
+    return sa, curated_sa
+
+
+def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
+
+    # export pre curation report
+    sexp.export_report(
+        sorting_analyzer=sa,
+        output_folder=output/"report",
+    )
+
+    # save pre-curated analyser to disk
+    sa.save_as(
+        format="zarr",
+        folder=output/"sa.zarr",
+    )
+
+    # export curated report
+    sexp.export_report(
+        sorting_analyzer=curated_sa,
+        output_folder=output/"curated_report",
+    )
+
+    # export to phy for additional manual curation if needed
+    sexp.export_to_phy(
+        sorting_analyzer=curated_sa,
+        output_folder=output/"phy",
+        copy_binary=False,
+    )
+
+    # save sa to disk
+    curated_sa.save_as(
+        format="zarr",
+        folder=curated_sa_dir,
+    )
+
+    return None
