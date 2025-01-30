@@ -892,13 +892,14 @@ class Behaviour(ABC):
         if not (self.interim.parent/"ks4_with_wavpack.sif").exists():
             raise PixelsError("Have you craeted Singularity image for sorting?")
 
-        # preprocess raw
-        self.preprocess_raw(mc_method=mc_method)
+        # preprocess and motion correct raw
+        self.correct_motion(mc_method)
 
         if mc_method == "ks":
             ks_mc = True
         else:
             ks_mc = False
+
         # set ks4 parameters
         ks4_params = {
             "do_correction": ks_mc,
