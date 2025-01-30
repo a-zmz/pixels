@@ -977,16 +977,14 @@ class Behaviour(ABC):
             recording._properties = rec._properties
 
             # >>> annotations >>>
-            annotations = ["probe_0_planar_contour", "probes_info",
-                           "stream_name", "stream_id"]
+            annotations = rec.get_annotation_keys()
+            annotations.remove("is_filtered")
             for ann in annotations:
                 recording.set_annotation(
                     annotation_key=ann,
                     value=rec.get_annotation(ann),
                     overwrite=True,
                 )
-            # original file info
-            recording.annotate(file_origin=str(preprocessed))
             # <<< annotations <<<
 
             # curate sorter output
