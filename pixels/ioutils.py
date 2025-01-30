@@ -83,6 +83,7 @@ def get_data_files(data_dir, session_name):
                 "ap_raw": [], # there could be mutliple, thus list
                 "ap_meta": [],
                 "si_rec": None, # there could be only one, thus None
+                "preprocessed": None,
                 "CatGT_ap_data": [],
                 "CatGT_ap_meta": [],
             }
@@ -92,8 +93,8 @@ def get_data_files(data_dir, session_name):
         pixels[stream_id]["ap_meta"].append(original_name(ap_meta[r]))
 
         # spikeinterface cache
-        pixels[stream_id]["preprocessed"] = base_name.with_name(
-            f"{base_name.stem}.preprocessed.zarr"
+        pixels[stream_id]["motion_corrected"] = base_name.with_name(
+            f"{base_name.stem}.mcd.zarr"
         )
         pixels[stream_id]["detected_peaks"] = base_name.with_name(
             f"{base_name.stem}_detected_peaks.h5"
