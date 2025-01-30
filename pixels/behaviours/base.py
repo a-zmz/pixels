@@ -641,7 +641,7 @@ class Behaviour(ABC):
             rec = stream_files["preprocessed"]
 
             print(
-                f">>>>> Correcting motion for recording from {stream_id} "
+                f"\n>>>>> Correcting motion for recording from {stream_id} "
                 f"in total of {self.stream_count} stream(s) with {mc_method}"
             )
 
@@ -681,7 +681,7 @@ class Behaviour(ABC):
             # load raw si rec
             rec = stream_files["si_rec"]
             print(
-                f">>>>> Preprocessing data for recording from {stream_id} "
+                f"\n>>>>> Preprocessing data for recording from {stream_id} "
                 f"in total of {self.stream_count} stream(s)"
             )
 
