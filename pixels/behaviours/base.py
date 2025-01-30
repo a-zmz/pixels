@@ -1023,6 +1023,7 @@ class Behaviour(ABC):
                 "template_similarity",
                 "spike_amplitudes",
                 "correlograms"
+                "principal_components", # for phy
             ]
             sa.compute(
                 required_extensions,
