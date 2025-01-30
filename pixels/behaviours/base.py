@@ -912,27 +912,43 @@ class Behaviour(ABC):
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             # check if already sorted and exported
-            sa_dir = self.find_file(stream_files["sorting_analyser"])
-            if not sa_dir.exists() or not len(os.listdir(sa_dir)) > 1:
+            sa_dir = self.processed / stream_files["sorting_analyser"]
+            if not sa_dir.exists():
                 print(f"> {self.name} {stream_id} not sorted/exported.\n")
             else:
                 print("> Already sorted and exported, next session.\n")
                 continue
 
-            # load preprocessed
-            preprocessed = self.find_file(stream_files["preprocessed"])
+            # get catgt directory
+            catgt_dir = self.find_file(
+                stream_files["CatGT_ap_data"][stream_num]
+            )
 
             # find spike sorting output folder
-            if not len(re.findall("_t[0-9]+", preprocessed.as_posix())) == 0:
-                output = self.processed / f"sorted_stream_cat_{stream_num}"
-            else:
+            if catgt_dir is None:
                 output = sa_dir.parent
+            else:
+                output = self.processed / f"sorted_stream_cat_{stream_num}"
 
-            # load preprocessed rec
-            rec = si.load_extractor(preprocessed)
+            # load rec
+            if ks_mc:
+                rec = stream_files["preprocessed"]
+            else:
+                rec_dir = self.find_file(stream_files["motion_corrected"])
+                rec = si.load_extractor(rec_dir)
 
             # move current working directory to interim
             os.chdir(self.interim)
+
+            # sort spikes and save sorting analyser to disk
+            xut.sort_spikes(
+                rec=rec,
+                output=output,
+                curated_sa_dir=sa_dir,
+                ks_image_path=self.interim.parent,
+                ks4_params=ks4_params,
+            )
+            assert 0
 
             # run sorter
             sorting = ss.run_sorter(
