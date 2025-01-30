@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import probeinterface as pi
 import scipy.stats
 import spikeinterface as si
 import spikeinterface.extractors as se
