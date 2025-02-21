@@ -317,6 +317,18 @@ def _sort_spikes(rec, output, ks_image_path, ks4_params):
 
     recording: spikeinterface recording object.
     """
+    # run sorter per shank
+    #sorting = ss.run_sorter_by_property(
+    #    sorter_name='kilosort4',
+    #    recording=rec,
+    #    grouping_property="group",
+    #    folder=output,
+    #    singularity_image=ks_image_path,
+    #    remove_existing_folder=True,
+    #    verbose=True,
+    #    **ks4_params,
+    #)
+
     # run sorter
     sorting = ss.run_sorter(
         sorter_name="kilosort4",
