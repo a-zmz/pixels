@@ -421,7 +421,7 @@ def _curate_sorting(sorting, recording, output):
         "template_similarity",
         "spike_amplitudes",
         "correlograms",
-        "principal_components", # for # phy
+        #"principal_components", # for # phy
     ]
     sa.compute(required_extensions, save=True)
 
