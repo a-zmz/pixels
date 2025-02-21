@@ -210,12 +210,31 @@ def _detect_n_localise_peaks(rec, loc_method):
     return df
 
 
-def extract_band(rec, freq_min, freq_max):
+def extract_band(rec, freq_min, freq_max, ftype="butter"):
+    """
+    Band pass filter recording.
+
+    params
+    ===
+    freq_min: float, high-pass cutoff corner frequency.
+
+    freq_max: float, low-pass cutoff corner frequency.
+
+    ftype: str, filter type.
+        since its posthoc, we use 5th order acausal filter, and takes
+        second-order sections (SOS) representation of the filter. but more
+        filters to choose from, e.g., bessel with filter_order=2, presumably
+        preserves waveform better? see lussac.
+
+    return
+    ===
+    band: spikeinterface recording object.
+    """
     band = spre.bandpass_filter(
         rec,
         freq_min=freq_min,
         freq_max=freq_min,
-        ftype="butterworth",
+        ftype=ftype,
     )
 
     return band
