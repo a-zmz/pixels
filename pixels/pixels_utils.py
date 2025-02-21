@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 import spikeinterface as si
 import spikeinterface.extractors as se
