@@ -132,7 +132,7 @@ def correct_motion(rec, mc_method="dredge"):
     return mcd
 
 
-def detect_n_localise_peaks(rec):
+def detect_n_localise_peaks(rec, loc_method="monopolar_triangulation"):
     """
     Get a sense of possible drifts in the recordings by looking at a
     "positional raster plot", i.e. the depth of the spike as function of
@@ -157,7 +157,7 @@ def detect_n_localise_peaks(rec):
         dfs = []
         for g, group in enumerate(groups.values()):
             print(f"\n> Estimate drift of shank {g}")
-            dfs.append(_estimate_drift(group, loc_method))
+            dfs.append(_detect_n_localise_peaks(group, loc_method))
         # concat shanks
         df = pd.concat(
             dfs,
@@ -166,12 +166,12 @@ def detect_n_localise_peaks(rec):
             names=["shank", "spike_properties"]
         )
     else:
-        df = self._estimate_drift(rec, loc_method)
+        df = self._detect_n_localise_peaks(rec, loc_method)
 
     return df
 
 
-def _detect_n_localise_peaks(rec, loc_method="monopolar_triangulation"):
+def _detect_n_localise_peaks(rec, loc_method):
     """
     implementation of drift estimation.
     """
