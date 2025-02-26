@@ -2013,13 +2013,34 @@ class Behaviour(ABC):
             if name is not None:
                 selected_units.name = name
 
+            # get shank id for units
+            shank_ids = sa.sorting.get_property("group")
+
             # get coordinates of channel with max. amplitude
             max_chan_coords = sa.sorting.get_property("max_chan_coords")
             # get depths
             depths = max_chan_coords[:, 1]
-            # select units within depths range
-            in_range = unit_ids[(depths >= min_depth) & (depths < max_depth)]
-            selected_units.extend(in_range)
+
+            if unit_kwargs:
+                for shank_id, kwargs in unit_kwargs.items():
+                    # get shank depths
+                    min_depth = kwargs["min_depth"]
+                    max_depth = kwargs["max_depth"]
+                    # find units
+                    in_range = unit_ids[
+                        (depths >= min_depth) & (depths < max_depth) &\
+                        (shank_ids == shank_id)
+                    ]
+                    # add to list
+                    selected_units.extend(in_range)
+            else:
+                # if there is only one shank
+                # find units
+                in_range = unit_ids[
+                    (depths >= min_depth) & (depths < max_depth)
+                ]
+                # add to list
+                selected_units.extend(in_range)
 
             return selected_units
 
