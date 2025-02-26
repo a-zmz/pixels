@@ -1742,7 +1742,6 @@ class Behaviour(ABC):
 
     def _get_aligned_trials(
         self, label, event, units=None, sigma=None, end_event=None,
-        time_bin=None, pos_bin=None,
     ):
         """
         Returns spike rate for each unit within a trial.
@@ -1900,42 +1899,42 @@ class Behaviour(ABC):
                 rec_trials[trial_ids[i]] = rates
                 trial_positions[trial_ids[i]] = trial_pos
 
-                # get bin firing rates
-                bin_frs[i] = self.bin_vr_trial(
-                    data=rates,
-                    positions=trial_pos,
-                    time_bin=time_bin,
-                    pos_bin=pos_bin,
-                    bin_method="mean",
-                )
-                # get bin spike count
-                bin_counts[i] = self.bin_vr_trial(
-                    data=spiked,
-                    positions=trial_pos,
-                    time_bin=time_bin,
-                    pos_bin=pos_bin,
-                    bin_method="sum",
-                )
+                ## get bin firing rates
+                #bin_frs[i] = self.bin_vr_trial(
+                #    data=rates,
+                #    positions=trial_pos,
+                #    time_bin=time_bin,
+                #    pos_bin=pos_bin,
+                #    bin_method="mean",
+                #)
+                ## get bin spike count
+                #bin_counts[i] = self.bin_vr_trial(
+                #    data=spiked,
+                #    positions=trial_pos,
+                #    time_bin=time_bin,
+                #    pos_bin=pos_bin,
+                #    bin_method="sum",
+                #)
 
-        # stack df values into np array
-        # reshape into trials x units x bins
-        bin_count_arr = ioutils.reindex_by_longest(bin_counts).T
-        bin_fr_arr = ioutils.reindex_by_longest(bin_frs).T
+        ## stack df values into np array
+        ## reshape into trials x units x bins
+        #bin_count_arr = ioutils.reindex_by_longest(bin_counts).T
+        #bin_fr_arr = ioutils.reindex_by_longest(bin_frs).T
 
-        # save bin_fr and bin_count, for alfredo & andrew
-        # use label as array key name
-        fr_to_save = {
-            "fr": bin_fr_arr[:, :-2, :],
-            "pos": bin_fr_arr[:, -2:, :],
-        }
-        np.savez_compressed(output_fr_path, **fr_to_save)
-        print(f"> Output saved at {output_fr_path}.")
-        count_to_save = {
-            "count": bin_count_arr[:, :-2, :],
-            "pos": bin_count_arr[:, -2:, :],
-        }
-        np.savez_compressed(output_count_path, **count_to_save)
-        print(f"> Output saved at {output_count_path}.")
+        ## save bin_fr and bin_count, for alfredo & andrew
+        ## use label as array key name
+        #fr_to_save = {
+        #    "fr": bin_fr_arr[:, :-2, :],
+        #    "pos": bin_fr_arr[:, -2:, :],
+        #}
+        #np.savez_compressed(output_fr_path, **fr_to_save)
+        #print(f"> Output saved at {output_fr_path}.")
+        #count_to_save = {
+        #    "count": bin_count_arr[:, :-2, :],
+        #    "pos": bin_count_arr[:, -2:, :],
+        #}
+        #np.savez_compressed(output_count_path, **count_to_save)
+        #print(f"> Output saved at {output_count_path}.")
 
         if not rec_trials:
             return None
