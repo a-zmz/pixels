@@ -2138,7 +2138,7 @@ class Behaviour(ABC):
     def align_trials(
         self, label, event, units=None, data='spike_times', raw=False,
         duration=1, sigma=None, dlc_project=None, video_match=None,
-        end_event=None, time_bin=None, pos_bin=False,
+        end_event=None,
     ):
         """
         Get trials aligned to an event. This finds all instances of label in the action
@@ -2184,12 +2184,6 @@ class Behaviour(ABC):
         end_event : int | None
             For VR behaviour, when aligning to the whole trial, this param is
             the end event to align to.
-
-        time_bin: str | None
-            For VR behaviour, size of temporal bin for spike rate data.
-
-        pos_bin: int | None
-            For VR behaviour, size of positional bin for position data.
         """
         data = data.lower()
 
@@ -2931,8 +2925,7 @@ class Behaviour(ABC):
 
     @_cacheable
     def get_positional_rate(
-        self, label, event, end_event=None, sigma=None, time_bin=None,
-        pos_bin=None, units=None,
+        self, label, event, end_event=None, sigma=None, units=None,
     ):
         """
         Get positional firing rate of selected units in vr, and spatial
@@ -2957,8 +2950,6 @@ class Behaviour(ABC):
             data="trial_rate",
             sigma=sigma,
             end_event=end_event,
-            time_bin=time_bin,
-            pos_bin=pos_bin,
         )
         fr = trials["fr"]
         positions = trials["positions"]
