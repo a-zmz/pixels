@@ -1958,7 +1958,8 @@ class Behaviour(ABC):
 
     def select_units(
         self, group='good', min_depth=0, max_depth=None, min_spike_width=None,
-        max_spike_width=None, uncurated=False, name=None, use_si=False,
+        unit_kwargs=None, max_spike_width=None, uncurated=False, name=None,
+        use_si=False,
     ):
         """
         Select units based on specified criteria. The output of this can be passed to
