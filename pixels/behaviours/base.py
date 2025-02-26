@@ -2210,11 +2210,10 @@ class Behaviour(ABC):
             )
 
         if data == "trial_rate":
-            print(f"Aligning {data} to trials.")
+            print(f"Aligning {data} of {units} units to trials.")
             # we let a dedicated function handle aligning spike times
             return self._get_aligned_trials(
                 label, event, units=units, sigma=sigma, end_event=end_event,
-                time_bin=time_bin, pos_bin=pos_bin,
             )
 
         if data == "motion_tracking" and not dlc_project:
