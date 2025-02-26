@@ -1467,6 +1467,8 @@ class Behaviour(ABC):
 
         if saved[0] is None:
             files = self.files[category]
+        else:
+            return saved
 
         if key in files:
             dirs = files[key]
