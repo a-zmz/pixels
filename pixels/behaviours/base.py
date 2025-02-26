@@ -1483,6 +1483,7 @@ class Behaviour(ABC):
             msg = f"Could not find {attr[1:]} for recording {rec_num}."
             msg += f"\nFile should be at: {file_path}"
             raise PixelsError(msg)
+
         return saved
 
     def get_action_labels(self):
@@ -1490,8 +1491,6 @@ class Behaviour(ABC):
         Returns the action labels, either from self._action_labels if they have been
         loaded already, or from file.
         """
-        # TODO jul 5 2024: only one action label for a session, make sure it
-        # does not error
         return self._get_processed_data("_action_labels", "action_labels",
             "behaviour")
 
@@ -1650,7 +1649,7 @@ class Behaviour(ABC):
         align_trials delegates to this function, and should be used for getting aligned
         data in scripts.
         """
-        action_labels = self.get_action_labels()
+        action_labels = self.get_action_labels()[0]
 
         if units is None:
             units = self.select_units()
