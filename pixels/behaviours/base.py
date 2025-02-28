@@ -36,7 +36,7 @@ from tables import HDF5ExtError
 from wavpack_numcodecs import WavPack
 
 from pixels import ioutils
-from pixels import signal
+import pixels.signal_utils as signal
 import pixels.pixels_utils as xut
 from pixels.error import PixelsError
 from pixels.constants import *
