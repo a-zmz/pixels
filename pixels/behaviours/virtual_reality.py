@@ -18,7 +18,8 @@ import pandas as pd
 from vision_in_darkness.base import Outcomes, Worlds, Conditions
 
 from pixels import Experiment, PixelsError
-from pixels import signal, ioutils
+import pixels.signal_utils as signal
+from pixels import ioutils
 from pixels.behaviours import Behaviour
 
 from common_utils import file_utils
