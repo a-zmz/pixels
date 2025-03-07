@@ -2010,6 +2010,10 @@ class Behaviour(ABC):
             if name is not None:
                 selected_units.name = name
 
+            if name == "all":
+                selected_units.extend(unit_ids)
+                return selected_units
+
             # get shank id for units
             shank_ids = sa.sorting.get_property("group")
 
