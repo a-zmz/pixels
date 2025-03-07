@@ -1741,7 +1741,7 @@ class Behaviour(ABC):
 
 
     def _get_aligned_trials(
-        self, label, event, units=None, sigma=None, end_event=None,
+        self, label, event, data, units=None, sigma=None, end_event=None,
     ):
         """
         Returns spike rate for each unit within a trial.
