@@ -1859,6 +1859,10 @@ class Behaviour(ABC):
                 # make it df, column name being unit id
                 spiked = pd.DataFrame(times, index=idx, columns=units)
 
+                # TODO mar 5 2025:
+                # how to separate aligned trial times and chance, so that i can
+                # use cacheable to get all conditions??????
+
                 for unit in trial:
                     # get spike time for unit
                     u_times = trial[unit].values
