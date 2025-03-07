@@ -1754,22 +1754,16 @@ class Behaviour(ABC):
         """
         action_labels = self.get_action_labels()[0]
 
-        # define output path for binned spike rate
-        output_fr_path = self.interim/\
-                f'cache/{self.name}_{label}_{units}_{time_bin}_spike_rate.npz'
-        output_count_path = self.interim/\
-                f'cache/{self.name}_{label}_{units}_{time_bin}_spike_count.npz'
-
         if units is None:
             units = self.select_units()
 
-        if not pos_bin is None:
-            behaviour_files = self.files["behaviour"]
-            # assume only one vr session for now
-            vr_dir = self.find_file(behaviour_files["vr_synched"][0])
-            vr_data = ioutils.read_hdf5(vr_dir)
-            # get positions
-            positions = vr_data.position_in_tunnel
+        #if not pos_bin is None:
+        behaviour_files = self.files["behaviour"]
+        # assume only one vr session for now
+        vr_dir = self.find_file(behaviour_files["vr_synched"][0])
+        vr_data = ioutils.read_hdf5(vr_dir)
+        # get positions
+        positions = vr_data.position_in_tunnel
 
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
