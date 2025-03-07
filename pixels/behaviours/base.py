@@ -2198,6 +2198,8 @@ class Behaviour(ABC):
             'motion_tracking', # Motion tracking coordinates from DLC
             'trial_rate',   # Taking spike times from the whole duration of each
                             # trial, convolve into spike rate
+            'trial_times',   # Taking spike times from the whole duration of each
+                            # trial, get spike boolean
         ]
         if data not in data_options:
             raise PixelsError(f"align_trials: 'data' should be one of: {data_options}")
@@ -2210,11 +2212,11 @@ class Behaviour(ABC):
                 units=units,
             )
 
-        if data == "trial_rate":
+        if "trial" in data:
             print(f"Aligning {data} of {units} units to trials.")
-            # we let a dedicated function handle aligning spike times
             return self._get_aligned_trials(
-                label, event, units=units, sigma=sigma, end_event=end_event,
+                label, event, data=data, units=units, sigma=sigma,
+                end_event=end_event,
             )
 
         if data == "motion_tracking" and not dlc_project:
