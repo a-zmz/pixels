@@ -1803,16 +1803,17 @@ class Behaviour(ABC):
         scan_durations = scan_ends - scan_starts
 
         cursor = 0  # In sample points
-        rec_trials = {}
+        rec_trials_fr = {}
+        rec_trials_spiked = {}
         trial_positions = {}
         bin_frs = {}
         bin_counts = {}
 
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
-            # TODO jun 12 2024 skip other streams for now
-            if stream_num > 0:
-                continue
+            # allows multiple streams of recording, i.e., multiple probes
+            rec_trials_fr[stream_id] = {}
+            rec_trials_spiked[stream_id] = {}
 
             # Account for multiple raw data files
             meta = self.ap_meta[stream_num]
@@ -1887,65 +1888,67 @@ class Behaviour(ABC):
                 spiked = spiked.iloc[scan_pad: -scan_pad]
                 # reset index to zero at the beginning of the trial
                 rates.reset_index(inplace=True, drop=True)
+                rec_trials_fr[stream_id][trial_ids[i]] = rates
                 spiked.reset_index(inplace=True, drop=True)
+                rec_trials_spiked[stream_id][trial_ids[i]] = spiked
                 trial_pos.reset_index(inplace=True, drop=True)
-
-                rec_trials[trial_ids[i]] = rates
                 trial_positions[trial_ids[i]] = trial_pos
 
-                ## get bin firing rates
-                #bin_frs[i] = self.bin_vr_trial(
-                #    data=rates,
-                #    positions=trial_pos,
-                #    time_bin=time_bin,
-                #    pos_bin=pos_bin,
-                #    bin_method="mean",
-                #)
-                ## get bin spike count
-                #bin_counts[i] = self.bin_vr_trial(
-                #    data=spiked,
-                #    positions=trial_pos,
-                #    time_bin=time_bin,
-                #    pos_bin=pos_bin,
-                #    bin_method="sum",
-                #)
+            #if not rec_trials_fr[stream_id]:
+            #    return None
 
-        ## stack df values into np array
-        ## reshape into trials x units x bins
-        #bin_count_arr = ioutils.reindex_by_longest(bin_counts).T
-        #bin_fr_arr = ioutils.reindex_by_longest(bin_frs).T
+            # TODO feb 28 2025:
+            # in this func, scanning period is longer than actual trials to avoid
+            # edging effect, so spiked is the whole scanning period then convolved
+            # into spike rate. if however, we get the spike_bool here, it does not
+            # have the scanning period buffer, the fr might have edging effect. but
+            # if we take the scanning period, the number of spikes will be
+            # different from the real data...
+            # SOLUTION: concat as below, shuffle per column, then convolve per
+            # column
+            # TODO mar 7 2025:
+            # CONTINUE HERE!
+            if data == "trial_times":
+                spiked = pd.concat(
+                    rec_trials_spiked[stream_id],
+                    axis=0,
+                )
+                assert 0
 
-        ## save bin_fr and bin_count, for alfredo & andrew
-        ## use label as array key name
-        #fr_to_save = {
-        #    "fr": bin_fr_arr[:, :-2, :],
-        #    "pos": bin_fr_arr[:, -2:, :],
-        #}
-        #np.savez_compressed(output_fr_path, **fr_to_save)
-        #print(f"> Output saved at {output_fr_path}.")
-        #count_to_save = {
-        #    "count": bin_count_arr[:, :-2, :],
-        #    "pos": bin_count_arr[:, -2:, :],
-        #}
-        #np.savez_compressed(output_count_path, **count_to_save)
-        #print(f"> Output saved at {output_count_path}.")
+                continue
+                s_chance_path = self.interim/stream_files["spiked_shuffled_memmap"]
+                fr_chance_path = self.interim/stream_files["fr_shuffled_memmap"]
+                chance_df_path = self.processed/stream_files["shuffled"]
 
-        if not rec_trials:
-            return None
+                chance_data = xut.get_spike_chance(
+                    spiked=pd.concat(rec_trials_spiked[stream_id], axis=0),
+                    sigma=sigma,
+                    sample_rate=self.SAMPLE_RATE,
+                    spiked_chance_path=s_chance_path,
+                    fr_chance_path=fr_chance_path,
+                    chance_df_path=chance_df_path,
+                )
+                assert 0
+            # concat trial df
+            positions = ioutils.reindex_by_longest(
+                dfs=trial_positions,
+                return_format="dataframe",
+                names="trial",
+            )
 
-        # concat trial df
-        positions = ioutils.reindex_by_longest(
-            dfs=trial_positions,
-            return_format="dataframe",
-            names="trial",
-        )
-        fr = ioutils.reindex_by_longest(
-            dfs=rec_trials,
-            return_format="dataframe",
-            names=["trial", "unit"],
-        )
-        fr = fr.reorder_levels(["unit", "trial"], axis=1)
-        fr = fr.sort_index(level=0, axis=1)
+            fr = ioutils.reindex_by_longest(
+                dfs=rec_trials_fr[stream_id],
+                return_format="dataframe",
+                names=["trial", "unit"],
+            )
+            fr = fr.reorder_levels(["unit", "trial"], axis=1)
+            fr = fr.sort_index(level=0, axis=1)
+
+            spiked = ioutils.reindex_by_longest(
+                dfs=rec_trials_spiked[stream_id],
+                return_format="dataframe",
+                names=["trial", "unit"],
+            )
 
         return {"fr": fr, "positions": positions}
 
