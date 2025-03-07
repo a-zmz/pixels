@@ -119,6 +119,24 @@ def get_data_files(data_dir, session_name):
             f"{session_name}_{stream_id}_channel_clustering_results.h5"
         )
 
+        # TODO mar 5 2025:
+        # maybe do NOT put shuffled data in here, cuz there will be different
+        # trial conditions, better to cache them???
+
+        # shuffled response for each unit, in light & dark conditions, to get
+        # the chance
+        # memmaps for temporary storage
+        pixels[stream_id]["spiked_shuffled_memmap"] = base_name.with_name(
+            f"{session_name}_{stream_id[:-3]}_spiked_shuffled.bin"
+        )
+        pixels[stream_id]["fr_shuffled_memmap"] = base_name.with_name(
+                f"{session_name}_{stream_id[:-3]}_fr_shuffled.bin"
+        )
+        # .h5 files
+        pixels[stream_id]["shuffled"] = base_name.with_name(
+            f"{session_name}_{stream_id[:-3]}_shuffled.h5"
+        )
+
         # old catgt data
         pixels[stream_id]["CatGT_ap_data"].append(
             str(base_name).replace("t0", "tcat")
