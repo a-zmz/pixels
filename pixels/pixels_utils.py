@@ -25,6 +25,9 @@ job_kwargs = dict(
 )
 si.set_global_job_kwargs(**job_kwargs)
 
+# initiate random number generator
+rng = np.random.default_rng()
+
 def load_raw(paths, stream_id):
     """
     Load raw recording file from spikeglx.
