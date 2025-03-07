@@ -532,3 +532,266 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
     )
 
     return None
+
+
+def _permute_spikes_n_convolve_fr(array, sigma, sample_rate):
+    """
+    Randomly permute spike boolean across time.
+
+    params
+    ===
+    array: 2D np array, time points x units.
+
+    sigma: int/float, time in millisecond of sigma of gaussian kernel for firing
+    rate convolution.
+
+    sample_rate: float/int, sampling rate of signal.
+
+    return
+    ===
+    random_spiked: shuffled spike boolean for each unit.
+
+    random_fr: convolved firing rate from shuffled spike boolean for each unit.
+    """
+    # permutate columns
+    random_spiked = rng.permuted(array, axis=0)
+    # convolve into firing rate
+    random_fr = signal.convolve_spike_trains(
+        times=random_spiked,
+        sigma=sigma,
+        sample_rate=sample_rate,
+    )
+
+    return random_spiked, random_fr
+
+
+def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
+                  spiked_chance_path, fr_chance_path):
+    """
+    Worker that computes one set of spiked and fr values.
+
+    params
+    ===
+    i: index of current repeat.
+
+    sigma: int/float, time in millisecond of sigma of gaussian kernel for firing
+    rate convolution.
+
+    sample_rate: float/int, sampling rate of signal.
+
+    spiked_shape: tuple, shape of spike boolean to initiate memmap.
+
+    chance_data_shape: tuple, shape of chance data.
+
+    spiked_chance_path: 
+
+    fr_chance_path: 
+
+    return
+    ===
+    """
+    print(f"Processing repeat {i}...")
+    # open readonly memmap
+    spiked = init_memmap(
+        path=spiked_chance_path.parent/"temp_spiked.bin",
+        shape=spiked_shape,
+        dtype=np.int16,
+        overwrite=False,
+        readonly=True,
+    )
+
+    # init appendable memmap
+    chance_spiked = init_memmap(
+        path=spiked_chance_path,
+        shape=chance_data_shape,
+        dtype=np.int16,
+        overwrite=False,
+        readonly=False,
+    )
+    # init chance firing rate memmap
+    chance_fr = init_memmap(
+        path=fr_chance_path,
+        shape=chance_data_shape,
+        dtype=np.float32,
+        overwrite=False,
+        readonly=False,
+    )
+
+    # get permuted data
+    c_spiked, c_fr = _permute_spikes_n_convolve_fr(spiked, sigma, sample_rate)
+
+    chance_spiked[..., i] = c_spiked
+    chance_fr[..., i] = c_fr
+    # write to disk
+    chance_spiked.flush()
+    chance_fr.flush()
+
+    print(f"Repeat {i} finished.")
+
+    return None
+
+
+def _get_spike_chance(spiked, sigma, sample_rate, spiked_chance_path,
+                     fr_chance_path, chance_df_path, repeats=100):
+    """
+    Implementation of getting chance level spike data.
+    """
+    import concurrent.futures
+
+    # get export data shape
+    spiked_shape = spiked.shape
+    d_shape = spiked.shape + (repeats,)
+
+    if not chance_fr.exists():
+        spiked_memmap = init_memmap(
+            path=spiked_chance_path.parent/"temp_spiked.bin",
+            shape=spiked.shape,
+            dtype=np.int16,
+            overwrite=True,
+            readonly=False,
+        )
+        spiked_memmap[:] = spiked.values
+        spiked_memmap.flush()
+        del spiked_memmap
+
+        # init chance spiked memmap
+        chance_spiked = init_memmap(
+            path=spiked_chance_path,
+            shape=d_shape,
+            dtype=np.int16,
+            overwrite=True,
+            readonly=False,
+        )
+        # init chance firing rate memmap
+        chance_fr = init_memmap(
+            path=fr_chance_path,
+            shape=d_shape,
+            dtype=np.float32,
+            overwrite=True,
+            readonly=False,
+        )
+        # write to disk
+        chance_spiked.flush()
+        chance_fr.flush()
+        del chance_spiked, chance_fr
+
+        # Set up the process pool to run the worker in parallel.
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            # Submit jobs for each repeat.
+            futures = []
+            for i in range(repeats):
+                future = executor.submit(
+                    _chance_worker,
+                    i=i,
+                    sigma=sigma,
+                    sample_rate=sample_rate,
+                    spiked_shape=spiked_shape,
+                    chance_data_shape=d_shape,
+                    spiked_chance_path=spiked_chance_path,
+                    fr_chance_path=fr_chance_path,
+                )
+                futures.append(future)
+
+            # As each future completes, assign the results into the memmap.
+            for future in concurrent.futures.as_completed(futures):
+                future.result()
+    else:
+        print("\n> Memmaps already created, only need to convert into "
+              "dataframes.")
+
+    # convert it to dataframe and save it
+    chance_data = convert_to_df(
+        spiked,
+        spiked_chance_path,
+        fr_chance_path,
+        chance_df_path,
+        d_shape,
+    )
+
+    return chance_data
+
+
+def _convert_to_df(spiked, memmap_path, df_path, d_shape):
+    # init readonly chance memmap
+    chance_memmap = init_memmap(
+        path=memmap_path,
+        shape=d_shape,
+        dtype=np.int16,
+        overwrite=False,
+        readonly=True,
+    )
+
+    # copy to cpu
+    c_spiked = chance_memmap.copy()
+    # reshape to 2D
+    c_spiked_reshaped = c_spiked.reshape(d_shape[0], d_shape[1] * d_shape[2])
+    # create hierarchical index
+    col_idx = pd.MultiIndex.from_product(
+        [spiked.columns, np.arange(repeats)],
+        names=["unit", "repeat"],
+    )
+
+    # create df
+    df = pd.DataFrame(c_spiked_reshaped, columns=col_idx)
+    # use the original index
+    df.index = spiked.index
+    # name index
+    df.index.names = ["trial", "time"]
+
+    return df
+
+
+def convert_to_df(
+    spiked, spiked_chance_path, fr_chance_path, chance_df_path, d_shape,
+):
+
+    # init readonly chance memmap
+    chance_spiked = init_memmap(
+        path=spiked_chance_path,
+        shape=d_shape,
+        dtype=np.int16,
+        overwrite=False,
+        readonly=True,
+    )
+    chance_fr = init_memmap(
+        path=fr_chance_path,
+        shape=d_shape,
+        dtype=np.float32,
+        overwrite=False,
+        readonly=True,
+    )
+
+    # get trial ids
+    trial_ids = spiked.index.get_level_values(0).unique()
+
+    assert 0
+    # copy to cpu
+    c_spiked = chance_spiked.copy()
+    # reshape to 2D
+    c_spiked_reshaped = c_spiked.reshape(d_shape[0], d_shape[1] * d_shape[2])
+    # create hierarchical index
+    col_idx = pd.MultiIndex.from_product(
+        [spiked.columns, np.arange(repeats)],
+        names=["unit", "repeat"],
+    )
+    # create df
+    chance_spiked_df = pd.DataFrame(c_spiked_reshaped, columns=col_idx)
+    # use the original index
+    chance_spiked_df.index = spiked.index
+    # name index
+    chance_spiked_df.index.names = ["trial", "time"]
+    assert 0
+
+    return {"spiked": chance_spiked_df, "fr": chance_fr_df}
+
+
+def get_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
+                     fr_memmap_path, chance_df_path, repeats=100):
+    if chance_df_path.exists():
+        # read and return
+        return read_hdf5(chance_df_path)
+    else:
+        chance_data = _get_spike_chance(
+            spiked, sigma, sample_rate, spiked_memmap_path, fr_memmap_path,
+            chance_df_path, repeats)
+        return chance_data
