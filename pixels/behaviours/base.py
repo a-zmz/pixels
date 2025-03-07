@@ -3249,3 +3249,34 @@ class Behaviour(ABC):
         print(f"> Output saved at {output_count_path}.")
 
         return None
+
+
+    @_cacheable
+    def get_spike_chance(
+        self, label, event, end_event=None, sigma=None, units=None,
+    ):
+        # get aligned firing rates and positions
+        trials = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            label=label,
+            event=event,
+            data="trial_times",
+            sigma=sigma,
+            end_event=end_event,
+        )
+
+        assert 0
+        # TODO mar 5 2025:
+        # how to get spike times then get chance? and cache them?
+
+        # get chance data
+        chance_data = xut.get_spike_chance(
+            spiked=pd.concat(rec_trials_spiked[stream_id], axis=0),
+            sigma=sigma,
+            sample_rate=self.SAMPLE_RATE,
+            spiked_chance_path=s_chance_path,
+            fr_chance_path=fr_chance_path,
+            chance_df_path=chance_df_path,
+        )
+
+        return chance_data
