@@ -327,18 +327,29 @@ def convolve_spike_trains(times, sigma=100, size=10, sample_rate=1000):
     # normalise kernel to ensure that the total area under the Gaussian is 1
     n_kernel = kernel / np.sum(kernel)
 
-    # convolve with gaussian
-    convolved = convolve1d(
-        input=times.values,
-        weights=n_kernel,
-        output=float,
-        mode='nearest',
-        axis=0,
-    ) * sample_rate # rescale it to second
+    if isinstance(times, pd.DataFrame):
+        # convolve with gaussian
+        convolved = convolve1d(
+            input=times.values,
+            weights=n_kernel,
+            output=float,
+            mode='nearest',
+            axis=0,
+        ) * sample_rate # rescale it to second
 
-    df = pd.DataFrame(convolved, columns=times.columns)
+        output = pd.DataFrame(convolved, columns=times.columns)
 
-    return df
+    elif isinstance(times, np.ndarray):
+        # convolve with gaussian
+        output = convolve1d(
+            input=times,
+            weights=n_kernel,
+            output=float,
+            mode='nearest',
+            axis=0,
+        ) * sample_rate # rescale it to second
+
+    return output
 
 
 def convolve(times, duration, sigma=None):
