@@ -3058,6 +3058,65 @@ class Behaviour(ABC):
             For VR behaviour, size of positional bin for position data.
 
         """
+        # TODO mar 31 2025:
+        # use cached get_aligned_trials to bin so that we do not need to
+        # duplicate code
+
+        bin_frs = {}
+        bin_counts = {}
+
+        # get aligned spiked and positions
+        spiked = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            label=label,
+            event=event,
+            data="trial_times",
+            sigma=sigma,
+            end_event=end_event,
+        )
+        fr = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            label=label,
+            event=event,
+            data="trial_rate",
+            sigma=sigma,
+            end_event=end_event,
+        )
+
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            # get stream spiked
+            stream_spiked = spiked[stream_id]["spiked"]
+            # get stream positions
+            positions = spiked[stream_id["positions"]
+            # get stream firing rates
+            stream_fr = fr[stream_id]["fr"]
+
+            bin_frs[stream_id] = {}
+            bin_counts[stream_id] = {}
+            for trial in positions.columns.unique():
+                counts = stream_spiked.xs(trial, level="trial", axis=1)
+                rates = stream_fr.xs(trial, level="trial", axis=1)
+                trial_pos = positions[trial]
+
+                # get bin spike count
+                bin_counts[stream_id][trial] = self.bin_vr_trial(
+                    data=counts,
+                    positions=trial_pos,
+                    time_bin=time_bin,
+                    pos_bin=pos_bin,
+                    bin_method="sum",
+                )
+                # get bin firing rates
+                bin_frs[stream_id][trial] = self.bin_vr_trial(
+                    data=rates,
+                    positions=trial_pos,
+                    time_bin=time_bin,
+                    pos_bin=pos_bin,
+                    bin_method="mean",
+                )
+                assert 0
+
         action_labels = self.get_action_labels()[0]
 
         # define output path for binned spike rate
