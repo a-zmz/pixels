@@ -735,55 +735,47 @@ def _convert_to_df(original_idx, memmap_path, df_path, d_shape, d_type, name):
     # create df
     df = pd.DataFrame(c_spiked_reshaped, columns=col_idx)
     # use the original index
-    df.index = spiked.index
+    df.index = original_idx
     # name index
     df.index.names = ["trial", "time"]
 
-    return df
+    # write h5 to disk
+    ioutils.write_hdf5(
+        path=df_path,
+        df=df,
+        key=name,
+        mode="a",
+    )
+
+    return None
 
 
-def convert_to_df(
-    spiked, spiked_chance_path, fr_chance_path, chance_df_path, d_shape,
+def compile_chance(
+    original_idx, spiked_chance_path, fr_chance_path, chance_df_path, d_shape,
 ):
-
-    # init readonly chance memmap
-    chance_spiked = init_memmap(
-        path=spiked_chance_path,
-        shape=d_shape,
-        dtype=np.int16,
-        overwrite=False,
-        readonly=True,
+    # TODO mar 31 2025: test _convert_to_df
+    # get chance spiked df
+    chance_spiked_df = _convert_to_df(
+        original_idx=original_idx,
+        memmap_path=spiked_chance_path,
+        df_path=chance_df_path,
+        d_shape=d_shape,
+        d_type=np.int16,
+        name="spiked",
     )
-    chance_fr = init_memmap(
-        path=fr_chance_path,
-        shape=d_shape,
-        dtype=np.float32,
-        overwrite=False,
-        readonly=True,
+    # get chance fr df
+    chance_fr_df = _convert_to_df(
+        original_idx=original_idx,
+        memmap_path=fr_chance_path,
+        df_path=chance_df_path,
+        d_shape=d_shape,
+        d_type=np.float32,
+        name="fr",
     )
-
-    # get trial ids
-    trial_ids = spiked.index.get_level_values(0).unique()
 
     assert 0
-    # copy to cpu
-    c_spiked = chance_spiked.copy()
-    # reshape to 2D
-    c_spiked_reshaped = c_spiked.reshape(d_shape[0], d_shape[1] * d_shape[2])
-    # create hierarchical index
-    col_idx = pd.MultiIndex.from_product(
-        [spiked.columns, np.arange(repeats)],
-        names=["unit", "repeat"],
-    )
-    # create df
-    chance_spiked_df = pd.DataFrame(c_spiked_reshaped, columns=col_idx)
-    # use the original index
-    chance_spiked_df.index = spiked.index
-    # name index
-    chance_spiked_df.index.names = ["trial", "time"]
-    assert 0
-
-    return {"spiked": chance_spiked_df, "fr": chance_fr_df}
+    # TODO mar 31 2025: does it work or does it give memory error?
+    return None
 
 
 def get_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
