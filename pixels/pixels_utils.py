@@ -700,23 +700,24 @@ def _get_spike_chance(spiked, sigma, sample_rate, spiked_chance_path,
               "dataframes.")
 
     # convert it to dataframe and save it
-    chance_data = convert_to_df(
-        spiked,
-        spiked_chance_path,
-        fr_chance_path,
-        chance_df_path,
-        d_shape,
+    # TODO mar 31 2025: how to save it???
+    chance_data = compile_chance(
+        original_idx=spiked.index,
+        spiked_chance_path=spiked_chance_path,
+        fr_chance_path=fr_chance_path,
+        chance_df_path=chance_df_path,
+        d_shape=d_shape,
     )
 
     return chance_data
 
 
-def _convert_to_df(spiked, memmap_path, df_path, d_shape):
+def _convert_to_df(original_idx, memmap_path, df_path, d_shape, d_type, name):
     # init readonly chance memmap
     chance_memmap = init_memmap(
         path=memmap_path,
         shape=d_shape,
-        dtype=np.int16,
+        dtype=d_type,
         overwrite=False,
         readonly=True,
     )
