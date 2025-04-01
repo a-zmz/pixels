@@ -1803,11 +1803,10 @@ class Behaviour(ABC):
         scan_durations = scan_ends - scan_starts
 
         cursor = 0  # In sample points
+        output = {}
         rec_trials_fr = {}
         rec_trials_spiked = {}
         trial_positions = {}
-        bin_frs = {}
-        bin_counts = {}
 
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
@@ -1910,51 +1909,85 @@ class Behaviour(ABC):
             # different from the real data...
             # SOLUTION: concat as below, shuffle per column, then convolve per
             # column
-            # TODO mar 7 2025:
-            # CONTINUE HERE!
-            if data == "trial_times":
-                spiked = pd.concat(
-                    rec_trials_spiked[stream_id],
-                    axis=0,
-                )
-                assert 0
 
-                continue
-                s_chance_path = self.interim/stream_files["spiked_shuffled_memmap"]
-                fr_chance_path = self.interim/stream_files["fr_shuffled_memmap"]
-                chance_df_path = self.processed/stream_files["shuffled"]
-
-                chance_data = xut.get_spike_chance(
-                    spiked=pd.concat(rec_trials_spiked[stream_id], axis=0),
-                    sigma=sigma,
-                    sample_rate=self.SAMPLE_RATE,
-                    spiked_chance_path=s_chance_path,
-                    fr_chance_path=fr_chance_path,
-                    chance_df_path=chance_df_path,
-                )
-                assert 0
-            # concat trial df
+            # concat trial positions
             positions = ioutils.reindex_by_longest(
                 dfs=trial_positions,
                 return_format="dataframe",
                 names="trial",
             )
 
-            fr = ioutils.reindex_by_longest(
-                dfs=rec_trials_fr[stream_id],
-                return_format="dataframe",
-                names=["trial", "unit"],
-            )
-            fr = fr.reorder_levels(["unit", "trial"], axis=1)
-            fr = fr.sort_index(level=0, axis=1)
+            if data == "trial_times":
+                # get trials vertically stacked spiked
+                stacked_spiked = pd.concat(
+                    rec_trials_spiked[stream_id],
+                    axis=0,
+                )
+                stacked_spiked.index.names = ["trial", "time"]
+                stacked_spiked.columns.names = ["unit"]
 
-            spiked = ioutils.reindex_by_longest(
-                dfs=rec_trials_spiked[stream_id],
-                return_format="dataframe",
-                names=["trial", "unit"],
-            )
+                # get chance data paths
+                s_memmap_path = self.interim /\
+                        stream_files["spiked_shuffled_memmap"]
+                fr_memmap_path = self.interim /\
+                        stream_files["fr_shuffled_memmap"]
+                chance_df_path = self.processed / stream_files["shuffled"]
 
-        return {"fr": fr, "positions": positions}
+                # save chance data
+                xut.save_spike_chance(
+                    spiked=stacked_spiked,
+                    sigma=sigma,
+                    sample_rate=self.SAMPLE_RATE,
+                    spiked_memmap_path=s_memmap_path,
+                    fr_memmap_path=fr_memmap_path,
+                    chance_df_path=chance_df_path,
+                )
+                assert 0
+
+                # unstack and concat horizontally
+                spiked = stacked_spiked.unstack(
+                    level="trial",
+                    sort=False,
+                )
+                assert 0
+                # get trials horizontally stacked spiked
+                spiked = ioutils.reindex_by_longest(
+                    dfs=rec_trials_spiked[stream_id],
+                    return_format="dataframe",
+                    names=["trial", "unit"],
+                )
+                spiked = spiked.reorder_levels(["unit", "trial"], axis=1)
+                spiked = spiked.sort_index(level=0, axis=1)
+
+                output[stream_id] = pd.concat(
+                    {"spiked": spiked, "positions": positions},
+                    axis=1,
+                    names=["data"],
+                )
+
+            elif data == "trial_rate":
+                fr = ioutils.reindex_by_longest(
+                    dfs=rec_trials_fr[stream_id],
+                    return_format="dataframe",
+                    names=["trial", "unit"],
+                )
+                fr = fr.reorder_levels(["unit", "trial"], axis=1)
+                fr = fr.sort_index(level=0, axis=1)
+
+                output[stream_id] = pd.concat(
+                    {"fr": fr, "positions": positions},
+                    axis=1,
+                    names=["data"],
+                )
+
+        # concat output into dataframe before cache
+        df = pd.concat(
+            objs=output,
+            axis=1,
+            names=["stream_id"],
+        )
+        assert 0
+        return df
 
 
     def select_units(
