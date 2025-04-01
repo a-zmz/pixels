@@ -632,10 +632,23 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
     return None
 
 
-def _get_spike_chance(spiked, sigma, sample_rate, spiked_chance_path,
-                     fr_chance_path, chance_df_path, repeats=100):
+def save_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
+                     fr_memmap_path, chance_df_path, repeats=100):
+    if not chance_df_path.exists():
+        # save spike chance data if does not exists
+        _save_spike_chance(
+            spiked, sigma, sample_rate, spiked_memmap_path, fr_memmap_path,
+            chance_df_path, repeats)
+    else:
+        print(f"> Spike chance already saved at {chance_df_path}, continue.")
+
+    return None
+
+
+def _save_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
+                     fr_memmap_path, chance_df_path, repeats=100):
     """
-    Implementation of getting chance level spike data.
+    Implementation of saving chance level spike data.
     """
     import concurrent.futures
 
