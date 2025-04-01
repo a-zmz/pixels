@@ -13,6 +13,7 @@ import spikeinterface.postprocessing as spost
 import spikeinterface.qualitymetrics as sqm
 
 import pixels.signal_utils as signal
+from pixels.ioutils import write_hdf5
 
 from common_utils.math_utils import random_sampling
 from common_utils.file_utils import init_memmap, read_hdf5
