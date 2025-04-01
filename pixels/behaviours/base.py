@@ -3121,7 +3121,7 @@ class Behaviour(ABC):
             # get stream spiked
             stream_spiked = spiked[stream_id]["spiked"]
             # get stream positions
-            positions = spiked[stream_id["positions"]
+            positions = spiked[stream_id]["positions"]
             # get stream firing rates
             stream_fr = fr[stream_id]["fr"]
 
