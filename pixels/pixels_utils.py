@@ -567,7 +567,7 @@ def _permute_spikes_n_convolve_fr(array, sigma, sample_rate):
 
 
 def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
-                  spiked_chance_path, fr_chance_path):
+                  spiked_memmap_path, fr_memmap_path):
     """
     Worker that computes one set of spiked and fr values.
 
@@ -584,9 +584,9 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
 
     chance_data_shape: tuple, shape of chance data.
 
-    spiked_chance_path: 
+    spiked_memmap_path: 
 
-    fr_chance_path: 
+    fr_memmap_path: 
 
     return
     ===
@@ -594,7 +594,7 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
     print(f"Processing repeat {i}...")
     # open readonly memmap
     spiked = init_memmap(
-        path=spiked_chance_path.parent/"temp_spiked.bin",
+        path=spiked_memmap_path.parent/"temp_spiked.bin",
         shape=spiked_shape,
         dtype=np.int16,
         overwrite=False,
@@ -603,7 +603,7 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
 
     # init appendable memmap
     chance_spiked = init_memmap(
-        path=spiked_chance_path,
+        path=spiked_memmap_path,
         shape=chance_data_shape,
         dtype=np.int16,
         overwrite=False,
@@ -611,7 +611,7 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
     )
     # init chance firing rate memmap
     chance_fr = init_memmap(
-        path=fr_chance_path,
+        path=fr_memmap_path,
         shape=chance_data_shape,
         dtype=np.float32,
         overwrite=False,
@@ -643,9 +643,9 @@ def _get_spike_chance(spiked, sigma, sample_rate, spiked_chance_path,
     spiked_shape = spiked.shape
     d_shape = spiked.shape + (repeats,)
 
-    if not chance_fr.exists():
+    if not fr_memmap_path.exists():
         spiked_memmap = init_memmap(
-            path=spiked_chance_path.parent/"temp_spiked.bin",
+            path=spiked_memmap_path.parent/"temp_spiked.bin",
             shape=spiked.shape,
             dtype=np.int16,
             overwrite=True,
@@ -657,7 +657,7 @@ def _get_spike_chance(spiked, sigma, sample_rate, spiked_chance_path,
 
         # init chance spiked memmap
         chance_spiked = init_memmap(
-            path=spiked_chance_path,
+            path=spiked_memmap_path,
             shape=d_shape,
             dtype=np.int16,
             overwrite=True,
@@ -665,7 +665,7 @@ def _get_spike_chance(spiked, sigma, sample_rate, spiked_chance_path,
         )
         # init chance firing rate memmap
         chance_fr = init_memmap(
-            path=fr_chance_path,
+            path=fr_memmap_path,
             shape=d_shape,
             dtype=np.float32,
             overwrite=True,
@@ -688,8 +688,8 @@ def _get_spike_chance(spiked, sigma, sample_rate, spiked_chance_path,
                     sample_rate=sample_rate,
                     spiked_shape=spiked_shape,
                     chance_data_shape=d_shape,
-                    spiked_chance_path=spiked_chance_path,
-                    fr_chance_path=fr_chance_path,
+                    spiked_memmap_path=spiked_memmap_path,
+                    fr_memmap_path=fr_memmap_path,
                 )
                 futures.append(future)
 
