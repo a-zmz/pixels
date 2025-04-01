@@ -740,47 +740,48 @@ def _convert_to_df(original_idx, memmap_path, df_path, d_shape, d_type, name):
     c_spiked = chance_memmap.copy()
     # reshape to 2D
     c_spiked_reshaped = c_spiked.reshape(d_shape[0], d_shape[1] * d_shape[2])
+
     # create hierarchical index
     col_idx = pd.MultiIndex.from_product(
-        [spiked.columns, np.arange(repeats)],
-        names=["unit", "repeat"],
+        [np.arange(d_shape[2]), orig_col],
+        names=["repeat", "unit"],
     )
 
     # create df
     df = pd.DataFrame(c_spiked_reshaped, columns=col_idx)
     # use the original index
-    df.index = original_idx
-    # name index
-    df.index.names = ["trial", "time"]
+    df.index = orig_idx
 
     # write h5 to disk
-    ioutils.write_hdf5(
+    write_hdf5(
         path=df_path,
         df=df,
         key=name,
         mode="a",
     )
+    assert 0
 
     return None
 
 
-def compile_chance(
-    original_idx, spiked_chance_path, fr_chance_path, chance_df_path, d_shape,
-):
+def save_chance(orig_idx, orig_col, spiked_memmap_path, fr_memmap_path,
+                chance_df_path, d_shape):
     # TODO mar 31 2025: test _convert_to_df
     # get chance spiked df
-    chance_spiked_df = _convert_to_df(
-        original_idx=original_idx,
-        memmap_path=spiked_chance_path,
+    _convert_to_df(
+        orig_idx=orig_idx,
+        orig_col=orig_col,
+        memmap_path=spiked_memmap_path,
         df_path=chance_df_path,
         d_shape=d_shape,
         d_type=np.int16,
         name="spiked",
     )
     # get chance fr df
-    chance_fr_df = _convert_to_df(
-        original_idx=original_idx,
-        memmap_path=fr_chance_path,
+    _convert_to_df(
+        orig_idx=orig_idx,
+        orig_col=orig_col,
+        memmap_path=fr_memmap_path,
         df_path=chance_df_path,
         d_shape=d_shape,
         d_type=np.float32,
