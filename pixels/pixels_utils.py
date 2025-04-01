@@ -714,19 +714,40 @@ def _save_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
               "dataframes.")
 
     # convert it to dataframe and save it
-    # TODO mar 31 2025: how to save it???
-    chance_data = compile_chance(
-        original_idx=spiked.index,
-        spiked_chance_path=spiked_chance_path,
-        fr_chance_path=fr_chance_path,
+    save_chance(
+        orig_idx=spiked.index,
+        orig_col=spiked.columns,
+        spiked_memmap_path=spiked_memmap_path,
+        fr_memmap_path=fr_memmap_path,
         chance_df_path=chance_df_path,
         d_shape=d_shape,
     )
 
-    return chance_data
+    print(f"\n> Chance data saved to {chance_df_path}.")
+
+    return None
 
 
-def _convert_to_df(original_idx, memmap_path, df_path, d_shape, d_type, name):
+def _convert_to_df(orig_idx, orig_col, memmap_path, df_path, d_shape, d_type,
+                   name):
+    """
+    Convert 
+
+    orig_idx,
+    orig_col,
+    memmap_path
+    df_path,
+    d_shape
+    d_type
+    name
+    """
+    # NOTE: shape of memmap is `concatenated trials frames * units * repeats`,
+    # saved df has outer most level being `repeat`, then `unit`, and all trials
+    # are stacked vertically. 
+    # to later use it for analysis, go into each repeat, and do
+    # `repeat_df.unstack(level='trial', sort=False)` to get the same structure as
+    # data.
+
     # init readonly chance memmap
     chance_memmap = init_memmap(
         path=memmap_path,
