@@ -795,11 +795,10 @@ def save_chance(orig_idx, orig_col, spiked_memmap_path, fr_memmap_path,
 
 def get_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
                      fr_memmap_path, chance_df_path, repeats=100):
-    if chance_df_path.exists():
-        # read and return
-        return read_hdf5(chance_df_path)
-    else:
-        chance_data = _get_spike_chance(
+    if not chance_df_path.exists():
+        # save spike chance data if does not exists
+        save_spike_chance(
             spiked, sigma, sample_rate, spiked_memmap_path, fr_memmap_path,
             chance_df_path, repeats)
-        return chance_data
+
+    return read_hdf5(chance_df_path)
