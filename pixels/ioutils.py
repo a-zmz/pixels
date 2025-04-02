@@ -752,24 +752,27 @@ def reindex_by_longest(dfs, return_format="array", names=None):
     ===
     np.array or pd.DataFrame.
     """
-    # align all trials by index
-    indices = list(set().union(
-        *[df.index for df in dfs.values()])
-    )
+    # stack dfs vertically
+    stacked_df = pd.concat(dfs, axis=0)
 
-    # reindex by the longest
-    reidx_dfs = {key: df.reindex(index=indices)
-           for key, df in dfs.items()}
+    # set index name
+    if idx_names:
+        stacked_df.index.names = idx_names
+
+    # unstack df at level
+    df = stacked_df.unstack(level=level, sort=sort)
 
     if return_format == "array":
         # stack df values into np array
-        output = np.stack(
-            [df.values for df in reidx_dfs.values()],
-            axis=-1,
-        )
+        output = df.values.squeeze()
+
     elif return_format == "dataframe":
-        # concatenate dfs
-        output = pd.concat(reidx_dfs, axis=1, names=names)
+        if col_names:
+            if isinstance(stacked_df, pd.Series):
+                stacked_df.columns.names = col_names
+            elif isinstance(stacked_df, pd.DataFrame):
+                stacked_df.name = col_names[0]
+        output = stacked_df
 
     return output
 
