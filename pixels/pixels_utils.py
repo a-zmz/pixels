@@ -719,11 +719,12 @@ def _save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
         orig_col=spiked.columns,
         spiked_memmap_path=spiked_memmap_path,
         fr_memmap_path=fr_memmap_path,
-        chance_df_path=chance_df_path,
+        spiked_df_path=spiked_df_path,
+        fr_df_path=fr_df_path,
         d_shape=d_shape,
     )
 
-    print(f"\n> Chance data saved to {chance_df_path}.")
+    print(f"\n> Chance data saved to {fr_df_path}.")
 
     return None
 
@@ -778,22 +779,30 @@ def _convert_to_df(orig_idx, orig_col, memmap_path, df_path, d_shape, d_type,
         path=df_path,
         df=df,
         key=name,
-        mode="a",
+        mode="w",
     )
-    assert 0
+    del df
 
     return None
 
 
 def save_chance(orig_idx, orig_col, spiked_memmap_path, fr_memmap_path,
-                chance_df_path, d_shape):
-    # TODO mar 31 2025: test _convert_to_df
+                spiked_df_path, fr_df_path, d_shape):
+    """
+    Saving chance data to dataframe.
+
+    params
+    ===
+    orig_idx: pandas 
+    """
+    print(f"\n> Saving chance data...")
+
     # get chance spiked df
     _convert_to_df(
         orig_idx=orig_idx,
         orig_col=orig_col,
         memmap_path=spiked_memmap_path,
-        df_path=chance_df_path,
+        df_path=spiked_df_path,
         d_shape=d_shape,
         d_type=np.int16,
         name="spiked",
@@ -803,23 +812,49 @@ def save_chance(orig_idx, orig_col, spiked_memmap_path, fr_memmap_path,
         orig_idx=orig_idx,
         orig_col=orig_col,
         memmap_path=fr_memmap_path,
-        df_path=chance_df_path,
+        df_path=fr_df_path,
         d_shape=d_shape,
         d_type=np.float32,
         name="fr",
     )
 
-    assert 0
-    # TODO mar 31 2025: does it work or does it give memory error?
     return None
 
 
 def get_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
-                     fr_memmap_path, chance_df_path, repeats=100):
-    if not chance_df_path.exists():
+                     fr_memmap_path, fr_df_path, repeats=100):
+    if not fr_df_path.exists():
         # save spike chance data if does not exists
-        save_spike_chance(
-            spiked, sigma, sample_rate, spiked_memmap_path, fr_memmap_path,
-            chance_df_path, repeats)
+        save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
+                          fr_df_path, spiked, sigma, sample_rate, repeats)
+    #else:
+    #    d_shape = spiked.shape + (repeats,)
 
-    return read_hdf5(chance_df_path)
+    #    spiked_chance = _get_spike_chance(
+    #        path=spiked_memmap_path,
+    #        shape=d_shape,
+    #        dtype=np.int16,
+    #        overwrite=False,
+    #        readonly=True,
+    #    )
+
+    #    fr_chance = _get_spike_chance(
+    #        path=fr_memmap_path,
+    #        shape=d_shape,
+    #        dtype=np.float32,
+    #        overwrite=False,
+    #        readonly=True,
+    #    )
+    assert 0
+    # TODO apr 2 2025: loading df is too big and gives memory error????
+
+    return read_hdf5(spiked_df_path), read_hdf5(fr_df_path)
+
+
+def _get_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
+                     fr_memmap_path, fr_df_path, repeats=100):
+
+    # TODO apr 2 2025:
+    # for fr chance, use memmap, go to each repeat, unstack, bin, then save it
+    # to .npz for andrew
+    pass
