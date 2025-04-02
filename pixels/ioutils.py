@@ -340,7 +340,7 @@ def save_ndarray_as_video(video, path, frame_rate, dims=None):
         raise PixelsError(f"Video creation failed: {path}")
 
 
-def read_hdf5(path):
+def read_hdf5(path, key="df"):
     """
     Read a dataframe from a h5 file.
 
@@ -356,7 +356,7 @@ def read_hdf5(path):
     """
     df = pd.read_hdf(
         path_or_buf=path,
-        key="df",
+        key=key,
     )
     return df
 
