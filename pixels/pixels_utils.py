@@ -762,6 +762,7 @@ def _convert_to_df(orig_idx, orig_col, memmap_path, df_path, d_shape, d_type,
     c_spiked = chance_memmap.copy()
     # reshape to 2D
     c_spiked_reshaped = c_spiked.reshape(d_shape[0], d_shape[1] * d_shape[2])
+    del c_spiked
 
     # create hierarchical index
     col_idx = pd.MultiIndex.from_product(
