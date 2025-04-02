@@ -711,7 +711,7 @@ def _save_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
                 future.result()
     else:
         print("\n> Memmaps already created, only need to convert into "
-              "dataframes.")
+              "dataframes and save.")
 
     # convert it to dataframe and save it
     save_chance(
