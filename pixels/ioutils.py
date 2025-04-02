@@ -770,9 +770,9 @@ def reindex_by_longest(dfs, idx_names=None, col_names=None, level=0, sort=True,
     elif return_format == "dataframe":
         if col_names:
             if isinstance(stacked_df, pd.Series):
-                stacked_df.columns.names = col_names
-            elif isinstance(stacked_df, pd.DataFrame):
                 stacked_df.name = col_names[0]
+            elif isinstance(stacked_df, pd.DataFrame):
+                stacked_df.columns.names = col_names
         output = stacked_df
 
     return output
