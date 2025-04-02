@@ -1913,9 +1913,12 @@ class Behaviour(ABC):
             # concat trial positions
             positions = ioutils.reindex_by_longest(
                 dfs=trial_positions,
+                idx_names=["trial", "time"],
+                col_names=["position"],
+                level="trial",
                 return_format="dataframe",
-                names="trial",
             )
+            assert 0
 
             if data == "trial_times":
                 # get trials vertically stacked spiked
