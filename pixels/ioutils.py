@@ -736,7 +736,8 @@ def stream_video(video, length=None):
             if length == 0:
                 break
 
-def reindex_by_longest(dfs, return_format="array", names=None):
+def reindex_by_longest(dfs, idx_names=None, col_names=None, level=0, sort=True,
+                       return_format="array"):
     """
     params
     ===
