@@ -1930,27 +1930,27 @@ class Behaviour(ABC):
                 stacked_spiked.columns.names = ["unit"]
 
                 # get chance data paths
-                s_memmap_path = self.interim /\
-                        stream_files["spiked_shuffled_memmap"]
-                fr_memmap_path = self.interim /\
-                        stream_files["fr_shuffled_memmap"]
-                chance_df_path = self.processed / stream_files["shuffled"]
+                paths = {
+                    "spiked_memmap_path": self.interim /\
+                        stream_files["spiked_shuffled_memmap"],
+                    "fr_memmap_path": self.interim /\
+                        stream_files["fr_shuffled_memmap"],
+                    "spiked_df_path": self.processed / stream_files["spiked_shuffled"],
+                    "fr_df_path": self.processed / stream_files["fr_shuffled"],
+                }
 
                 # save chance data
                 xut.save_spike_chance(
+                    **paths,
                     spiked=stacked_spiked,
                     sigma=sigma,
                     sample_rate=self.SAMPLE_RATE,
-                    spiked_memmap_path=s_memmap_path,
-                    fr_memmap_path=fr_memmap_path,
-                    chance_df_path=chance_df_path,
                 )
-                assert 0
 
                 # unstack and concat horizontally
                 spiked = stacked_spiked.unstack(
                     level="trial",
-                    sort=False,
+                    sort=True,
                 )
                 assert 0
                 # get trials horizontally stacked spiked
