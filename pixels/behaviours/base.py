@@ -3344,3 +3344,18 @@ class Behaviour(ABC):
         print(f"> Output saved at {output_count_path}.")
 
         return None
+
+    def get_chance_data(self):
+
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+
+            spiked_chance_path = self.processed / stream_files["spiked_shuffled"]
+            fr_chance_path = self.processed / stream_files["fr_shuffled"]
+
+            fr_chance = ioutils.read_hdf5(fr_chance_path, key="fr")
+            assert 0
+            spiked_chance = ioutils.read_hdf5(spiked_chance_path, key="spiked")
+            assert 0
+
+        return df
