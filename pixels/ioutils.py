@@ -133,8 +133,11 @@ def get_data_files(data_dir, session_name):
                 f"{session_name}_{stream_id[:-3]}_fr_shuffled.bin"
         )
         # .h5 files
-        pixels[stream_id]["shuffled"] = base_name.with_name(
-            f"{session_name}_{stream_id[:-3]}_shuffled.h5"
+        pixels[stream_id]["spiked_shuffled"] = base_name.with_name(
+            f"{session_name}_{stream_id[:-3]}_spiked_shuffled.h5"
+        )
+        pixels[stream_id]["fr_shuffled"] = base_name.with_name(
+            f"{session_name}_{stream_id[:-3]}_fr_shuffled.h5"
         )
 
         # old catgt data
