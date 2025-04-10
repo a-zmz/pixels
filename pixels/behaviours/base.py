@@ -3004,9 +3004,9 @@ class Behaviour(ABC):
         # get aligned firing rates and positions
         trials = self.align_trials(
             units=units, # NOTE: ALWAYS the first arg
+            data="trial_rate", # NOTE: ALWAYS the second arg
             label=label,
             event=event,
-            data="trial_rate",
             sigma=sigma,
             end_event=end_event,
         )
@@ -3117,40 +3117,49 @@ class Behaviour(ABC):
 
         bin_frs = {}
         bin_counts = {}
+        bin_counts_chance = {}
 
         # get aligned spiked and positions
         spiked = self.align_trials(
             units=units, # NOTE: ALWAYS the first arg
+            data="trial_times", # NOTE: ALWAYS the second arg
             label=label,
             event=event,
-            data="trial_times",
             sigma=sigma,
             end_event=end_event,
         )
-        fr = self.align_trials(
-            units=units, # NOTE: ALWAYS the first arg
-            label=label,
-            event=event,
-            data="trial_rate",
-            sigma=sigma,
-            end_event=end_event,
-        )
+        #fr = self.align_trials(
+        #    units=units, # NOTE: ALWAYS the first arg
+        #    data="trial_rate", # NOTE: ALWAYS the second arg
+        #    label=label,
+        #    event=event,
+        #    sigma=sigma,
+        #    end_event=end_event,
+        #)
 
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            key = f"{stream_id[:-3]}/"
             # get stream spiked
-            stream_spiked = spiked[stream_id]["spiked"]
+            stream_spiked = spiked[key + "spiked"]
             # get stream positions
-            positions = spiked[stream_id]["positions"]
+            positions = spiked[key + "positions"]
             # get stream firing rates
-            stream_fr = fr[stream_id]["fr"]
+            #stream_fr = fr[stream]["fr"]
 
-            bin_frs[stream_id] = {}
-            bin_counts[stream_id] = {}
+            assert 0
+            spiked_chance_path = self.processed / stream_files["spiked_shuffled"]
+            spiked_chance = ioutils.read_hdf5(spiked_chance_path, "spiked")
+
+            bin_frs[stream] = {}
+            bin_counts[stream] = {}
+            bin_counts_chance[stream] = {}
             for trial in positions.columns.unique():
                 counts = stream_spiked.xs(trial, level="trial", axis=1)
-                rates = stream_fr.xs(trial, level="trial", axis=1)
+                #rates = stream_fr.xs(trial, level="trial", axis=1)
                 trial_pos = positions[trial]
+                assert 0
+                counts = stream_spiked.xs(trial, level="trial", axis=1).dropna()
 
                 # get bin spike count
                 bin_counts[stream_id][trial] = self.bin_vr_trial(
