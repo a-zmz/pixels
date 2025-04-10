@@ -3279,7 +3279,7 @@ class Behaviour(ABC):
                 trial_pos.reset_index(inplace=True, drop=True)
 
                 # get bin firing rates
-                bin_frs[i] = self.bin_vr_trial(
+                bin_frs[i] = xut.bin_vr_trial(
                     data=rates,
                     positions=trial_pos,
                     time_bin=time_bin,
@@ -3287,7 +3287,7 @@ class Behaviour(ABC):
                     bin_method="mean",
                 )
                 # get bin spike count
-                bin_counts[i] = self.bin_vr_trial(
+                bin_counts[i] = xut.bin_vr_trial(
                     data=spiked,
                     positions=trial_pos,
                     time_bin=time_bin,
