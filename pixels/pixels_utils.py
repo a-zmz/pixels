@@ -569,7 +569,7 @@ def _permute_spikes_n_convolve_fr(array, sigma, sample_rate):
 
 
 def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
-                  spiked_memmap_path, fr_memmap_path):
+                  spiked_memmap_path, fr_memmap_path, concat_spiked_path):
     """
     Worker that computes one set of spiked and fr values.
 
@@ -596,7 +596,7 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
     print(f"Processing repeat {i}...")
     # open readonly memmap
     spiked = init_memmap(
-        path=spiked_memmap_path.parent/"temp_spiked.bin",
+        path=concat_spiked_path,
         shape=spiked_shape,
         dtype=np.int16,
         overwrite=False,
@@ -635,12 +635,14 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
 
 
 def save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
-                      fr_df_path, spiked, sigma, sample_rate, repeats=100):
-    if not fr_df_path.exists():
+                      fr_df_path, sigma, sample_rate, repeats=100, spiked=None,
+                      spiked_shape=None, concat_spiked_path=None):
+    if fr_df_path.exists():
         # save spike chance data if does not exists
         _save_spike_chance(
-            spiked_memmap_path, fr_memmap_path, spiked_df_path, fr_df_path,
-            spiked, sigma, sample_rate, repeats)
+            spiked_memmap_path, fr_memmap_path, spiked_df_path, fr_df_path, sigma,
+            sample_rate, repeats, spiked, spiked_shape,
+            concat_spiked_path)
     else:
         print(f"> Spike chance already saved at {fr_df_path}, continue.")
 
@@ -648,19 +650,24 @@ def save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
 
 
 def _save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
-                       fr_df_path, spiked, sigma, sample_rate, repeats):
+                       fr_df_path, sigma, sample_rate, repeats, spiked,
+                       spiked_shape, concat_spiked_path):
     """
     Implementation of saving chance level spike data.
     """
     import concurrent.futures
 
-    # get export data shape
-    spiked_shape = spiked.shape
-    d_shape = spiked.shape + (repeats,)
-
-    if not fr_memmap_path.exists():
+    # save spiked to memmap if not yet
+    # TODO apr 9 2025: if i have temp_spiked, how to get its shape? do i need
+    # another input arg??? this is to run it again without get the concat spiked
+    # again...
+    if spiked is None:
+        assert concat_spiked_path.exists()
+        assert spiked_shape is not None
+    else:
+        concat_spiked_path = spiked_memmap_path.parent/"temp_spiked.bin"
         spiked_memmap = init_memmap(
-            path=spiked_memmap_path.parent/"temp_spiked.bin",
+            path=concat_spiked_path,
             shape=spiked.shape,
             dtype=np.int16,
             overwrite=True,
@@ -705,6 +712,7 @@ def _save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
                     chance_data_shape=d_shape,
                     spiked_memmap_path=spiked_memmap_path,
                     fr_memmap_path=fr_memmap_path,
+                    concat_spiked_path=concat_spiked_path,
                 )
                 futures.append(future)
 
