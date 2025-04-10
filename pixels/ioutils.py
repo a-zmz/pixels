@@ -132,6 +132,15 @@ def get_data_files(data_dir, session_name):
         pixels[stream_id]["fr_shuffled_memmap"] = base_name.with_name(
                 f"{session_name}_{stream_id[:-3]}_fr_shuffled.bin"
         )
+        pixels[stream_id]["shuffled_shape"] = base_name.with_name(
+            f"{session_name}_{stream_id[:-3]}_shuffled_shape.json"
+        )
+        pixels[stream_id]["shuffled_index"] = base_name.with_name(
+            f"{session_name}_{stream_id[:-3]}_shuffled_index.h5"
+        )
+        pixels[stream_id]["shuffled_columns"] = base_name.with_name(
+            f"{session_name}_{stream_id[:-3]}_shuffled_columns.h5"
+        )
         # .h5 files
         pixels[stream_id]["spiked_shuffled"] = base_name.with_name(
             f"{session_name}_{stream_id[:-3]}_spiked_shuffled.h5"
