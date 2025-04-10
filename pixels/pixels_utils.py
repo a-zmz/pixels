@@ -856,16 +856,62 @@ def get_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
     #        overwrite=False,
     #        readonly=True,
     #    )
-    assert 0
-    # TODO apr 2 2025: loading df is too big and gives memory error????
-
-    return read_hdf5(spiked_df_path), read_hdf5(fr_df_path)
-
-
-def _get_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
-                     fr_memmap_path, fr_df_path, repeats=100):
 
     # TODO apr 2 2025:
     # for fr chance, use memmap, go to each repeat, unstack, bin, then save it
     # to .npz for andrew
     pass
+
+
+def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
+                 bin_method="mean"):
+    """
+    Bin virtual reality trials by given temporal bin and positional bin.
+
+    params
+    ===
+    data: pandas dataframe, neural data needed binning.
+
+    positions: pandas dataframe, position of current trial.
+
+    time_bin: str, temporal bin for neural data.
+
+    pos_bin: int, positional bin for positions.
+
+    bin_method: str, method to concatenate data within each temporal bin.
+        "mean": taking the mean of all frames.
+        "sum": taking sum of all frames.
+    """
+    data = data.copy()
+    positions = positions.copy()
+
+    # convert index to datetime index for resampling
+    isi = (1 / sample_rate) * 1000
+    data.index = pd.to_timedelta(
+        arg=data.index * isi,
+        unit="ms",
+    )
+
+    # set position index too
+    positions.index = data.index
+
+    # resample to 100ms bin, and get position mean
+    mean_pos = positions.resample(time_bin).mean()
+
+    if bin_method == "sum":
+        # resample to Xms bin, and get sum
+        bin_data = data.resample(time_bin).sum()
+    elif bin_method == "mean":
+        # resample to Xms bin, and get mean
+        bin_data = data.resample(time_bin).mean()
+
+    # add position here to bin together
+    bin_data['positions'] = mean_pos.values
+    # add bin positions
+    bin_pos = mean_pos // pos_bin + 1
+    bin_data['bin_pos'] = bin_pos.values
+
+    # use numeric index
+    bin_data.reset_index(inplace=True, drop=True)
+
+    return bin_data
