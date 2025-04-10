@@ -1827,9 +1827,10 @@ class Behaviour(ABC):
 
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = stream_id[:-3]
             # allows multiple streams of recording, i.e., multiple probes
-            rec_trials_fr[stream_id] = {}
-            rec_trials_spiked[stream_id] = {}
+            rec_trials_fr[stream] = {}
+            rec_trials_spiked[stream] = {}
 
             # Account for multiple raw data files
             meta = self.ap_meta[stream_num]
@@ -1908,13 +1909,13 @@ class Behaviour(ABC):
                 spiked = spiked.iloc[scan_pad: -scan_pad]
                 # reset index to zero at the beginning of the trial
                 rates.reset_index(inplace=True, drop=True)
-                rec_trials_fr[stream_id][trial_ids[i]] = rates
+                rec_trials_fr[stream][trial_ids[i]] = rates
                 spiked.reset_index(inplace=True, drop=True)
-                rec_trials_spiked[stream_id][trial_ids[i]] = spiked
+                rec_trials_spiked[stream][trial_ids[i]] = spiked
                 trial_pos.reset_index(inplace=True, drop=True)
                 trial_positions[trial_ids[i]] = trial_pos
 
-            #if not rec_trials_fr[stream_id]:
+            #if not rec_trials_fr[stream]:
             #    return None
 
             # TODO feb 28 2025:
@@ -1931,20 +1932,28 @@ class Behaviour(ABC):
             positions = ioutils.reindex_by_longest(
                 dfs=trial_positions,
                 idx_names=["trial", "time"],
-                col_names=["position"],
                 level="trial",
                 return_format="dataframe",
             )
-            assert 0
 
             if data == "trial_times":
                 # get trials vertically stacked spiked
                 stacked_spiked = pd.concat(
-                    rec_trials_spiked[stream_id],
+                    rec_trials_spiked[stream],
                     axis=0,
                 )
                 stacked_spiked.index.names = ["trial", "time"]
                 stacked_spiked.columns.names = ["unit"]
+
+                # save index and columns to reconstruct df for shuffled data
+                ioutils.save_index_to_frame(
+                    df=stacked_spiked, 
+                    path=self.interim / stream_files["shuffled_index"],
+                )
+                ioutils.save_cols_to_frame(
+                    df=stacked_spiked, 
+                    path=self.interim / stream_files["shuffled_columns"],
+                )
 
                 # get chance data paths
                 paths = {
@@ -1959,55 +1968,46 @@ class Behaviour(ABC):
                 # save chance data
                 xut.save_spike_chance(
                     **paths,
-                    spiked=stacked_spiked,
                     sigma=sigma,
                     sample_rate=self.SAMPLE_RATE,
+                    spiked=stacked_spiked,
                 )
 
-                # unstack and concat horizontally
-                spiked = stacked_spiked.unstack(
-                    level="trial",
-                    sort=True,
-                )
-                assert 0
                 # get trials horizontally stacked spiked
                 spiked = ioutils.reindex_by_longest(
-                    dfs=rec_trials_spiked[stream_id],
+                    dfs=stacked_spiked,
+                    level="trial",
                     return_format="dataframe",
-                    names=["trial", "unit"],
                 )
-                spiked = spiked.reorder_levels(["unit", "trial"], axis=1)
-                spiked = spiked.sort_index(level=0, axis=1)
 
-                output[stream_id] = pd.concat(
-                    {"spiked": spiked, "positions": positions},
-                    axis=1,
-                    names=["data"],
-                )
+                output[stream] = {
+                    "spiked": spiked,
+                    "positions": positions,
+                }
 
             elif data == "trial_rate":
+                # TODO apr 2 2025: make sure this reindex_by_longest works
+                assert 0
                 fr = ioutils.reindex_by_longest(
-                    dfs=rec_trials_fr[stream_id],
+                    dfs=rec_trials_fr[stream],
                     return_format="dataframe",
-                    names=["trial", "unit"],
+                    idx_names=["trial", "unit"],
                 )
                 fr = fr.reorder_levels(["unit", "trial"], axis=1)
                 fr = fr.sort_index(level=0, axis=1)
 
-                output[stream_id] = pd.concat(
-                    {"fr": fr, "positions": positions},
-                    axis=1,
-                    names=["data"],
-                )
+                output[stream] = {
+                    "fr": fr,
+                    "positions": positions,
+                }
 
         # concat output into dataframe before cache
-        df = pd.concat(
-            objs=output,
-            axis=1,
-            names=["stream_id"],
-        )
-        assert 0
-        return df
+        #df = pd.concat(
+        #    objs=output,
+        #    axis=1,
+        #    names=["stream"],
+        #)
+        return output
 
 
     def select_units(
