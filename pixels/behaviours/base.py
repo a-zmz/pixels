@@ -129,7 +129,19 @@ def _cacheable(method):
                 output.touch()
             else:
                 # allows to save multiple dfs in a dict in one hdf5 file
-                if isinstance(df, dict):
+                if ioutils.is_nested_dict(df):
+                    for stream_id, nested_dict in df.items():
+                        # NOTE: we remove `.ap` in stream id cuz having `.`in
+                        # the key name get problems
+                        for name, values in nested_dict.items():
+                            key = f"/{stream_id}/{name}"
+                            ioutils.write_hdf5(
+                                path=output,
+                                df=values,
+                                key=key,
+                                mode="a",
+                            )
+                elif isinstance(df, dict):
                     for name, values in df.items():
                         ioutils.write_hdf5(
                             path=output,
