@@ -246,6 +246,8 @@ class Experiment:
                 names=["session", "trial", "scorer", "bodyparts", "coords"]
             )
 
+        # TODO apr 3 2025:
+        # make sure trial_times is here too
         if "trial_rate" in kwargs.values():
             frs = {}
             positions = {}
