@@ -737,7 +737,7 @@ def stream_video(video, length=None):
             if length == 0:
                 break
 
-def reindex_by_longest(dfs, idx_names=None, col_names=None, level=0, sort=True,
+def reindex_by_longest(dfs, idx_names=None, level=0, sort=True,
                        return_format="array"):
     """
     params
@@ -754,27 +754,62 @@ def reindex_by_longest(dfs, idx_names=None, col_names=None, level=0, sort=True,
     ===
     np.array or pd.DataFrame.
     """
-    # stack dfs vertically
-    stacked_df = pd.concat(dfs, axis=0)
-
-    # set index name
-    if idx_names:
-        stacked_df.index.names = idx_names
-
-    # unstack df at level
-    df = stacked_df.unstack(level=level, sort=sort)
-
     if return_format == "array":
+        # align all trials by index
+        indices = list(set().union(
+            *[df.index for df in dfs.values()])
+        )
+        # reindex by the longest
+        reidx_dfs = {key: df.reindex(index=indices)
+            for key, df in dfs.items()}
         # stack df values into np array
-        output = df.values.squeeze()
+        # NOTE: this create multidimensional data, different from if return
+        # format is df!
+        output = np.stack(
+            [df.values for df in reidx_dfs.values()],
+            axis=-1,
+        )
 
     elif return_format == "dataframe":
-        if col_names:
-            if isinstance(stacked_df, pd.Series):
-                stacked_df.name = col_names[0]
-            elif isinstance(stacked_df, pd.DataFrame):
-                stacked_df.columns.names = col_names
-        output = stacked_df
+        if isinstance(dfs, dict):
+            # stack dfs vertically
+            stacked_df = pd.concat(dfs, axis=0)
+            # set index name
+            if idx_names:
+                stacked_df.index.names = idx_names
+        elif isinstance(dfs, pd.DataFrame):
+            stacked_df = dfs
+
+        # unstack df at level
+        output = stacked_df.unstack(level=level, sort=sort)
+        del stacked_df
 
     return output
 
+def is_nested_dict(d):
+    """
+    Returns True if at least one value in dictionary d is a dict.
+    """
+    return any(isinstance(v, dict) for v in d.values())
+
+
+def save_index_to_frame(df, path):
+    idx_df = df.index.to_frame(index=False)
+    write_hdf5(
+        path=path,
+        df=idx_df,
+        key="multiindex",
+    )
+    # NOTE: to reconstruct:
+    # recs_idx = pd.MultiIndex.from_frame(idx_df)
+
+
+def save_cols_to_frame(df, path):
+    col_df = df.columns.to_frame(index=False)
+    write_hdf5(
+        path=path,
+        df=col_df,
+        key="cols",
+    )
+    # NOTE: to reconstruct:
+    # df.columns = col_df.values
