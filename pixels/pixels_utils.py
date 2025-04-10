@@ -841,22 +841,87 @@ def save_chance(orig_idx, orig_col, spiked_memmap_path, fr_memmap_path,
     return None
 
 
-def get_spike_chance(spiked, sigma, sample_rate, spiked_memmap_path,
-                     fr_memmap_path, fr_df_path, repeats=100):
-    if not fr_df_path.exists():
-        # save spike chance data if does not exists
-        save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
-                          fr_df_path, spiked, sigma, sample_rate, repeats)
-    #else:
-    #    d_shape = spiked.shape + (repeats,)
+def get_spike_chance(sample_rate, positions, time_bin, pos_bin,
+                     spiked_memmap_path, fr_memmap_path, memmap_shape_path,
+                     idx_path, col_path):
+    if not fr_memmap_path.exists():
+        raise PixelsError("\nHave you saved spike chance data yet?")
+    else:
+        # TODO apr 3 2025: we need to get positions here for binning!!!
+        # BUT HOW????
+        _get_spike_chance(sample_rate, positions, time_bin, pos_bin,
+                          spiked_memmap_path, fr_memmap_path, memmap_shape_path,
+                          idx_path, col_path)
 
-    #    spiked_chance = _get_spike_chance(
-    #        path=spiked_memmap_path,
-    #        shape=d_shape,
-    #        dtype=np.int16,
-    #        overwrite=False,
-    #        readonly=True,
-    #    )
+    return None
+
+
+def _get_spike_chance(sample_rate, positions, time_bin, pos_bin,
+                      spiked_memmap_path, fr_memmap_path, memmap_shape_path,
+                      idx_path, col_path):
+
+    # TODO apr 9 2025:
+    # i do not need to save shape to file, all i need is unit count, repeat,
+    # so i load memmap without defining shape, then directly np.reshape(memmap,
+    # (-1, count, repeat))!
+
+    with open(memmap_shape_path, "r") as f:
+        shape_data = json.load(f)
+    shape_list = shape_data.get("dshape", [])
+    d_shape = tuple(shape_list)
+
+    spiked_chance = init_memmap(
+        path=spiked_memmap_path,
+        shape=d_shape,
+        dtype=np.int16,
+        overwrite=False,
+        readonly=True,
+    )
+
+    idx_df = read_hdf5(idx_path, key="multiindex")
+    idx = pd.MultiIndex.from_frame(idx_df)
+    trials = idx_df["trial"].unique()
+    col_df = read_hdf5(col_path, key="cols")
+    cols = pd.Index(col_df["unit"])
+
+    binned_shuffle = {}
+    temp = {}
+    # TODO apr 3 2025: implement multiprocessing here!
+    # get each repeat and create df
+    for r in range(d_shape[-1]):
+        shuffled = spiked_chance[:, :, r]
+        # create df
+        df = pd.DataFrame(shuffled, index=idx, columns=cols)
+        temp[r] = {}
+        for t in trials:
+            counts = df.xs(t, level="trial", axis=0)
+            trial_pos = positions.loc[:, t].dropna()
+            temp[r][t] = bin_vr_trial(
+                counts,
+                trial_pos,
+                sample_rate,
+                time_bin,
+                pos_bin,
+                bin_method="sum",
+            )
+        binned_shuffle[r] = reindex_by_longest(
+            dfs=temp[r],
+            return_format="array",
+        ) 
+    # concat 
+    binned_shuffle_counts = np.stack(
+        list(binned_shuffle.values()),
+        axis=-1,
+    )
+    shuffled_counts = {
+        "count": binned_shuffle_counts[:, :-2, ...],
+        "pos": binned_shuffle_counts[:, -2:, ...],
+    }
+    #count_path='/home/amz/running_data/npx/interim/20240812_az_VDCN09/20240812_az_VDCN09_imec0_light_all_spike_counts_shuffled_200ms_10cm.npz'
+    count_path='/home/amz/running_data/npx/interim/20240812_az_VDCN09/20240812_az_VDCN09_imec0_dark_all_spike_counts_shuffled_200ms_10cm.npz'
+
+    np.savez_compressed(count_path, **shuffled_counts)
+    assert 0
 
     #    fr_chance = _get_spike_chance(
     #        path=fr_memmap_path,
