@@ -3341,6 +3341,8 @@ class Behaviour(ABC):
 
         # stack df values into np array
         # reshape into trials x units x bins
+        assert 0
+        # TODO apr 2 2025: make sure this reindex_by_longest works
         bin_count_arr = ioutils.reindex_by_longest(bin_counts).T
         bin_fr_arr = ioutils.reindex_by_longest(bin_frs).T
 
