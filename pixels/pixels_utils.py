@@ -28,9 +28,6 @@ job_kwargs = dict(
 )
 si.set_global_job_kwargs(**job_kwargs)
 
-# initiate random number generator
-rng = np.random.default_rng()
-
 def load_raw(paths, stream_id):
     """
     Load raw recording file from spikeglx.
@@ -556,6 +553,9 @@ def _permute_spikes_n_convolve_fr(array, sigma, sample_rate):
 
     random_fr: convolved firing rate from shuffled spike boolean for each unit.
     """
+    # initiate random number generator every time to avoid same results from the
+    # same seeding
+    rng = np.random.default_rng()
     # permutate columns
     random_spiked = rng.permuted(array, axis=0)
     # convolve into firing rate
