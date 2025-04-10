@@ -109,6 +109,11 @@ def _cacheable(method):
                     keys = store.keys()
                     # create df as a dictionary to hold all dfs
                     df = {}
+                    # TODO apr 2 2025: for now the nested dict have keys in the
+                    # format of `/imec0.ap/positions`, this will not be the case
+                    # once i flatten files at the stream level rather than
+                    # session level, i.e., every pixels related cache will have
+                    # stream id in their name.
                     for key in keys:
                         # read current df
                         data = store[key]
@@ -3345,17 +3350,59 @@ class Behaviour(ABC):
 
         return None
 
-    def get_chance_data(self):
+    def get_chance_data(self, time_bin, pos_bin):
 
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
 
-            spiked_chance_path = self.processed / stream_files["spiked_shuffled"]
-            fr_chance_path = self.processed / stream_files["fr_shuffled"]
+            paths = {
+                "spiked_memmap_path": self.interim /\
+                    stream_files["spiked_shuffled_memmap"],
+                "fr_memmap_path": self.interim /\
+                    stream_files["fr_shuffled_memmap"],
+                "memmap_shape_path": self.interim /\
+                    stream_files["shuffled_shape"],
+                "idx_path": self.interim / stream_files["shuffled_index"],
+                "col_path": self.interim /\
+                    stream_files["shuffled_columns"],
+            }
 
-            fr_chance = ioutils.read_hdf5(fr_chance_path, key="fr")
-            assert 0
-            spiked_chance = ioutils.read_hdf5(spiked_chance_path, key="spiked")
-            assert 0
+            # TODO apr 3 2025: how the fuck to get positions here????
+            # TEMP: get it manually...
+            # light
+            pos_path = self.interim /\
+                    "cache/align_trials_all_trial_times_725_1_100_512.h5"
+            # dark
+            #pos_path = self.interim /\
+            #        "cache/align_trials_all_trial_times_1322_1_100_512.h5"
 
-        return df
+            with pd.HDFStore(pos_path, "r") as store:
+                # list all keys
+                keys = store.keys()
+                # create df as a dictionary to hold all dfs
+                df = {}
+                # TODO apr 2 2025: for now the nested dict have keys in the
+                # format of `/imec0.ap/positions`, this will not be the case
+                # once i flatten files at the stream level rather than
+                # session level, i.e., every pixels related cache will have
+                # stream id in their name.
+                for key in keys:
+                    # read current df
+                    data = store[key]
+                    # remove "/" in key
+                    key_name = key.lstrip("/")
+                    # use key name as dict key
+                    df[key_name] = data
+            positions = df[f"{stream_id[:-3]}/positions"]
+
+            xut.get_spike_chance(
+                sample_rate=self.SAMPLE_RATE,
+                positions=positions,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+                **paths,
+            )
+            assert 0
+            #spiked_chance = ioutils.read_hdf5(spiked_chance_path, key="spiked")
+
+        return None
