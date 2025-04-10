@@ -734,17 +734,16 @@ def _save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
               "dataframes and save.")
 
     # convert it to dataframe and save it
-    save_chance(
-        orig_idx=spiked.index,
-        orig_col=spiked.columns,
-        spiked_memmap_path=spiked_memmap_path,
-        fr_memmap_path=fr_memmap_path,
-        spiked_df_path=spiked_df_path,
-        fr_df_path=fr_df_path,
-        d_shape=d_shape,
-    )
-
-    print(f"\n> Chance data saved to {fr_df_path}.")
+    #save_chance(
+    #    orig_idx=spiked.index,
+    #    orig_col=spiked.columns,
+    #    spiked_memmap_path=spiked_memmap_path,
+    #    fr_memmap_path=fr_memmap_path,
+    #    spiked_df_path=spiked_df_path,
+    #    fr_df_path=fr_df_path,
+    #    d_shape=d_shape,
+    #)
+    #print(f"\n> Chance data saved to {fr_df_path}.")
 
     return None
 
