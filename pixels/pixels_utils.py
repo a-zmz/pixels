@@ -677,6 +677,16 @@ def _save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
         spiked_memmap.flush()
         del spiked_memmap
 
+        # get spiked data shape
+        spiked_shape = spiked.shape
+
+    # get export data shape
+    d_shape = spiked_shape + (repeats,)
+    # TODO apr 9 2025 save dshape to json
+    #with open(shape_json, "w") as f:
+        #json.dump(shape, f, indent=4)
+
+    if not fr_memmap_path.exists():
         # init chance spiked memmap
         chance_spiked = init_memmap(
             path=spiked_memmap_path,
