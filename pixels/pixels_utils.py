@@ -350,6 +350,20 @@ def _sort_spikes(rec, output, ks_image_path, ks4_params):
         **ks4_params,
     )
 
+    # TODO apr 10 2025:
+    # since this file is whitened, the amplitude of the signal is NOT the same
+    # as the original, and this might cause issue in calculating signal
+    # amplitude in spikeinterface. cuz in ks4 output, units amplitude is between
+    # 0-315, but in si it's between -4000 to 4000.
+    # POTENTIAL SOLUTIONS:
+    # 1. do what chris does, make another preprocessed recording just to build
+    # the sorting analyser, or
+    # 2. still use the temp_wh.dat from ks4, but check how ks4 handles amplitude
+    # and the unit of amplitude, correct it
+    # WHAT TO ACHIEVE:
+    # 1. without whitening, peak amplitude should be ~-70mV
+    # 2. with whitening, peak amplitude should be between -1 to 1
+
     # load ks preprocessed recording for # sorting analyser
     ks_preprocessed = se.read_binary(
         file_paths=output/"sorter_output/temp_wh.dat",
