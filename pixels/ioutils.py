@@ -746,7 +746,7 @@ def stream_video(video, length=None):
             if length == 0:
                 break
 
-def reindex_by_longest(dfs, idx_names=None, level=0, sort=True,
+def reindex_by_longest(dfs, idx_names=None, col_names=None, level=0, sort=True,
                        return_format="array"):
     """
     params
@@ -786,6 +786,8 @@ def reindex_by_longest(dfs, idx_names=None, level=0, sort=True,
             # set index name
             if idx_names:
                 stacked_df.index.names = idx_names
+            if col_names:
+                stacked_df.columns.names = col_names
         elif isinstance(dfs, pd.DataFrame):
             stacked_df = dfs
 
