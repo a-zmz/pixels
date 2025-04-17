@@ -1788,6 +1788,8 @@ class Behaviour(ABC):
 
         """
         action_labels = self.get_action_labels()[0]
+        streams = self.files["pixels"]
+        output = {}
 
         if units is None:
             units = self.select_units()
@@ -1827,6 +1829,12 @@ class Behaviour(ABC):
         # only take ends from selected trials
         selected_ends = trials[np.where(np.isin(trials, ends))[0]]
         end_t = timestamps[selected_ends]
+        if selected_starts.size == 0:
+            print(f"> No trials found with label {label} and event {event}, "
+                  "output will be empty.")
+            for key in streams.keys():
+                output[keys[:-3]] = {}
+            return output
 
         # use original trial id as trial index
         trial_ids = vr_data.iloc[selected_starts].trial_count.unique()
@@ -1838,12 +1846,10 @@ class Behaviour(ABC):
         scan_durations = scan_ends - scan_starts
 
         cursor = 0  # In sample points
-        output = {}
         rec_trials_fr = {}
         rec_trials_spiked = {}
         trial_positions = {}
 
-        streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             stream = stream_id[:-3]
             # allows multiple streams of recording, i.e., multiple probes
