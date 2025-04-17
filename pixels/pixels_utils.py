@@ -567,6 +567,10 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
         folder=curated_sa_dir,
     )
 
+    # TODO apr 11 2025:
+    # after we curated units with quality metrics, there are still some noise in
+    # units, how do we use si to remove those ones identified qualitatively?
+
     return None
 
 
