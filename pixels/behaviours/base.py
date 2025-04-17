@@ -41,6 +41,8 @@ import pixels.pixels_utils as xut
 from pixels.error import PixelsError
 from pixels.constants import *
 
+from common_utils.file_utils import load_yaml
+
 if TYPE_CHECKING:
     from typing import Optional, Literal
 
@@ -707,7 +709,16 @@ class Behaviour(ABC):
                 f"in total of {self.stream_count} stream(s)"
             )
 
-            stream_files["preprocessed"] = xut.preprocess_raw(rec)
+            # load brain surface depths
+            surface_depths = load_yaml(
+                path=self.find_file(stream_files["surface_depth"]),
+            )
+
+            # preprocess
+            stream_files["preprocessed"] = xut.preprocess_raw(
+                rec,
+                surface_depths,
+            )
 
         return None
 
