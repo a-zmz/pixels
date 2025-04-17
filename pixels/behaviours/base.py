@@ -3098,248 +3098,88 @@ class Behaviour(ABC):
             sigma=sigma,
             end_event=end_event,
         )
-        #fr = self.align_trials(
-        #    units=units, # NOTE: ALWAYS the first arg
-        #    data="trial_rate", # NOTE: ALWAYS the second arg
-        #    label=label,
-        #    event=event,
-        #    sigma=sigma,
-        #    end_event=end_event,
-        #)
+        fr = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            data="trial_rate", # NOTE: ALWAYS the second arg
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event,
+        )
 
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
-            key = f"{stream_id[:-3]}/"
-            # get stream spiked
-            stream_spiked = spiked[key + "spiked"]
-            # get stream positions
-            positions = spiked[key + "positions"]
-            # get stream firing rates
-            #stream_fr = fr[stream]["fr"]
-
-            assert 0
-            spiked_chance_path = self.processed / stream_files["spiked_shuffled"]
-            spiked_chance = ioutils.read_hdf5(spiked_chance_path, "spiked")
-
-            bin_frs[stream] = {}
-            bin_counts[stream] = {}
-            bin_counts_chance[stream] = {}
-            for trial in positions.columns.unique():
-                counts = stream_spiked.xs(trial, level="trial", axis=1)
-                #rates = stream_fr.xs(trial, level="trial", axis=1)
-                trial_pos = positions[trial]
-                assert 0
-                counts = stream_spiked.xs(trial, level="trial", axis=1).dropna()
-
-                # get bin spike count
-                bin_counts[stream_id][trial] = self.bin_vr_trial(
-                    data=counts,
-                    positions=trial_pos,
-                    time_bin=time_bin,
-                    pos_bin=pos_bin,
-                    bin_method="sum",
-                )
-                # get bin firing rates
-                bin_frs[stream_id][trial] = self.bin_vr_trial(
-                    data=rates,
-                    positions=trial_pos,
-                    time_bin=time_bin,
-                    pos_bin=pos_bin,
-                    bin_method="mean",
-                )
-                assert 0
-
-        action_labels = self.get_action_labels()[0]
-
-        # define output path for binned spike rate
-        output_fr_path = self.interim/\
-                f'cache/{self.name}_{label}_{units}_{time_bin}_spike_rate.npz'
-        output_count_path = self.interim/\
-                f'cache/{self.name}_{label}_{units}_{time_bin}_spike_count.npz'
-
-        if output_count_path.exists() and output_fr_path.exists():
-            print(f"> {self.name} {label} {units} {time_bin} .npz already "
-                  "saved.")
-            return None
-
-        print(f"> Binning data from {self.name} {label} {units} units to "
-            f"{time_bin}.")
-
-        if units is None:
-            units = self.select_units()
-
-        if not pos_bin is None:
-            behaviour_files = self.files["behaviour"]
-            # assume only one vr session for now
-            vr_dir = self.find_file(behaviour_files["vr_synched"][0])
-            vr_data = ioutils.read_hdf5(vr_dir)
-            # get positions
-            positions = vr_data.position_in_tunnel
-
-        #TODO: with multiple streams, spike times will be a list with multiple dfs,
-        #make sure old code does not break!
-        spikes = self.get_spike_times(use_si=True)[units]
-        # drop rows if all nans
-        spikes = spikes.dropna(how="all")
-
-        # since each session has one behaviour session, now only one action
-        # label file
-        actions = action_labels["outcome"]
-        events = action_labels["events"]
-        # get timestamps index of behaviour in self.SAMPLE_RATE hz, to convert
-        # it to ms, do timestamps*1000/self.SAMPLE_RATE
-        timestamps = action_labels["timestamps"]
-
-        # select frames of wanted trial type
-        trials = np.where(np.bitwise_and(actions, label))[0]
-        # map starts by event
-        starts = np.where(np.bitwise_and(events, event))[0]
-        # map starts by end event
-        ends = np.where(np.bitwise_and(events, end_event))[0]
-
-        # only take starts from selected trials
-        selected_starts = trials[np.where(np.isin(trials, starts))[0]]
-        start_t = timestamps[selected_starts]
-        # only take ends from selected trials
-        selected_ends = trials[np.where(np.isin(trials, ends))[0]]
-        end_t = timestamps[selected_ends]
-
-        # use original trial id as trial index
-        trial_ids = vr_data.iloc[selected_starts].trial_count.unique()
-
-        # pad ends with 1 second extra to remove edge effects from convolution
-        scan_pad = self.SAMPLE_RATE
-        scan_starts = start_t - scan_pad
-        scan_ends = end_t + scan_pad
-        scan_durations = scan_ends - scan_starts
-
-        cursor = 0  # In sample points
-        rec_trials = {}
-        trial_positions = {}
-        bin_frs = {}
-        bin_counts = {}
-
-        streams = self.files["pixels"]
-        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
-            # TODO jun 12 2024 skip other streams for now
-            if stream_num > 0:
+            stream = stream_id[:-3]
+            # define output path for binned spike rate
+            output_fr_path = self.interim/\
+                f'cache/{self.name}_{stream}_{label}_{units}_{time_bin}_spike_rate.npz'
+            output_count_path = self.interim/\
+                f'cache/{self.name}_{stream}_{label}_{units}_{time_bin}_spike_count.npz'
+            if output_count_path.exists():
                 continue
 
-            # Account for multiple raw data files
-            meta = self.ap_meta[stream_num]
-            samples = int(meta["fileSizeBytes"]) / int(meta["nSavedChans"]) / 2
-            assert samples.is_integer()
-            in_SAMPLE_RATE_scale = (samples * self.SAMPLE_RATE)\
-                           / int(self.ap_meta[0]['imSampRate'])
-            cursor_duration = (cursor * self.SAMPLE_RATE)\
-                              / int(self.ap_meta[0]['imSampRate'])
-            rec_spikes = spikes[
-                (cursor_duration <= spikes)\
-                & (spikes < (cursor_duration + in_SAMPLE_RATE_scale))
-            ] - cursor_duration
-            cursor += samples
+            key = f"{stream_id[:-3]}/"
+            print(f"\n> Binning trials from {stream_id}.")
 
-            # Account for lag, in case the ephys recording was started before the
-            # behaviour
-            if not self._lag[stream_num] == None:
-                lag_start, _ = self._lag[stream_num]
-            else:
-                lag_start = timestamps[0]
+            # get stream spiked
+            stream_spiked = spiked[stream]["spiked"]
+            # get stream positions
+            positions = spiked[stream]["positions"]
+            # get stream firing rates
+            stream_fr = fr[stream]["fr"]
 
-            if lag_start < 0:
-                rec_spikes = rec_spikes + lag_start
+            # TODO apr 11 2025:
+            # bin chance while bin data
+            #spiked_chance_path = self.processed / stream_files["spiked_shuffled"]
+            #spiked_chance = ioutils.read_hdf5(spiked_chance_path, "spiked")
+            #bin_counts_chance[stream_id] = {}
 
-            for i, start in enumerate(selected_starts):
-                # select spike times of current trial
-                trial_bool = (rec_spikes >= scan_starts[i])\
-                            & (rec_spikes <= scan_ends[i])
-                trial = rec_spikes[trial_bool]
+            bin_frs[stream_id] = {}
+            bin_counts[stream_id] = {}
+            for trial in positions.columns.unique():
+                counts = stream_spiked.xs(trial, level="trial", axis=1).dropna()
+                rates = stream_fr.xs(trial, level="trial", axis=1).dropna()
+                trial_pos = positions[trial].dropna()
 
-                # get position bin ids for current trial
-                trial_pos_bool = (positions.index >= start_t[i])\
-                            & (positions.index < end_t[i])
-                trial_pos = positions[trial_pos_bool]
-
-                # initiate binary spike times array for current trial
-                # NOTE: dtype must be float otherwise would get all 0 when
-                # passing gaussian kernel
-                times = np.zeros((scan_durations[i], len(units))).astype(float)
-                # use pixels time as spike index
-                idx = np.arange(scan_starts[i], scan_ends[i])
-                # make it df, column name being unit id
-                spiked = pd.DataFrame(times, index=idx, columns=units)
-
-                for unit in trial:
-                    # get spike time for unit
-                    u_times = trial[unit].values
-                    # drop nan
-                    u_times = u_times[~np.isnan(u_times)]
-
-                    # round spike times to use it as index
-                    u_spike_idx = np.round(u_times).astype(int)
-                    # make sure it does not exceed scan duration
-                    if (u_spike_idx >= scan_ends[i]).any():
-                        beyonds = np.where(u_spike_idx >= scan_ends[i])[0]
-                        u_spike_idx[beyonds] = idx[-1]
-                        # make sure no double counted
-                        u_spike_idx = np.unique(u_spike_idx)
-
-                    # set spiked to 1
-                    spiked.loc[u_spike_idx, unit] = 1
-
-                # convolve spike trains into spike rates
-                rates = signal.convolve_spike_trains(
-                    times=spiked,
-                    sigma=sigma,
-                    sample_rate=self.SAMPLE_RATE,
-                )
-                # remove 1s padding from the start and end
-                rates = rates.iloc[scan_pad: -scan_pad]
-                spiked = spiked.iloc[scan_pad: -scan_pad]
-                # reset index to zero at the beginning of the trial
-                rates.reset_index(inplace=True, drop=True)
-                spiked.reset_index(inplace=True, drop=True)
-                trial_pos.reset_index(inplace=True, drop=True)
-
-                # get bin firing rates
-                bin_frs[i] = xut.bin_vr_trial(
-                    data=rates,
-                    positions=trial_pos,
-                    time_bin=time_bin,
-                    pos_bin=pos_bin,
-                    bin_method="mean",
-                )
                 # get bin spike count
-                bin_counts[i] = xut.bin_vr_trial(
-                    data=spiked,
+                bin_counts[stream_id][trial] = xut.bin_vr_trial(
+                    data=counts,
                     positions=trial_pos,
+                    sample_rate=self.SAMPLE_RATE,
                     time_bin=time_bin,
                     pos_bin=pos_bin,
                     bin_method="sum",
                 )
+                # get bin firing rates
+                bin_frs[stream_id][trial] = xut.bin_vr_trial(
+                    data=rates,
+                    positions=trial_pos,
+                    sample_rate=self.SAMPLE_RATE,
+                    time_bin=time_bin,
+                    pos_bin=pos_bin,
+                    bin_method="mean",
+                )
 
-        # stack df values into np array
-        # reshape into trials x units x bins
-        assert 0
-        # TODO apr 2 2025: make sure this reindex_by_longest works
-        bin_count_arr = ioutils.reindex_by_longest(bin_counts).T
-        bin_fr_arr = ioutils.reindex_by_longest(bin_frs).T
+            # stack df values into np array
+            # reshape into trials x units x bins
+            bin_count_arr = ioutils.reindex_by_longest(bin_counts[stream_id]).T
+            bin_fr_arr = ioutils.reindex_by_longest(bin_frs[stream_id]).T
 
-        # save bin_fr and bin_count, for alfredo & andrew
-        # use label as array key name
-        fr_to_save = {
-            "fr": bin_fr_arr[:, :-2, :],
-            "pos": bin_fr_arr[:, -2:, :],
-        }
-        np.savez_compressed(output_fr_path, **fr_to_save)
-        print(f"> Output saved at {output_fr_path}.")
+            # save bin_fr and bin_count, for alfredo & andrew
+            # use label as array key name
+            fr_to_save = {
+                "fr": bin_fr_arr[:, :-2, :],
+                "pos": bin_fr_arr[:, -2:, :],
+            }
+            np.savez_compressed(output_fr_path, **fr_to_save)
+            print(f"> Output saved at {output_fr_path}.")
 
-        count_to_save = {
-            "count": bin_count_arr[:, :-2, :],
-            "pos": bin_count_arr[:, -2:, :],
-        }
-        np.savez_compressed(output_count_path, **count_to_save)
-        print(f"> Output saved at {output_count_path}.")
+            count_to_save = {
+                "count": bin_count_arr[:, :-2, :],
+                "pos": bin_count_arr[:, -2:, :],
+            }
+            np.savez_compressed(output_count_path, **count_to_save)
+            print(f"> Output saved at {output_count_path}.")
 
         return None
 
