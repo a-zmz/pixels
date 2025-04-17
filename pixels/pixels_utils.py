@@ -104,10 +104,20 @@ def _preprocess_raw(rec, surface_depth):
         outside_channels_location="top",
     )
     labels, counts = np.unique(chan_labels, return_counts=True)
-
     for label, count in zip(labels, counts):
         print(f"\t\t> Found {count} channels labelled as {label}.")
-    rec_clean = rec_ps.remove_channels(bad_chan_ids)
+    rec_removed = rec_ps.remove_channels(bad_chan_ids)
+
+    # get channel group id and use it to index into brain surface channel depth
+    shank_id = np.unique(rec_removed.get_channel_groups())[0]
+    # get channel depths
+    chan_depths = rec_removed.get_channel_locations()[:, 1]
+    # get channel ids
+    chan_ids = rec_removed.channel_ids
+    # remove channels outside by using identified brain surface depths
+    outside_chan_ids = chan_ids[chan_depths > surface_depth]
+    rec_clean = rec_removed.remove_channels(outside_chan_ids)
+    print(f"\t\t> Removed {outside_chan_ids.size} outside channels.")
 
     print("\t> step 3: do common median referencing.")
     # NOTE: dtype will be converted to float32 during motion correction
