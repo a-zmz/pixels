@@ -1003,3 +1003,36 @@ def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
     bin_data.reset_index(inplace=True, drop=True)
 
     return bin_data
+
+def get_shank_id_for_single_shank(rec):
+    # check probe type
+    '''
+    npx 1.0: 0
+    npx 2.0 alpha: 24
+    npx 2.0 commercial: 2013
+    '''
+    probe_type = int(rec.get_annotation("probes_info")[0]["probe_type"])
+
+    # get channel x locations
+    '''
+    shank 0: 0, 32
+    shank 1: 250, 282
+    shank 2: 500, 582
+    shank 3: 750, 782
+    '''
+    if probe_type > 0:
+        x_locs = np.unique(rec.get_channel_locations()[:, 0])
+        if np.all(x_locs < 200):
+            shank_id = 0
+        elif np.all(x_locs > 200) and np.all(x_locs < 500):
+            shank_id = 1
+        elif np.all(x_locs > 500) and np.all(x_locs < 700):
+            shank_id = 2
+        elif np.all(x_locs > 700):
+            shank_id = 3
+
+        # get number of channels and set their group to shank id
+        ids = np.zeros(rec.channel_ids.shape).astype(int)
+        ids[:] = shank_id
+
+    return ids
