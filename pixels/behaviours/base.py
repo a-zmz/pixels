@@ -104,23 +104,30 @@ def _cacheable(method):
             except (KeyError, ValueError):
                 # if key="df" is not found, then use HDFStore to list and read
                 # all dfs
+                # create df as a dictionary to hold all dfs
+                df = {}
                 with pd.HDFStore(output, "r") as store:
                     # list all keys
                     keys = store.keys()
-                    # create df as a dictionary to hold all dfs
-                    df = {}
                     # TODO apr 2 2025: for now the nested dict have keys in the
-                    # format of `/imec0.ap/positions`, this will not be the case
+                    # format of `/imec0/positions`, this will not be the case
                     # once i flatten files at the stream level rather than
                     # session level, i.e., every pixels related cache will have
                     # stream id in their name.
                     for key in keys:
-                        # read current df
-                        data = store[key]
-                        # remove "/" in key
-                        key_name = key.lstrip("/")
-                        # use key name as dict key
-                        df[key_name] = data
+                        # remove "/" in key and split
+                        key_name = key.lstrip("/").split("/")
+                        if len(key_name) == 1:
+                            # use the only key name as dict key
+                            df[key_name[0]] = store[key]
+                        elif len(key_name) == 2:
+                            # stream id is the first
+                            stream = key_name[0]
+                            # data name is the second
+                            name = "/".join(key_name[1:])
+                            if stream not in df:
+                                df[stream] = {}
+                            df[stream][name] = store[key]
                 print(f"> Cache loaded from {output}.")
         else:
             df = method(*args, **kwargs)
