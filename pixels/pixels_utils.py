@@ -53,7 +53,7 @@ def load_raw(paths, stream_id):
     return rec
 
 
-def preprocess_raw(rec):
+def preprocess_raw(rec, surface_depths):
     shank_groups = rec.get_channel_groups()
     if not np.all(shank_groups == shank_groups[0]):
         preprocessed = []
@@ -61,12 +61,24 @@ def preprocess_raw(rec):
         groups = rec.split_by("group")
         for g, group in enumerate(groups.values()):
             print(f"> Preprocessing shank {g}")
-            cleaned = _preprocess_raw(group)
+            # get brain surface depth of shank
+            surface_depth = surface_depths[g]
+            cleaned = _preprocess_raw(group, surface_depth)
             preprocessed.append(cleaned)
         # aggregate groups together
         preprocessed = si.aggregate_channels(preprocessed)
     else:
-        preprocessed = _preprocess_raw(rec)
+        # check which shank used
+        group_id = get_shank_id_for_single_shank(rec)
+        unique_id = np.unique(group_id)[0]
+        print("\n> Single shank used in multishank probe, change group id into "
+              f"{unique_id}.")
+        # change the group id
+        rec.set_channel_groups(group_id)
+        # get brain surface depth of shank
+        surface_depth = surface_depths[unique_id]
+        # preprocess
+        preprocessed = _preprocess_raw(rec, surface_depth)
 
     # NOTE jan 16 2025:
     # BUG: cannot set dtype back to int16, units from ks4 will have
@@ -77,7 +89,7 @@ def preprocess_raw(rec):
     return preprocessed
 
 
-def _preprocess_raw(rec):
+def _preprocess_raw(rec, surface_depth):
     """
     Implementation of preprocessing on raw pixels data.
     """
