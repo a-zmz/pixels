@@ -2011,14 +2011,13 @@ class Behaviour(ABC):
 
             elif data == "trial_rate":
                 # TODO apr 2 2025: make sure this reindex_by_longest works
-                assert 0
                 fr = ioutils.reindex_by_longest(
                     dfs=rec_trials_fr[stream],
+                    level="trial",
+                    idx_names=["trial", "time"],
+                    col_names=["unit"],
                     return_format="dataframe",
-                    idx_names=["trial", "unit"],
                 )
-                fr = fr.reorder_levels(["unit", "trial"], axis=1)
-                fr = fr.sort_index(level=0, axis=1)
 
                 output[stream] = {
                     "fr": fr,
