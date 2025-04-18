@@ -515,7 +515,10 @@ def _curate_sorting(sorting, recording, output):
     # get unit ids
     curated_unit_ids = list(good_qms.index)
     # select curated
+    curated_sorting = sa.sorting.select_units(curated_unit_ids)
     curated_sa = sa.select_units(curated_unit_ids)
+    # reattach curated sorting to curated_sa to keep sorting properties
+    curated_sa.sorting = curated_sorting
 
     return sa, curated_sa
 
