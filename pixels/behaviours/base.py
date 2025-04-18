@@ -3134,6 +3134,10 @@ class Behaviour(ABC):
 
             # get stream spiked
             stream_spiked = spiked[stream]["spiked"]
+            if stream_spiked.size == 0:
+                print(f"\n> No units found in {units}, continue.")
+                return None
+
             # get stream positions
             positions = spiked[stream]["positions"]
             # get stream firing rates
