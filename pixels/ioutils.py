@@ -149,6 +149,11 @@ def get_data_files(data_dir, session_name):
             f"{session_name}_{stream_id[:-3]}_fr_shuffled.h5"
         )
 
+        # noise in curated units
+        pixels[stream_id]["noisy_units"] = base_name.with_name(
+                f"{session_name}_{stream_id[:-3]}_noisy_units.yaml"
+        )
+
         # old catgt data
         pixels[stream_id]["CatGT_ap_data"].append(
             str(base_name).replace("t0", "tcat")
