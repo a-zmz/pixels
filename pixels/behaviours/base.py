@@ -983,7 +983,6 @@ class Behaviour(ABC):
                 ks_image_path=ks_image_path,
                 ks4_params=ks4_params,
             )
-            assert 0
 
         return None
 
@@ -1590,7 +1589,7 @@ class Behaviour(ABC):
         return self._get_processed_data("_lfp_data", "lfp_processed")
 
 
-    def _get_si_spike_times(self):
+    def _get_si_spike_times(self, units):
         """
         get spike times in second with spikeinterface
         """
@@ -1600,7 +1599,11 @@ class Behaviour(ABC):
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             sa_dir = self.find_file(stream_files["sorting_analyser"])
             # load sorting analyser
-            sa = si.load_sorting_analyzer(sa_dir)
+            temp_sa = si.load_sorting_analyzer(sa_dir)
+            # select units
+            sorting = temp_sa.sorting.select_units(units)
+            sa = temp_sa.select_units(units)
+            sa.sorting = sorting
 
             times = {}
             # get spike train
@@ -1623,7 +1626,7 @@ class Behaviour(ABC):
 
         return spike_times[0] # NOTE: only deal with one stream for now
 
-    def get_spike_times(self, remapped=False, use_si=False):
+    def get_spike_times(self, units, remapped=False, use_si=False):
         """
         Returns the sorted spike times.
 
@@ -1636,7 +1639,7 @@ class Behaviour(ABC):
 
         for stream_num, stream in enumerate(range(len(spike_times))):
             if use_si:
-                spike_times[stream_num] = self._get_si_spike_times()
+                spike_times[stream_num] = self._get_si_spike_times(units)
             else:
                 if remapped and stream_num > 0:
                     times = self.ks_outputs[stream_num] / f'spike_times_remapped.npy'
@@ -1804,7 +1807,7 @@ class Behaviour(ABC):
 
         #TODO: with multiple streams, spike times will be a list with multiple dfs,
         #make sure old code does not break!
-        spikes = self.get_spike_times(use_si=True)[units]
+        spikes = self.get_spike_times(units, use_si=True)
         # drop rows if all nans
         spikes = spikes.dropna(how="all")
 
