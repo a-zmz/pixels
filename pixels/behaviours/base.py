@@ -2083,7 +2083,15 @@ class Behaviour(ABC):
             stream_files = self.files["pixels"]["imec0.ap"]
             sa_dir = self.find_file(stream_files["sorting_analyser"])
             # load sorting analyser
-            sa = si.load_sorting_analyzer(sa_dir)
+            temp_sa = si.load_sorting_analyzer(sa_dir)
+            # remove noisy units
+            noisy_units = load_yaml(
+                path=self.find_file(stream_files["noisy_units"]),
+            )
+            # remove units from sorting and reattach to sa to keep properties
+            sorting = temp_sa.sorting.remove_units(remove_unit_ids=noisy_units)
+            sa = temp_sa.remove_units(remove_unit_ids=noisy_units)
+            sa.sorting = sorting
 
             # get units
             unit_ids = sa.unit_ids
