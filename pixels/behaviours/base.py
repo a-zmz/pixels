@@ -1836,7 +1836,7 @@ class Behaviour(ABC):
             print(f"> No trials found with label {label} and event {event}, "
                   "output will be empty.")
             for key in streams.keys():
-                output[keys[:-3]] = {}
+                output[key[:-3]] = {}
             return output
 
         # use original trial id as trial index
