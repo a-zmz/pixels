@@ -1956,16 +1956,6 @@ class Behaviour(ABC):
             #if not rec_trials_fr[stream]:
             #    return None
 
-            # TODO feb 28 2025:
-            # in this func, scanning period is longer than actual trials to avoid
-            # edging effect, so spiked is the whole scanning period then convolved
-            # into spike rate. if however, we get the spike_bool here, it does not
-            # have the scanning period buffer, the fr might have edging effect. but
-            # if we take the scanning period, the number of spikes will be
-            # different from the real data...
-            # SOLUTION: concat as below, shuffle per column, then convolve per
-            # column
-
             # concat trial positions
             positions = ioutils.reindex_by_longest(
                 dfs=trial_positions,
