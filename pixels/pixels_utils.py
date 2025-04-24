@@ -276,7 +276,7 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
     band = spre.bandpass_filter(
         rec,
         freq_min=freq_min,
-        freq_max=freq_min,
+        freq_max=freq_max,
         ftype=ftype,
     )
 
