@@ -162,6 +162,12 @@ def get_data_files(data_dir, session_name):
             str(base_name).replace("t0", "tcat")
         )
 
+        # histology
+        mouse_id = session_name.split("_")[-1]
+        pixels[stream_id]["depth_info"] = base_name.with_name(
+            f"{mouse_id}_depth_info.yaml"
+        )
+
         #pixels[stream_id]["spike_rate_processed"] = base_name.with_name(
         #    f"spike_rate_{stream_id}.h5"
         #)
