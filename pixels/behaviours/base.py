@@ -221,6 +221,12 @@ class Behaviour(ABC):
         else:
             self.processed =  Path(processed_dir).expanduser() / self.name
 
+        if hist_dir is None:
+            self.histology = self.data_dir / 'histology'\
+                    / processed / self.mouse_id
+        else:
+            self.histology =  Path(hist_dir).expanduser() / self.mouse_id
+
         self.files = ioutils.get_data_files(self.raw, name)
 
         self.CatGT_dir = sorted(glob.glob(
