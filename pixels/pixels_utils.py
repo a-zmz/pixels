@@ -700,9 +700,8 @@ def save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
     return None
 
 
-def _save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
-                       fr_df_path, sigma, sample_rate, repeats, spiked,
-                       spiked_shape, concat_spiked_path):
+def _save_spike_chance(spiked_memmap_path, fr_memmap_path, sigma, sample_rate,
+                       repeats, spiked, spiked_shape, concat_spiked_path):
     """
     Implementation of saving chance level spike data.
     """
