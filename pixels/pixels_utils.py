@@ -568,22 +568,19 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
         output_folder=output/"curated_report",
     )
 
-    # export to phy for additional manual curation if needed
-    sexp.export_to_phy(
-        sorting_analyzer=curated_sa,
-        output_folder=output/"phy",
-        copy_binary=False,
-    )
-
     # save sa to disk
     curated_sa.save_as(
         format="zarr",
         folder=curated_sa_dir,
     )
 
-    # TODO apr 11 2025:
-    # after we curated units with quality metrics, there are still some noise in
-    # units, how do we use si to remove those ones identified qualitatively?
+    # export to phy for additional manual curation if needed
+    sexp.export_to_phy(
+        sorting_analyzer=curated_sa,
+        output_folder=output/"curated_report/phy",
+        compute_pc_features=False,
+        copy_binary=False,
+    )
 
     return None
 
