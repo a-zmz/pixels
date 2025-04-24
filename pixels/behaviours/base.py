@@ -203,8 +203,9 @@ class Behaviour(ABC):
     SAMPLE_RATE = 2000#1000
 
     def __init__(self, name, data_dir, metadata=None, processed_dir=None,
-                 interim_dir=None):
+                 interim_dir=None, hist_dir=None):
         self.name = name
+        self.mouse_id = name.split("_")[-1]
         self.data_dir = data_dir
         self.metadata = metadata
 
