@@ -832,6 +832,9 @@ class Behaviour(ABC):
             ioutils.write_hdf5(output, data)
             """
 
+        return None
+
+
     def run_catgt(self, CatGT_app=None, args=None) -> None:
         """
         This func performs CatGT on copied AP data in the interim.
