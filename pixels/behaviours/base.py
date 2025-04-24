@@ -717,9 +717,10 @@ class Behaviour(ABC):
             )
 
             # load brain surface depths
-            surface_depths = load_yaml(
-                path=self.find_file(stream_files["surface_depth"]),
+            depth_info = load_yaml(
+                path=self.histology / stream_files["depth_info"],
             )
+            surface_depths = depth_info["raw_signal_depths"][stream_id]
 
             # preprocess
             stream_files["preprocessed"] = xut.preprocess_raw(
