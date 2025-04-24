@@ -186,6 +186,8 @@ def detect_n_localise_peaks(rec, loc_method="monopolar_triangulation"):
         https://spikeinterface.readthedocs.io/en/stable/modules/motion_correction.html
     """
     shank_groups = rec.get_channel_groups()
+    level_names = ["shank", "spike_properties"]
+
     if not np.all(shank_groups == shank_groups[0]):
         # split by groups
         groups = rec.split_by("group")
@@ -198,10 +200,16 @@ def detect_n_localise_peaks(rec, loc_method="monopolar_triangulation"):
             dfs,
             axis=1,
             keys=groups.keys(),
-            names=["shank", "spike_properties"]
+            names=level_names,
         )
     else:
-        df = self._detect_n_localise_peaks(rec, loc_method)
+        df = _detect_n_localise_peaks(rec, loc_method)
+        # add shank level on top
+        shank_id = shank_groups[0]
+        df.columns = pd.MultiIndex.from_tuples(
+            [(shank_id, col) for col in df.columns],
+            names=level_names,
+        )
 
     return df
 
