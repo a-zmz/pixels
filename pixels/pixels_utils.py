@@ -1,3 +1,6 @@
+"""
+This module provides utilities for pixels data.
+"""
 import multiprocessing as mp
 import json
 
