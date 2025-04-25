@@ -57,12 +57,18 @@ def load_raw(paths, stream_id):
 
 
 def preprocess_raw(rec, surface_depths):
-    shank_groups = rec.get_channel_groups()
-    if not np.all(shank_groups == shank_groups[0]):
+    if np.unique(rec.get_channel_groups()).size < 4:
+        # correct group id if not all shanks used
+        group_ids = correct_group_id(rec)
+        # change the group id
+        rec.set_channel_groups(group_ids)
+
+    if not np.all(group_ids == group_ids[0]):
+        # if more than one shank used
         preprocessed = []
         # split by groups
         groups = rec.split_by("group")
-        for g, group in enumerate(groups.values()):
+        for g, group in groups.items():
             print(f"> Preprocessing shank {g}")
             # get brain surface depth of shank
             surface_depth = surface_depths[g]
