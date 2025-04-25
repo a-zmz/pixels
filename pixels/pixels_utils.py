@@ -198,7 +198,7 @@ def detect_n_localise_peaks(rec, loc_method="monopolar_triangulation"):
         # split by groups
         groups = rec.split_by("group")
         dfs = []
-        for g, group in enumerate(groups.values()):
+        for g, group in groups.items():
             print(f"\n> Estimate drift of shank {g}")
             dfs.append(_detect_n_localise_peaks(group, loc_method))
         # concat shanks
