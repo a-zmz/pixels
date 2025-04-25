@@ -1046,7 +1046,7 @@ def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
 
     return bin_data
 
-def get_shank_id_for_single_shank(rec):
+def correct_group_id(rec):
     # check probe type
     '''
     npx 1.0: 0
@@ -1054,27 +1054,30 @@ def get_shank_id_for_single_shank(rec):
     npx 2.0 commercial: 2013
     '''
     probe_type = int(rec.get_annotation("probes_info")[0]["probe_type"])
+    # double check it is multishank probe
+    assert probe_type > 0
 
     # get channel x locations
-    '''
-    shank 0: 0, 32
-    shank 1: 250, 282
-    shank 2: 500, 582
-    shank 3: 750, 782
-    '''
-    if probe_type > 0:
-        x_locs = np.unique(rec.get_channel_locations()[:, 0])
-        if np.all(x_locs < 200):
-            shank_id = 0
-        elif np.all(x_locs > 200) and np.all(x_locs < 500):
-            shank_id = 1
-        elif np.all(x_locs > 500) and np.all(x_locs < 700):
-            shank_id = 2
-        elif np.all(x_locs > 700):
-            shank_id = 3
+    shank_x_locs = {
+        0: [0, 32],
+        1: [250, 282],
+        2: [500, 582],
+        3: [750, 782],
+    }
 
-        # get number of channels and set their group to shank id
-        ids = np.zeros(rec.channel_ids.shape).astype(int)
-        ids[:] = shank_id
+    # get group ids
+    group_ids = rec.get_channel_groups()
 
-    return ids
+    x_locs = rec.get_channel_locations()[:, 0]
+    for shank_id, shank_x in shank_x_locs.items():
+        # map bool channel x locations
+        shank_bool = np.isin(x_locs, shank_x)
+        if np.any(shank_bool) == False:
+            print(f"\n> Recording does not have shank {shank_id}, continue.")
+            continue
+        group_ids[shank_bool] = shank_id
+
+    print("\n> Not all shanks used in multishank probe, change group ids into "
+          f"{np.unique(group_ids)}.")
+
+    return group_ids
