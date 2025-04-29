@@ -100,7 +100,7 @@ def _cacheable(method):
             # load cache
             try:
                 df = ioutils.read_hdf5(output)
-                print(f"> Cache loaded from {output}.")
+                logging.info(f"> Cache loaded from {output}.")
             except HDF5ExtError:
                 df = None
             except (KeyError, ValueError):
@@ -130,7 +130,7 @@ def _cacheable(method):
                             if stream not in df:
                                 df[stream] = {}
                             df[stream][name] = store[key]
-                print(f"> Cache loaded from {output}.")
+                logging.info(f"> Cache loaded from {output}.")
         else:
             df = method(*args, **kwargs)
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -200,7 +200,7 @@ class Behaviour(ABC):
 
     """
 
-    SAMPLE_RATE = 2000#1000
+    SAMPLE_RATE = SAMPLE_RATE
 
     def __init__(self, name, data_dir, metadata=None, processed_dir=None,
                  interim_dir=None, hist_dir=None):
@@ -361,7 +361,7 @@ class Behaviour(ABC):
         raw = self.raw / name
         if raw.exists():
             if copy:
-                print(f"    {self.name}: Copying {name} to interim")
+                logging.info(f"    {self.name}: Copying {name} to interim")
                 copyfile(raw, interim)
                 return interim
             return raw
@@ -369,11 +369,11 @@ class Behaviour(ABC):
         tar = raw.with_name(raw.name + '.tar.gz')
         if tar.exists():
             if copy:
-                print(f"    {self.name}: Extracting {tar.name} to interim")
+                logging.info(f"    {self.name}: Extracting {tar.name} to interim")
                 with tarfile.open(tar) as open_tar:
                     open_tar.extractall(path=self.interim)
                 return interim
-            print(f"    {self.name}: Extracting {tar.name}")
+            logging.info(f"    {self.name}: Extracting {tar.name}")
             with tarfile.open(tar) as open_tar:
                 open_tar.extractall(path=self.raw)
             return raw
@@ -404,11 +404,11 @@ class Behaviour(ABC):
         # TODO jan 14 2025:
         # this func is not used in vr behaviour, since they are synched
         # in vd.session
-        print("    Finding lag between sync channels")
+        logging.info("    Finding lag between sync channels")
         recording = self.files[rec_num]
 
         if behavioural_data is None:
-            print("    Loading behavioural data")
+            logging.info("    Loading behavioural data")
             data_file = self.find_file(recording['behaviour'])
             behavioural_data = ioutils.read_tdms(data_file, groups=["NpxlSync_Signal"])
             behavioural_data = signal.resample(
@@ -416,7 +416,7 @@ class Behaviour(ABC):
             )
 
         if sync_channel is None:
-            print("    Loading neuropixels sync channel")
+            logging.info("    Loading neuropixels sync channel")
             data_file = self.find_file(recording['lfp_data'])
             num_chans = self.lfp_meta[rec_num]['nSavedChans']
             sync_channel = ioutils.read_bin(data_file, num_chans, channel=384)
@@ -427,7 +427,7 @@ class Behaviour(ABC):
         behavioural_data = signal.binarise(behavioural_data)
         sync_channel = signal.binarise(sync_channel)
 
-        print("    Finding lag")
+        logging.info("    Finding lag")
         plot = self.processed / f'sync_{rec_num}.png'
         lag_start, match = signal.find_sync_lag(
             behavioural_data, sync_channel, plot=plot,
@@ -437,8 +437,9 @@ class Behaviour(ABC):
         self._lag[rec_num] = (lag_start, lag_end)
 
         if match < 95:
-            print("    The sync channels did not match very well. Check the plot.")
-        print(f"    Calculated lag: {(lag_start, lag_end)}")
+            logging.warning("    The sync channels did not match very well. "
+                            "Check the plot.")
+        logging.info(f"    Calculated lag: {(lag_start, lag_end)}")
 
         lag_json = []
         for lag in self._lag:
@@ -479,8 +480,8 @@ class Behaviour(ABC):
 
         # do not redo the remapping if not necessary
         if output.exists():
-            print(f'\n> Spike times from {self.ks_outputs[remap_stream_idx]}\
-            already remapped, next session.')
+            logging.info("\n> Spike times from "
+            f"{self.ks_outputs[remap_stream_idx]} already remapped, next session.")
             cluster_times = self.get_spike_times()[remap_stream_idx]
             remapped_cluster_times = self.get_spike_times(
                 remapped=True)[remap_stream_idx]
@@ -544,7 +545,7 @@ class Behaviour(ABC):
         times_ms = times * self.SAMPLE_RATE / orig_rate
 
         lag = [None, 'later', 'earlier']
-        print(f"""\n> {stream_ids[0]} started\r
+        logging.info(f"""\n> {stream_ids[0]} started\r
         {abs(initial_dt[0]*1000):.2f}ms {lag[int(np.sign(initial_dt[0]))]}\r
         and finished\r
         {abs(initial_dt[-1]*1000):.2f}ms {lag[-int(np.sign(initial_dt[0]))]}\r
@@ -565,7 +566,7 @@ class Behaviour(ABC):
             remapped_times_ms[t] = ((time - edges[remap_stream_idx][bin_idx]) *
             scales[bin_idx]) + edges[0][bin_idx]
 
-        print(f"""\n> Remap stats {stream_ids[remap_stream_idx]} spike times:\r
+        logging.info(f"""\n> Remap stats {stream_ids[remap_stream_idx]} spike times:\r
         median shift {np.median(remapped_times_ms-times_ms):.2f}ms,\r
         min shift {np.min(remapped_times_ms-times_ms):.2f}ms,\r
         max shift {np.max(remapped_times_ms-times_ms):.2f}ms.""")
@@ -573,7 +574,7 @@ class Behaviour(ABC):
         # convert remappmed times back to its original sample index
         remapped_times = np.uint64(remapped_times_ms * orig_rate / self.SAMPLE_RATE)
         np.save(output, remapped_times)
-        print(f'\n> Spike times remapping output saved to\n {output}.')
+        logging.info(f'\n> Spike times remapping output saved to\n {output}.')
 
         # load remapped spike times of each cluster
         cluster_times = self.get_spike_times()[remap_stream_idx]
@@ -595,11 +596,11 @@ class Behaviour(ABC):
         # NOTE jan 14 2025:
         # this func is not used by vr behaviour
         for rec_num, recording in enumerate(self.files):
-            print(
+            logging.info(
                 f">>>>> Processing behaviour for recording {rec_num + 1} of {len(self.files)}"
             )
 
-            print(f"> Loading behavioural data")
+            logging.info(f"> Loading behavioural data")
             behavioural_data = ioutils.read_tdms(self.find_file(recording['behaviour']))
 
             # ignore any columns that have Nans; these just contain settings
@@ -607,12 +608,12 @@ class Behaviour(ABC):
                 if behavioural_data[col].isnull().values.any():
                     behavioural_data.drop(col, axis=1, inplace=True)
 
-            print(f"> Downsampling to {self.SAMPLE_RATE} Hz")
+            logging.info(f"> Downsampling to {self.SAMPLE_RATE} Hz")
             behav_array = signal.resample(behavioural_data.values, 25000, self.SAMPLE_RATE)
             behavioural_data.iloc[:len(behav_array), :] = behav_array
             behavioural_data = behavioural_data[:len(behav_array)]
 
-            print(f"> Syncing to Neuropixels data")
+            logging.info(f"> Syncing to Neuropixels data")
             if self._lag[rec_num] is None:
                 self.sync_data(
                     rec_num,
@@ -622,20 +623,20 @@ class Behaviour(ABC):
             behavioural_data = behavioural_data[max(lag_start, 0):-1-max(lag_end, 0)]
             behavioural_data.index = range(len(behavioural_data))
 
-            print(f"> Extracting action labels")
+            logging.info(f"> Extracting action labels")
             self._action_labels[rec_num] = self._extract_action_labels(rec_num, behavioural_data)
             output = self.processed / recording['action_labels']
             np.save(output, self._action_labels[rec_num])
-            print(f">   Saved to: {output}")
+            logging.info(f">   Saved to: {output}")
 
             output = self.processed / recording['behaviour_processed']
-            print(f"> Saving downsampled behavioural data to:")
-            print(f"    {output}")
+            logging.info(f"> Saving downsampled behavioural data to:")
+            logging.info(f"    {output}")
             behavioural_data.drop("/'NpxlSync_Signal'/'0'", axis=1, inplace=True)
             ioutils.write_hdf5(output, behavioural_data)
             self._behavioural_data[rec_num] = behavioural_data
 
-        print("> Done!")
+        logging.info("> Done!")
 
     def correct_motion(self, mc_method="dredge"):
         """
@@ -653,7 +654,7 @@ class Behaviour(ABC):
         None
         """
         if mc_method == "ks":
-            print(f"> Correct motion later with {mc_method}.")
+            logging.info(f"> Correct motion later with {mc_method}.")
             return None
 
         # get pixels streams
@@ -662,7 +663,7 @@ class Behaviour(ABC):
         for stream_id, stream_files in streams.items():
             output = self.interim / stream_files["motion_corrected"]
             if output.exists():
-                print(f"> Motion corrected {stream_id} loaded.")
+                logging.info(f"> Motion corrected {stream_id} loaded.")
                 continue
 
             # preprocess raw recording
@@ -671,7 +672,7 @@ class Behaviour(ABC):
             # load preprocessed rec
             rec = stream_files["preprocessed"]
 
-            print(
+            logging.info(
                 f"\n>>>>> Correcting motion for recording from {stream_id} "
                 f"in total of {self.stream_count} stream(s) with {mc_method}"
             )
@@ -711,7 +712,7 @@ class Behaviour(ABC):
         for stream_id, stream_files in streams.items():
             # load raw si rec
             rec = stream_files["si_rec"]
-            print(
+            logging.info(
                 f"\n>>>>> Preprocessing data for recording from {stream_id} "
                 f"in total of {self.stream_count} stream(s)"
             )
@@ -757,7 +758,7 @@ class Behaviour(ABC):
         for stream_id, stream_files in streams.items():
             output = self.processed / stream_files["detected_peaks"]
             if output.exists():
-                print(f"> Peaks from {stream_id} already detected.")
+                logging.info(f"> Peaks from {stream_id} already detected.")
                 continue
 
             # get ap band
@@ -790,13 +791,13 @@ class Behaviour(ABC):
             for name, freqs in bands.items():
                 output = self.processed / stream_files[f"{name}_extracted"]
                 if output.exists():
-                    print(f"> {name} bands from {stream_id} loaded.")
+                    logging.info(f"> {name} bands from {stream_id} loaded.")
                     continue
                 
                 # preprocess raw data
                 self.preprocess_raw()
 
-                print(
+                logging.info(
                     f">>>>> Extracting {name} bands from {self.name} "
                     f"{stream_id} in total of {self.stream_count} stream(s)"
                 )
@@ -823,7 +824,7 @@ class Behaviour(ABC):
                 self.sync_data(rec_num, sync_channel=data[:, -1])
             lag_start, lag_end = self._lag[rec_num]
 
-            print(f"> Saving data to {output}")
+            logging.info(f"> Saving data to {output}")
             if lag_end < 0:
                 data = data[:lag_end]
             if lag_start < 0:
@@ -866,11 +867,12 @@ class Behaviour(ABC):
         if (isinstance(self.CatGT_dir, list) and
              len(self.CatGT_dir) != 0 and
              len(os.listdir(self.CatGT_dir[0])) != 0):
-            print(f"\nCatGT already performed on ap data of {self.name}. Next session.\n")
+            logging.info(f"\nCatGT already performed on ap data of {self.name}."
+                         " Next session.\n")
             return
         else:
             #TODO: finish this here so that catgt can run together with sorting
-            print(f"\n> Running CatGT on ap data of {self.name}")
+            logging.info(f"\n> Running CatGT on ap data of {self.name}")
             #_dir = self.interim
 
         if args == None:
@@ -896,7 +898,7 @@ class Behaviour(ABC):
                 -xid=2,0,384,6,20,15"
 
         session_args = f"-dir={self.interim} -run={self.name} -dest={self.interim} " + args
-        print(f"\ncatgt args of {self.name}: \n{session_args}")
+        logging.info(f"\ncatgt args of {self.name}: \n{session_args}")
 
         subprocess.run( ['./run_catgt.sh', session_args])
 
@@ -960,9 +962,9 @@ class Behaviour(ABC):
             # check if already sorted and exported
             sa_dir = self.processed / stream_files["sorting_analyser"]
             if not sa_dir.exists():
-                print(f"> {self.name} {stream_id} not sorted/exported.\n")
+                logging.info(f"> {self.name} {stream_id} not sorted/exported.\n")
             else:
-                print("> Already sorted and exported, next session.\n")
+                logging.info("> Already sorted and exported, next session.\n")
                 continue
 
             # get catgt directory
@@ -1038,7 +1040,7 @@ class Behaviour(ABC):
                     videos.append(self.interim / video.with_suffix('.avi'))
 
         if not videos:
-            print(self.name, ": No matching videos for project:", project)
+            logging.info(self.name, ": No matching videos for project:", project)
             return
 
         if config:
@@ -1048,7 +1050,7 @@ class Behaviour(ABC):
                 copy_videos=False,
             )
         else:
-            print(f"Config not found.")
+            logging.warning(f"Config not found.")
             reply = input("Create new project? [Y/n]")
             if reply and reply[0].lower() == "n":
                 raise PixelsError("A DLC project is needed for motion tracking.")
@@ -1654,7 +1656,7 @@ class Behaviour(ABC):
             else:
                 if remapped and stream_num > 0:
                     times = self.ks_outputs[stream_num] / f'spike_times_remapped.npy'
-                    print(f"""\n> Found remapped spike times from\r
+                    logging.info(f"""\n> Found remapped spike times from\r
                     {self.ks_outputs[stream_num]}, try to load this.""")
                 else:
                     times = self.ks_outputs[stream_num] / f'spike_times.npy'
@@ -1680,7 +1682,8 @@ class Behaviour(ABC):
                     )
                     repeats = c_times[np.where(counts>1)]
                     if len(repeats>1):
-                        print(f"> removed {len(repeats)} double-counted spikes from cluster {c}.")
+                        logging.info(f"> removed {len(repeats)} double-counted "
+                                        "spikes from cluster {c}.")
 
                     by_clust[c] = pd.Series(uniques)
                 spike_times[stream_num]  = pd.concat(by_clust, axis=1, names=['unit'])
@@ -1745,7 +1748,8 @@ class Behaviour(ABC):
                 if len(centre) == 0:
                     # See comment in align_trials as to why we just continue instead of
                     # erroring like we used to here.
-                    print("No event found for an action. If this is OK, ignore this.")
+                    logging.info("No event found for an action. If this is OK, "
+                                    "ignore this.")
                     continue
                 centre = start + centre[0]
 
@@ -1844,9 +1848,10 @@ class Behaviour(ABC):
         selected_ends = trials[np.where(np.isin(trials, ends))[0]]
         end_t = timestamps[selected_ends]
         if selected_starts.size == 0:
-            print(f"> No trials found with label {label} and event {event}, "
+            logging.info(f"> No trials found with label {label} and event {event}, "
                   "output will be empty.")
             for key in streams.keys():
+                assert 0
                 output[key[:-3]] = {}
             return output
 
@@ -2297,7 +2302,7 @@ class Behaviour(ABC):
             raise PixelsError(f"align_trials: 'data' should be one of: {data_options}")
 
         if data in ("spike_times", "spike_rate"):
-            print(f"Aligning {data} to trials.")
+            logging.info(f"Aligning {data} to trials.")
             # we let a dedicated function handle aligning spike times
             return self._get_aligned_spike_times(
                 label, event, duration, rate=data == "spike_rate", sigma=sigma,
@@ -2305,7 +2310,7 @@ class Behaviour(ABC):
             )
 
         if "trial" in data:
-            print(f"Aligning {data} of {units} units to trials.")
+            logging.info(f"Aligning {data} of {units} units to trials.")
             return self._get_aligned_trials(
                 label, event, data=data, units=units, sigma=sigma,
                 end_event=end_event,
@@ -2317,14 +2322,14 @@ class Behaviour(ABC):
         action_labels = self.get_action_labels()
 
         if raw:
-            print(f"Aligning raw {data} data to trials.")
+            logging.info(f"Aligning raw {data} data to trials.")
             getter = getattr(self, f"get_{data}_data_raw", None)
             if not getter:
                 raise PixelsError(f"align_trials: {data} doesn't have a 'raw' option.")
             values, SAMPLE_RATE = getter()
 
         else:
-            print(f"Aligning {data} data to trials.")
+            logging.info(f"Aligning {data} data to trials.")
             if dlc_project:
                 values = self.get_motion_tracking_data(dlc_project)
             elif data == "motion_index":
@@ -2370,7 +2375,7 @@ class Behaviour(ABC):
                     # here to warn the user in case it is an error, while otherwise
                     # continuing.
                     #raise PixelsError('Action labels probably miscalculated')
-                    print("No event found for an action. If this is OK, ignore this.")
+                    logging.info("No event found for an action. If this is OK, ignore this.")
                     continue
                 centre = start + centre[0]
                 centre = int(centre * SAMPLE_RATE / self.SAMPLE_RATE)
@@ -2465,7 +2470,7 @@ class Behaviour(ABC):
             for start in trial_starts:
                 centre = np.where(np.bitwise_and(events[start:start + scan_duration], event))[0]
                 if len(centre) == 0:
-                    print("No event found for an action. If this is OK, ignore this.")
+                    logging.info("No event found for an action. If this is OK, ignore this.")
                     continue
                 centre = start + centre[0]
                 frames = timings.loc[
@@ -2509,7 +2514,7 @@ class Behaviour(ABC):
         if self._good_unit_info is None:
             #az: good_units_info.tsv saved while running depth_profile.py
             info_file = self.interim / 'good_units_info.tsv'
-            #print(f"> got good unit info at {info_file}\n")
+            #logging.info(f"> got good unit info at {info_file}\n")
 
             try:
                 info = pd.read_csv(info_file, sep='\t')
@@ -2527,7 +2532,7 @@ class Behaviour(ABC):
             all_widths = self.get_spike_widths()
             return all_widths.loc[all_widths.unit.isin(units)]
 
-        print("Calculating spike widths")
+        logging.info("Calculating spike widths")
         waveforms = self.get_spike_waveforms()
         widths = []
 
@@ -2580,7 +2585,7 @@ class Behaviour(ABC):
             rec_forms = {}
 
             for u, unit in enumerate(units):
-                print(f"{round(100 * u / len(units), 2)}% complete")
+                logging.info(f"{round(100 * u / len(units), 2)}% complete")
                 # get the waveforms from only the best channel
                 spike_ids = model.get_cluster_spikes(unit)
                 best_chan = model.get_cluster_channels(unit)[0]
@@ -2628,13 +2633,13 @@ class Behaviour(ABC):
                 ks_mod_time = os.path.getmtime(self.ks_outputs / 'cluster_info.tsv')
                 assert template_cache_mod_time < ks_mod_time
                 check = True # re-extract waveforms
-                print("> Re-extracting waveforms since kilosort output is newer.") 
+                logging.info("> Re-extracting waveforms since kilosort output is newer.") 
             except:
                 if 'template_cache_mod_time' in locals():
-                    print("> Loading existing waveforms.") 
+                    logging.info("> Loading existing waveforms.") 
                     check = False # load existing waveforms
                 else:
-                    print("> Extracting waveforms since they are not extracted.") 
+                    logging.info("> Extracting waveforms since they are not extracted.") 
                     check = True # re-extract waveforms
 
             """
@@ -2647,7 +2652,7 @@ class Behaviour(ABC):
             test.annotate(is_filtered=True)
             # check all annotations
             test.get_annotation('is_filtered')
-            print(test)
+            logging.info(test)
             """
 
             # extract waveforms
@@ -2697,7 +2702,7 @@ class Behaviour(ABC):
         # normalise these metrics before passing to k-means
         columns = ["unit", "duration", "trough_peak_ratio", "half_width",
                    "repolarisation_slope", "recovery_slope"]
-        print(f"> Calculating waveform metrics {columns[1:]}...\n")
+        logging.info(f"> Calculating waveform metrics {columns[1:]}...\n")
 
         waveforms = self.get_spike_waveforms()
         # remove nan values
@@ -2747,7 +2752,7 @@ class Behaviour(ABC):
             # repolarisation slope
             returns = np.where(mean_waveform.iloc[trough_idx:] >= 0) + trough_idx
             if len(returns[0]) == 0:
-                print(f"> The mean waveformrns never returned to baseline?\n")
+                logging.info(f"> The mean waveformrns never returned to baseline?\n")
                 return_idx = mean_waveform.shape[0] - 1
             else:
                 return_idx = returns[0][0]
@@ -2887,7 +2892,7 @@ class Behaviour(ABC):
             trial_responses = []
             for trial, t_start, t_end in zip(trials, start, end):
                 if not (t_start < t_end):
-                    print(
+                    logging.warning(
                         f"Warning: trial {trial} skipped in CI calculation due to bad timepoints"
                     )
                     continue
@@ -3130,13 +3135,12 @@ class Behaviour(ABC):
             if output_count_path.exists():
                 continue
 
-            key = f"{stream_id[:-3]}/"
-            print(f"\n> Binning trials from {stream_id}.")
+            logging.info(f"\n> Binning trials from {stream_id}.")
 
             # get stream spiked
             stream_spiked = spiked[stream]["spiked"]
             if stream_spiked.size == 0:
-                print(f"\n> No units found in {units}, continue.")
+                logging.info(f"\n> No units found in {units}, continue.")
                 return None
 
             # get stream positions
@@ -3188,14 +3192,14 @@ class Behaviour(ABC):
                 "pos": bin_fr_arr[:, -2:, :],
             }
             np.savez_compressed(output_fr_path, **fr_to_save)
-            print(f"> Output saved at {output_fr_path}.")
+            logging.info(f"> Output saved at {output_fr_path}.")
 
             count_to_save = {
                 "count": bin_count_arr[:, :-2, :],
                 "pos": bin_count_arr[:, -2:, :],
             }
             np.savez_compressed(output_count_path, **count_to_save)
-            print(f"> Output saved at {output_count_path}.")
+            logging.info(f"> Output saved at {output_count_path}.")
 
         return None
 
@@ -3219,11 +3223,11 @@ class Behaviour(ABC):
             # TODO apr 3 2025: how the fuck to get positions here????
             # TEMP: get it manually...
             # light
-            pos_path = self.interim /\
-                    "cache/align_trials_all_trial_times_725_1_100_512.h5"
-            # dark
             #pos_path = self.interim /\
-            #        "cache/align_trials_all_trial_times_1322_1_100_512.h5"
+            #        "cache/align_trials_all_trial_times_725_1_100_512.h5"
+            # dark
+            pos_path = self.interim /\
+                    "cache/align_trials_all_trial_times_1322_1_100_512.h5"
 
             with pd.HDFStore(pos_path, "r") as store:
                 # list all keys
