@@ -78,13 +78,8 @@ def preprocess_raw(rec, surface_depths):
         # aggregate groups together
         preprocessed = si.aggregate_channels(preprocessed)
     else:
-        # check which shank used
-        group_id = get_shank_id_for_single_shank(rec)
-        unique_id = np.unique(group_id)[0]
-        print("\n> Single shank used in multishank probe, change group id into "
-              f"{unique_id}.")
-        # change the group id
-        rec.set_channel_groups(group_id)
+        # if only one shank used, check which shank
+        unique_id = np.unique(group_ids)[0]
         # get brain surface depth of shank
         surface_depth = surface_depths[unique_id]
         # preprocess
