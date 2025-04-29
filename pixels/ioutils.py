@@ -194,7 +194,7 @@ def get_data_files(data_dir, session_name):
                 session_name + "_pupil_processed.h5"
             ))
             behaviour["motion_index"] = base_name.with_name(
-                session_name + "motion_index.npz"
+                session_name + "_motion_index.npz"
             )
             behaviour["motion_tracking"] = base_name.with_name(
                 session_name + "_motion_tracking.h5"
