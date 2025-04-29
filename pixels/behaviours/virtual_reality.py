@@ -21,6 +21,7 @@ from pixels import Experiment, PixelsError
 import pixels.signal_utils as signal
 from pixels import ioutils
 from pixels.behaviours import Behaviour
+from pixels.configs import *
 
 from common_utils import file_utils
 
@@ -144,7 +145,7 @@ class VR(Behaviour):
         trial_dark = (vr_data.trial_type == Conditions.DARK)
         # <<<< definitions <<<<
 
-        print(">> Mapping vr event times...")
+        logging.info(">> Mapping vr event times...")
 
         # >>>> gray >>>>
         # get timestamps of gray
@@ -262,7 +263,7 @@ class VR(Behaviour):
 
         # TODO jun 27 2024 positional events and valve events needs mapping
 
-        print(">> Mapping vr action times...")
+        logging.info(">> Mapping vr action times...")
 
         # >>>> map reward types >>>>
         # get non-zero reward types
@@ -298,8 +299,8 @@ class VR(Behaviour):
                 assert (trial == vr_data.trial_count.unique().max())
                 assert (vr_data[of_trial].position_in_tunnel.max()\
                         < vr.tunnel_reset)
-                print(f"> trial {trial} is unfinished when session ends, so "
-                      "there is no outcome.")
+                logging.info(f"> trial {trial} is unfinished when session ends, "
+                      "so there is no outcome.")
                 # <<<< unfinished trial <<<<
             else:
                 # >>>> non punished >>>>

@@ -19,6 +19,7 @@ import spikeinterface.qualitymetrics as sqm
 import pixels.signal_utils as signal
 from pixels.ioutils import write_hdf5, reindex_by_longest
 from pixels.error import PixelsError
+from pixels.configs import *
 
 from common_utils.math_utils import random_sampling
 from common_utils.file_utils import init_memmap, read_hdf5
