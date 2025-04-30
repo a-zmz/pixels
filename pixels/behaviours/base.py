@@ -1961,9 +1961,8 @@ class Behaviour(ABC):
             'motion_index', # Motion index per ROI from the video
             'motion_tracking', # Motion tracking coordinates from DLC
             'trial_rate',   # Taking spike times from the whole duration of each
-                            # trial, convolve into spike rate
-            'trial_times',   # Taking spike times from the whole duration of each
-                            # trial, get spike boolean
+                            # trial, convolve into spike rate, output also
+                            # contains times.
         ]
         if data not in data_options:
             raise PixelsError(f"align_trials: 'data' should be one of: {data_options}")
