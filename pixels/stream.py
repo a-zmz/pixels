@@ -313,7 +313,7 @@ class Stream:
             downsampled = signal.decimate(
                 array=syncs,
                 from_hz=spike_samp_rate,
-                to_hz=self.SAMPLE_RATE,
+                to_hz=self.BEHAVIOUR_SAMPLE_RATE,
             )
             # binarise to avoid non integers
             pixels_syncs = signal.binarise(downsampled)
@@ -340,20 +340,20 @@ class Stream:
             pixels_idx = np.arange(pixels_syncs.shape[0])
 
             synched_vr = vr.sync_streams(
-                self.SAMPLE_RATE,
+                self.BEHAVIOUR_SAMPLE_RATE,
                 pixels_vr_edges,
                 pixels_idx,
             )[vr_session.name]
 
         # save to pixels processed dir
         file_utils.write_hdf5(
-            self.session.processed /\
+            self.processed /\
                 self.behaviour_files['vr_synched'][self.stream_num],
             synched_vr,
         )
 
         # get action label dir
-        action_labels_path = self.session.processed /\
+        action_labels_path = self.processed /\
             self.behaviour_files["action_labels"][self.stream_num]
 
         # extract and save action labels
@@ -519,7 +519,7 @@ class Stream:
         xut.save_spike_chance(
             **paths,
             sigma=sigma,
-            sample_rate=self.SAMPLE_RATE,
+            sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
             spiked=spiked,
         )
 
