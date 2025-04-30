@@ -24,14 +24,6 @@ from pixels.configs import *
 from common_utils.math_utils import random_sampling
 from common_utils.file_utils import init_memmap, read_hdf5
 
-# set si job_kwargs
-job_kwargs = dict(
-    n_jobs=0.8, # 80% core
-    chunk_duration='1s',
-    progress_bar=True,
-)
-si.set_global_job_kwargs(**job_kwargs)
-
 def load_raw(paths, stream_id):
     """
     Load raw recording file from spikeglx.
