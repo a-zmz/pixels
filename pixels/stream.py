@@ -23,20 +23,263 @@ class Stream:
         self.stream_num = stream_num
         self.probe_id = stream_id[:-3]
         self.files = files
+
         self.session = session
         self.behaviour_files = session.files["behaviour"]
-        self.SAMPLE_RATE = session.SAMPLE_RATE
+        self.BEHAVIOUR_SAMPLE_RATE = session.SAMPLE_RATE
+        self.raw = session.raw
+        self.interim = session.interim
+        self.processed = session.processed
+        self.cache = self.interim / "cache/"
+
+        self._use_cache = True
 
     def __repr__(self):
         return f"<Stream id = {self.stream_id}>"
+
+    def load_raw_ap(self):
+        paths = [self.session.find_file(path) for path in self.files["ap_raw"]]
+        self.files["si_rec"] = xut.load_raw(paths, self.stream_id)
+
+        return self.files["si_rec"]
+
+
+    @cacheable
+    def align_trials(self, units, data, label, event, sigma, end_event):
+
+        if "trial" in data:
+            logging.info(
+                f"Aligning {data} of {units} units to <{label}> trials."
+            )
+            return self._get_aligned_trials(
+                label, event, data=data, units=units, sigma=sigma,
+                end_event=end_event,
+            )
+        else:
+            raise NotImplementedError(
+                "> Other types of alignment are not implemented."
+            )
+
+    def _get_aligned_trials(
+        self, label, event, data, units=None, sigma=None, end_event=None,
+    ):
+        # get synched pixels stream with vr and action labels
+        synched_vr, action_labels = self.get_synched_vr()
+
+        # get positions of all trials
+        all_pos = synched_vr.position_in_tunnel
+
+        # get spike times
+        spikes = self.get_spike_times(units)
+
+        # get action and event label file
+        actions = action_labels["outcome"]
+        events = action_labels["events"]
+        # get timestamps index of behaviour in self.BEHAVIOUR_SAMPLE_RATE hz, to convert
+        # it to ms, do timestamps*1000/self.BEHAVIOUR_SAMPLE_RATE
+        timestamps = action_labels["timestamps"]
+
+        # select frames of wanted trial type
+        trials = np.where(np.bitwise_and(actions, label))[0]
+        # map starts by event
+        starts = np.where(np.bitwise_and(events, event))[0]
+        # map starts by end event
+        ends = np.where(np.bitwise_and(events, end_event))[0]
+
+        # only take starts from selected trials
+        selected_starts = trials[np.where(np.isin(trials, starts))[0]]
+        start_t = timestamps[selected_starts]
+        # only take ends from selected trials
+        selected_ends = trials[np.where(np.isin(trials, ends))[0]]
+        end_t = timestamps[selected_ends]
+
+        if selected_starts.size == 0:
+            logging.info(f"> No trials found with label {label} and event "
+                         f"{event}, output will be empty.")
+            return None
+
+        # use original trial id as trial index
+        trial_ids = synched_vr.iloc[selected_starts].trial_count.unique()
+
+        # pad ends with 1 second extra to remove edge effects from
+        # convolution
+        scan_pad = self.BEHAVIOUR_SAMPLE_RATE
+        scan_starts = start_t - scan_pad
+        scan_ends = end_t + scan_pad
+        scan_durations = scan_ends - scan_starts
+
+        cursor = 0
+        raw_rec = self.load_raw_ap()
+        samples = raw_rec.get_total_samples()
+        # Account for multiple raw data files
+        in_SAMPLE_RATE_scale = (samples * self.BEHAVIOUR_SAMPLE_RATE)\
+                / raw_rec.sampling_frequency
+        cursor_duration = (cursor * self.BEHAVIOUR_SAMPLE_RATE)\
+                / raw_rec.sampling_frequency
+        rec_spikes = spikes[
+            (cursor_duration <= spikes)\
+            & (spikes < (cursor_duration + in_SAMPLE_RATE_scale))
+        ] - cursor_duration
+        cursor += samples
+
+        output = {}
+        trials_fr = {}
+        trials_spiked = {}
+        trials_positions = {}
+        for i, start in enumerate(selected_starts):
+            # select spike times of current trial
+            trial_bool = (rec_spikes >= scan_starts[i])\
+                    & (rec_spikes <= scan_ends[i])
+            trial = rec_spikes[trial_bool]
+            # get position bin ids for current trial
+            trial_pos_bool = (all_pos.index >= start_t[i])\
+                    & (all_pos.index < end_t[i])
+            trial_pos = all_pos[trial_pos_bool]
+
+            # initiate binary spike times array for current trial
+            # NOTE: dtype must be float otherwise would get all 0 when passing
+            # gaussian kernel
+            times = np.zeros((scan_durations[i], len(units))).astype(float)
+            # use pixels time as spike index
+            idx = np.arange(scan_starts[i], scan_ends[i])
+            # make it df, column name being unit id
+            spiked = pd.DataFrame(times, index=idx, columns=units)
+
+            # TODO mar 5 2025: how to separate aligned trial times and chance,
+            # so that i can use cacheable to get all conditions??????
+            for unit in trial:
+                # get spike time for unit
+                u_times = trial[unit].values
+                # drop nan
+                u_times = u_times[~np.isnan(u_times)]
+                # round spike times to use it as index
+                u_spike_idx = np.round(u_times).astype(int)
+                # make sure it does not exceed scan duration
+                if (u_spike_idx >= scan_ends[i]).any():
+                    beyonds = np.where(u_spike_idx >= scan_ends[i])[0]
+                    u_spike_idx[beyonds] = idx[-1]
+                    # make sure no double counted
+                    u_spike_idx = np.unique(u_spike_idx)
+
+                # set spiked to 1
+                spiked.loc[u_spike_idx, unit] = 1
+
+            # convolve spike trains into spike rates
+            rates = signal.convolve_spike_trains(
+                times=spiked,
+                sigma=sigma,
+                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+            )
+
+            # remove 1s padding from the start and end
+            rates = rates.iloc[scan_pad: -scan_pad]
+            spiked = spiked.iloc[scan_pad: -scan_pad]
+
+            # reset index to zero at the beginning of the trial
+            rates.reset_index(inplace=True, drop=True)
+            trials_fr[trial_ids[i]] = rates
+            spiked.reset_index(inplace=True, drop=True)
+            trials_spiked[trial_ids[i]] = spiked
+            trial_pos.reset_index(inplace=True, drop=True)
+            trials_positions[trial_ids[i]] = trial_pos
+
+        # concat trial positions
+        positions = ioutils.reindex_by_longest(
+            dfs=trials_positions,
+            idx_names=["trial", "time"],
+            level="trial",
+            return_format="dataframe",
+        )
+
+        # get trials vertically stacked spiked
+        stacked_spiked = pd.concat(
+            trials_spiked,
+            axis=0,
+        )
+        stacked_spiked.index.names = ["trial", "time"]
+        stacked_spiked.columns.names = ["unit"]
+
+        # TODO apr 21 2025:
+        # save spike chance only if all units are selected, else
+        # only index into the big chance array and save into zarr
+        #if units.name == "all" and (label == 725 or 1322):
+        #    self.save_spike_chance(
+        #        stream_files=stream_files,
+        #        spiked=stacked_spiked,
+        #        sigma=sigma,
+        #    )
+        #else:
+        #    # access chance data if we only need part of the units
+        #    self.get_spike_chance(
+        #        sample_rate=self.SAMPLE_RATE,
+        #        positions=all_pos,
+        #        sigma=sigma,
+        #    )
+        #    assert 0
+
+        # get trials horizontally stacked spiked
+        spiked = ioutils.reindex_by_longest(
+            dfs=stacked_spiked,
+            level="trial",
+            return_format="dataframe",
+        )
+        fr = ioutils.reindex_by_longest(
+            dfs=trials_fr,
+            level="trial",
+            idx_names=["trial", "time"],
+            col_names=["unit"],
+            return_format="dataframe",
+        )
+
+        output["spiked"] = spiked
+        output["fr"] = fr
+        output["positions"] = positions
+
+        return output
+
+
+    def get_spike_times(self, units):
+        # find sorting analyser path
+        sa_path = self.session.find_file(self.files["sorting_analyser"])
+        # load sorting analyser
+        temp_sa = si.load_sorting_analyzer(sa_path)
+        # select units
+        sorting = temp_sa.sorting.select_units(units)
+        sa = temp_sa.select_units(units)
+        sa.sorting = sorting
+
+        times = {}
+        # get spike train
+        for i, unit_id in enumerate(sa.unit_ids):
+            unit_times = sa.sorting.get_unit_spike_train(
+                unit_id=unit_id,
+                return_times=False,
+            )
+            times[unit_id] = pd.Series(unit_times)
+
+        # concatenate units
+        spike_times = pd.concat(
+            objs=times,
+            axis=1,
+            names="unit",
+        )
+        # get sampling frequency
+        fs = int(sa.sampling_frequency)
+        # Convert to time into sample rate index
+        spike_times /= fs / self.BEHAVIOUR_SAMPLE_RATE
+
+        return spike_times
 
 
     def sync_vr(self, vr):
         # get action labels
         action_labels = self.session.get_action_labels()[self.stream_num]
-        if action_labels:
+        synched_vr_path = self.session.find_file(
+            self.behaviour_files['vr_synched'][self.stream_num],
+        )
+        if action_labels and synched_vr_path:
             logging.info(f"\n> {self.stream_id} from {self.session.name} is "
-                         "already synched with vr, continue.")
+                         "already synched with vr, now loaded.")
         else:
             _sync_vr(self, vr)
 
@@ -127,6 +370,128 @@ class Stream:
         logging.info(f"> Action labels saved to: {action_labels_path}.")
 
         return None
+
+
+    def get_synched_vr(self):
+        """
+        Get synchronised vr data and action labels.
+        """
+        action_labels = self.session.get_action_labels()[self.stream_num]
+
+        synched_vr_path = self.session.find_file(
+            self.behaviour_files["vr_synched"][self.stream_num],
+        )
+        synched_vr = file_utils.read_hdf5(synched_vr_path)
+
+        return synched_vr, action_labels
+
+    
+    def get_binned_trials(
+        self, label, event, units=None, sigma=None, end_event=None,
+        time_bin=None, pos_bin=None
+    ):
+        # define output path for binned spike rate
+        output_path = self.cache/ f"{self.session.name}_{label}_{units}_"\
+                                f"{time_bin}_{pos_bin}cm_{self.stream_id}.npz"
+
+        if output_path.exists():
+            binned = np.load(output_path)
+            logging.info(
+                f"\n> <{label}> trials from {self.stream_id} in {units} "
+                "already binned, now loaded."
+            )
+        else:
+            binned = self._bin_aligned_trials(
+                label=label,
+                event=event,
+                units=units,
+                sigma=sigma,
+                end_event=end_event,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+                output_path=output_path,
+            )
+
+        return binned
+
+
+    def _bin_aligned_trials(
+        self, label, event, units, sigma, end_event, time_bin, pos_bin,
+        output_path,
+    ):
+        # get aligned trials
+        trials = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            data="trial_rate", # NOTE: ALWAYS the second arg
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event,
+        )
+
+        logging.info(
+            f"\n> Binning label <{label}> trials from {self.stream_id} "
+            f"in {units}."
+        )
+
+        # get fr, spiked, positions
+        fr = trials["fr"]
+        spiked = trials["spiked"]
+        positions = trials["positions"]
+
+        if spiked.size == 0:
+            logging.info(f"\n> No units found in {units}, continue.")
+            assert 0
+            return None
+
+        # TODO apr 11 2025:
+        # bin chance while bin data
+        #spiked_chance_path = self.processed / stream_files["spiked_shuffled"]
+        #spiked_chance = ioutils.read_hdf5(spiked_chance_path, "spiked")
+        #bin_counts_chance[stream_id] = {}
+
+        binned = {}
+        binned_count = {}
+        binned_fr = {}
+        for trial in positions.columns.unique():
+            counts = spiked.xs(trial, level="trial", axis=1).dropna()
+            rates = fr.xs(trial, level="trial", axis=1).dropna()
+            trial_pos = positions[trial].dropna()
+
+            # get bin spike count
+            binned_count[trial] = xut.bin_vr_trial(
+                data=counts,
+                positions=trial_pos,
+                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+                bin_method="sum",
+            )
+            # get bin firing rates
+            binned_fr[trial] = xut.bin_vr_trial(
+                data=rates,
+                positions=trial_pos,
+                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+                bin_method="mean",
+            )
+
+        # stack df values into np array
+        # reshape into trials x units x bins
+        binned_count = ioutils.reindex_by_longest(binned_count).T
+        binned_fr = ioutils.reindex_by_longest(binned_fr).T
+
+        # save bin_fr and bin_count, for andrew
+        # use label as array key name
+        binned["count"] = binned_count[:, :-2, :]
+        binned["fr"] = binned_fr[:, :-2, :]
+        binned["pos"] = binned_count[:, -2:, :]
+
+        np.savez_compressed(output_path, **binned)
+        logging.info(f"\n> Output saved at {output_path}.")
+
+        return binned
 
 
     def save_spike_chance(self, spiked, sigma):
