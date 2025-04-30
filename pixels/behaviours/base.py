@@ -33,150 +33,20 @@ import spikeinterface.exporters as sexp
 import spikeinterface.qualitymetrics as sqm
 from scipy import interpolate
 from tables import HDF5ExtError
-from wavpack_numcodecs import WavPack
 
 from pixels import ioutils
 import pixels.signal_utils as signal
 import pixels.pixels_utils as xut
 from pixels.error import PixelsError
 from pixels.constants import *
+from pixels.configs import *
+from pixels.stream import Stream
+from pixels.units import SelectedUnits
 
 from common_utils.file_utils import load_yaml
 
 if TYPE_CHECKING:
     from typing import Optional, Literal
-
-BEHAVIOUR_HZ = 25000
-
-np.random.seed(BEHAVIOUR_HZ)
-
-# set si job_kwargs
-job_kwargs = dict(
-    n_jobs=0.8, # 80% core
-    chunk_duration='1s',
-    progress_bar=True,
-)
-
-si.set_global_job_kwargs(**job_kwargs)
-
-# instantiate WavPack compressor
-wv_compressor = WavPack(
-    level=3, # high compression
-    bps=None, # lossless
-)
-
-def _cacheable(method):
-    """
-    Methods with this decorator will have their output cached to disk so that future
-    calls with the same set of arguments will simply load the result from disk. However,
-    if the key word argument list contains `units` and it is not either `None` or an
-    instance of `SelectedUnits` then this is disabled.
-    """
-    def func(*args, **kwargs):
-        name = kwargs.pop("name", None)
-
-        if "units" in kwargs:
-            units = kwargs["units"]
-            if not isinstance(units, SelectedUnits) or not hasattr(units, "name"):
-                return method(*args, **kwargs)
-
-        self, *as_list = list(args) + list(kwargs.values())
-        if not self._use_cache:
-            return method(*args, **kwargs)
-
-        arrays = [i for i, arg in enumerate(as_list) if isinstance(arg, np.ndarray)]
-        if arrays:
-            if name is None:
-                raise PixelsError(
-                    'Cacheing methods when passing arrays requires also passing name="something"'
-                )
-            for i in arrays:
-                as_list[i] = name
-
-        as_list.insert(0, method.__name__)
-
-        output = self.interim / 'cache' / ('_'.join(str(i) for i in as_list) + '.h5')
-        if output.exists() and self._use_cache != "overwrite":
-            # load cache
-            try:
-                df = ioutils.read_hdf5(output)
-                logging.info(f"> Cache loaded from {output}.")
-            except HDF5ExtError:
-                df = None
-            except (KeyError, ValueError):
-                # if key="df" is not found, then use HDFStore to list and read
-                # all dfs
-                # create df as a dictionary to hold all dfs
-                df = {}
-                with pd.HDFStore(output, "r") as store:
-                    # list all keys
-                    keys = store.keys()
-                    # TODO apr 2 2025: for now the nested dict have keys in the
-                    # format of `/imec0/positions`, this will not be the case
-                    # once i flatten files at the stream level rather than
-                    # session level, i.e., every pixels related cache will have
-                    # stream id in their name.
-                    for key in keys:
-                        # remove "/" in key and split
-                        key_name = key.lstrip("/").split("/")
-                        if len(key_name) == 1:
-                            # use the only key name as dict key
-                            df[key_name[0]] = store[key]
-                        elif len(key_name) == 2:
-                            # stream id is the first
-                            stream = key_name[0]
-                            # data name is the second
-                            name = "/".join(key_name[1:])
-                            if stream not in df:
-                                df[stream] = {}
-                            df[stream][name] = store[key]
-                logging.info(f"> Cache loaded from {output}.")
-        else:
-            df = method(*args, **kwargs)
-            output.parent.mkdir(parents=True, exist_ok=True)
-            if df is None:
-                output.touch()
-            else:
-                # allows to save multiple dfs in a dict in one hdf5 file
-                if ioutils.is_nested_dict(df):
-                    for stream_id, nested_dict in df.items():
-                        # NOTE: we remove `.ap` in stream id cuz having `.`in
-                        # the key name get problems
-                        for name, values in nested_dict.items():
-                            key = f"/{stream_id}/{name}"
-                            ioutils.write_hdf5(
-                                path=output,
-                                df=values,
-                                key=key,
-                                mode="a",
-                            )
-                elif isinstance(df, dict):
-                    for name, values in df.items():
-                        ioutils.write_hdf5(
-                            path=output,
-                            df=values,
-                            key=name,
-                            mode="a",
-                        )
-                else:
-                    ioutils.write_hdf5(output, df)
-        return df
-    return func
-
-
-class SelectedUnits(list):
-    name: str
-    """
-    This is the return type of Behaviour.select_units, which is a list in every way
-    except that when represented as a string, it can return a name, if a `name`
-    attribute has been set on it. This allows methods that have had `units` passed to be
-    cached to file.
-    """
-    def __repr__(self):
-        if hasattr(self, "name"):
-            return self.name
-        return list.__repr__(self)
-
 
 class Behaviour(ABC):
     """
