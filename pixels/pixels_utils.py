@@ -50,7 +50,9 @@ def load_raw(paths, stream_id):
 
 
 def preprocess_raw(rec, surface_depths):
-    if np.unique(rec.get_channel_groups()).size < 4:
+    group_ids = rec.get_channel_groups()
+
+    if np.unique(group_ids).size < 4:
         # correct group id if not all shanks used
         group_ids = correct_group_id(rec)
         # change the group id
