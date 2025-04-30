@@ -1753,10 +1753,14 @@ class Behaviour(ABC):
             sa_dir = self.find_file(stream_files["sorting_analyser"])
             # load sorting analyser
             temp_sa = si.load_sorting_analyzer(sa_dir)
+
             # remove noisy units
-            noisy_units = load_yaml(
-                path=self.find_file(stream_files["noisy_units"]),
-            )
+            try:
+                noisy_units = load_yaml(
+                    path=self.find_file(stream_files["noisy_units"]),
+                )
+            except:
+                raise PixelsError("> Have you labelled noisy units?")
             # remove units from sorting and reattach to sa to keep properties
             sorting = temp_sa.sorting.remove_units(remove_unit_ids=noisy_units)
             sa = temp_sa.remove_units(remove_unit_ids=noisy_units)
