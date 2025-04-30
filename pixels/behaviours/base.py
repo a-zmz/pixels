@@ -856,6 +856,8 @@ class Behaviour(ABC):
 
             # load rec
             if ks_mc:
+                # preprocess raw recording
+                self.preprocess_raw()
                 rec = stream_files["preprocessed"]
             else:
                 rec_dir = self.find_file(stream_files["motion_corrected"])
