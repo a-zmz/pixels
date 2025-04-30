@@ -2646,10 +2646,6 @@ class Behaviour(ABC):
         # get constants from vd
         from vision_in_darkness.constants import TUNNEL_RESET, ZONE_END
 
-        # TODO dec 18 2024:
-        # rearrange vr specific funcs to vr module
-        # put pixels specific funcs in pixels module
-
         # NOTE: order of args matters for loading the cache!
         # always put units first, cuz it is like that in
         # experiemnt.align_trials, otherwise the same cache cannot be loaded
