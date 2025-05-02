@@ -429,6 +429,11 @@ class Stream:
             end_event=end_event,
         )
 
+        if trials is None:
+            logging.info(f"\n> No trials found with label {label} and event "
+                         f"{event}, output will be empty.")
+            return None
+
         logging.info(
             f"\n> Binning label <{label}> trials from {self.stream_id} "
             f"in {units}."
@@ -438,11 +443,6 @@ class Stream:
         fr = trials["fr"]
         spiked = trials["spiked"]
         positions = trials["positions"]
-
-        if spiked.size == 0:
-            logging.info(f"\n> No units found in {units}, continue.")
-            assert 0
-            return None
 
         # TODO apr 11 2025:
         # bin chance while bin data
