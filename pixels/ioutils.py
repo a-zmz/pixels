@@ -414,7 +414,7 @@ def write_hdf5(path, df, key="df", mode="w", format="fixed"):
         complib="blosc:lz4hc",
     )
     
-    print("HDF5 saved to ", path)
+    print("HDF5 saved to", path)
 
     return
 

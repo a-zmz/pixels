@@ -49,7 +49,7 @@ class Stream:
 
         if "trial" in data:
             logging.info(
-                f"Aligning {data} of {units} units to <{label}> trials."
+                f"\n> Aligning {data} of {units} units to <{label}> trials."
             )
             return self._get_aligned_trials(
                 label, event, data=data, units=units, sigma=sigma,
@@ -94,7 +94,7 @@ class Stream:
         end_t = timestamps[selected_ends]
 
         if selected_starts.size == 0:
-            logging.info(f"> No trials found with label {label} and event "
+            logging.info(f"\n> No trials found with label {label} and event "
                          f"{event}, output will be empty.")
             return None
 
@@ -300,7 +300,7 @@ class Stream:
 
         try:
             synched_vr = file_utils.read_hdf5(synched_vr_path)
-            logging.info("> synchronised vr loaded")
+            logging.info("\n> synchronised vr loaded")
         except:
             # get sync pulses
             sync_map = ioutils.read_bin(spike_data, 385, 384)
@@ -367,7 +367,7 @@ class Stream:
             events=action_labels[:, 1],
             timestamps=action_labels[:, 2],
         )
-        logging.info(f"> Action labels saved to: {action_labels_path}.")
+        logging.info(f"\n> Action labels saved to: {action_labels_path}.")
 
         return None
 

@@ -46,7 +46,7 @@ def cacheable(method):
             # load cache
             try:
                 df = ioutils.read_hdf5(cache_path)
-                logging.info(f"> Cache loaded from {cache_path}.")
+                logging.info(f"\n> Cache loaded from {cache_path}.")
             except HDF5ExtError:
                 df = None
             except (KeyError, ValueError):
@@ -66,7 +66,7 @@ def cacheable(method):
                             # stream id is the first, data name is the second
                             stream, name = parts[0], "/".join(parts[1:])
                             df.setdefault(stream, {})[name] = store[key]
-                logging.info(f"> Cache loaded from {cache_path}.")
+                logging.info(f"\n> Cache loaded from {cache_path}.")
         else:
             df = method(*args, **kwargs)
             cache_path.parent.mkdir(parents=True, exist_ok=True)
