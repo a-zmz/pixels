@@ -1900,7 +1900,7 @@ class Behaviour(ABC):
         """
         return self._get_neuro_raw('lfp')
 
-    @_cacheable
+    #@_cacheable
     def align_trials(
         self, label, event, units=None, data='spike_times', raw=False,
         duration=1, sigma=None, dlc_project=None, video_match=None,
@@ -2194,7 +2194,7 @@ class Behaviour(ABC):
             self._good_unit_info = info
         return self._good_unit_info
 
-    @_cacheable
+    #@_cacheable
     def get_spike_widths(self, units=None):
         if units:
             # Always defer to getting widths for all units, so we only ever have to
@@ -2225,7 +2225,7 @@ class Behaviour(ABC):
         df['median_ms'] = 1000 * df['median_ms'] / orig_rate
         return df
 
-    @_cacheable
+    #@_cacheable
     def get_spike_waveforms(self, units=None, method='phy'):
         """
         Extracts waveforms of spikes.
@@ -2346,7 +2346,7 @@ class Behaviour(ABC):
                               not implemented!")
 
 
-    @_cacheable
+    #@_cacheable
     def get_waveform_metrics(self, units=None, window=20, upsampling_factor=10):
         """
         This func is a work-around of spikeinterface's equivalent:
@@ -2460,7 +2460,7 @@ class Behaviour(ABC):
         return df
 
 
-    @_cacheable
+    #@_cacheable
     def get_aligned_spike_rate_CI(
         self, label, event,
         start=0.000, step=0.100, end=1.000,
@@ -2640,7 +2640,7 @@ class Behaviour(ABC):
         return df
 
 
-    @_cacheable
+    #@_cacheable
     def get_positional_rate(
         self, label, event, end_event=None, sigma=None, units=None,
     ):
