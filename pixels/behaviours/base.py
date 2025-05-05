@@ -2640,113 +2640,43 @@ class Behaviour(ABC):
         return df
 
 
-    #@_cacheable
-    def get_positional_rate(
+    def get_positional_data(
         self, label, event, end_event=None, sigma=None, units=None,
     ):
         """
         Get positional firing rate of selected units in vr, and spatial
         occupancy of each position.
         """
-        # get constants from vd
-        from vision_in_darkness.constants import TUNNEL_RESET, ZONE_END
-
         # NOTE: order of args matters for loading the cache!
         # always put units first, cuz it is like that in
         # experiemnt.align_trials, otherwise the same cache cannot be loaded
 
-        # get aligned firing rates and positions
-        trials = self.align_trials(
-            units=units, # NOTE: ALWAYS the first arg
-            data="trial_rate", # NOTE: ALWAYS the second arg
-            label=label,
-            event=event,
-            sigma=sigma,
-            end_event=end_event,
-        )
-        fr = trials["fr"]
-        positions = trials["positions"]
-
-        # get unit_ids
-        unit_ids = fr.columns.get_level_values("unit").unique()
-
-        # create position indices
-        indices = np.arange(0, TUNNEL_RESET+2)
-        # create occupancy array for trials
-        occupancy = np.full(
-            (TUNNEL_RESET+2, positions.shape[1]),
-            np.nan,
-        )
-        # create array for positional firing rate
-        pos_fr = {}
-
-        for t, trial in enumerate(positions):
-            # get trial position
-            trial_pos = positions[trial].dropna()
-
-            # floor pre reward zone and end ceil post zone end
-            trial_pos = trial_pos.apply(
-                lambda x: np.floor(x) if x <= ZONE_END else np.ceil(x)
+        output = {}
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
             )
-            # set to int
-            trial_pos = trial_pos.astype(int)
 
-            # exclude positions after tunnel reset
-            trial_pos = trial_pos[trial_pos <= TUNNEL_RESET+1]
+            logging.info(
+                f"\n> Getting positional neural data of {units} units in "
+                f"<{label}> trials."
+            )
+            output[stream_id] = stream.get_positional_data(
+                units=units, # NOTE: put units first!
+                label=label,
+                event=event,
+                end_event=end_event,
+                sigma=sigma,
+            )
 
-            # get firing rates for current trial of all units
-            trial_fr = fr.xs(
-                key=trial,
-                axis=1,
-                level="trial",
-            ).dropna(how="all").copy()
-
-            # get all indices before post reset
-            no_post_reset = trial_fr.index.intersection(trial_pos.index)
-            # remove post reset rows
-            trial_fr = trial_fr.loc[no_post_reset]
-            trial_pos = trial_pos.loc[no_post_reset]
-
-            # put trial positions in trial fr df
-            trial_fr["position"] = trial_pos.values
-            # group values by position and get mean
-            mean_fr = trial_fr.groupby("position")[unit_ids].mean()
-            # reindex into full tunnel length
-            pos_fr[trial] = mean_fr.reindex(indices)
-            # get trial occupancy
-            pos_count = trial_fr.groupby("position").size()
-            occupancy[pos_count.index.values, t] = pos_count.values
-
-        # concatenate dfs
-        pos_fr = pd.concat(pos_fr, axis=1, names=["trial", "unit"])
-        # convert to df
-        occupancy = pd.DataFrame(
-            data=occupancy,
-            index=indices,
-            columns=positions.columns,
-        )
-
-        # add another level of starting position
-        # Get the starting index for each trial (column)
-        starts = occupancy.apply(lambda col: col.first_valid_index())
-        # Group trials by their starting index
-        trial_level = pos_fr.columns.get_level_values("trial")
-        unit_level = pos_fr.columns.get_level_values("unit")
-        # map start level
-        start_level = trial_level.map(starts)
-        # define new columns
-        new_cols = pd.MultiIndex.from_arrays(
-            [start_level, unit_level, trial_level],
-            names=["start", "unit", "trial"],
-        )
-        pos_fr.columns = new_cols
-        # sort by unit
-        pos_fr = pos_fr.sort_index(level="unit", axis=1)
-
-        return {"pos_fr": pos_fr, "occupancy": occupancy}
+        return output
 
     
-    def bin_aligned_trials(
+    def get_binned_trials(
         self, label, event, units=None, sigma=None, end_event=None,
         time_bin=None, pos_bin=None,
     ):
