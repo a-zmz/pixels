@@ -21,7 +21,7 @@ from pixels.ioutils import write_hdf5, reindex_by_longest
 from pixels.error import PixelsError
 from pixels.configs import *
 
-from common_utils.math_utils import random_sampling
+from common_utils.math_utils import random_sampling, group_and_aggregate
 from common_utils.file_utils import init_memmap, read_hdf5
 
 def load_raw(paths, stream_id):
@@ -1079,3 +1079,143 @@ def correct_group_id(rec):
     )
 
     return group_ids
+
+
+def get_vr_positional_data(trial_data):
+    """
+    Get positional firing rate and spike count for VR behaviour.
+
+    params
+    ===
+    trial_data: pandas df, output from align_trials.
+
+    return
+    ===
+    dict, positional firing rate, positional spike count, positional occupancy,
+    data in 1cm resolution.
+    """
+    pos_fr, occupancy = _get_vr_positional_neural_data(
+        positions=trial_data["positions"],
+        data_type="spike_rate",
+        data=trial_data["fr"],
+    )
+    pos_fc, _ = _get_vr_positional_neural_data(
+        positions=trial_data["positions"],
+        data_type="spiked",
+        data=trial_data["spiked"],
+    )
+
+    return {"pos_fr": pos_fr, "pos_fc": pos_fc, "occupancy": occupancy}
+
+
+def _get_vr_positional_neural_data(positions, data_type, data):
+    """
+    Get positional neural data for VR behaviour.
+
+    params
+    ===
+    positions: pandas df, vr positions of all trials.
+        shape: time x trials.
+    
+    data_type: str, type of neural data.
+        "spike_rate": firing rate of each unit in each trial.
+        "spiked": spike boolean of each unit in each trial.
+
+    data: pandas df, aligned trial firing rate or spike boolean.
+        shape: time x (unit x trial)
+        levels: unit, trial
+
+    return
+    ===
+    pos_data: pandas df, positional neural data.
+        shape: position x (num of starting positions x unit x trial)
+        levels: start, unit, trial
+
+    occupancy: pandas df, count of each position.
+        shape: position x trial
+    """
+    logging.info(f"\n> Getting positional {data_type}...")
+
+    # get constants from vd
+    from vision_in_darkness.constants import TUNNEL_RESET, ZONE_END
+
+    # get the starting index for each trial (column)
+    starts = positions.iloc[0, :].astype(int)
+    # create position indices
+    indices = np.arange(0, TUNNEL_RESET+2)
+    # create occupancy array for trials
+    occupancy = np.full(
+        (TUNNEL_RESET+2, positions.shape[1]),
+        np.nan,
+    )
+
+    pos_data = {}
+    for t, trial in enumerate(positions):
+        # get trial position
+        trial_pos = positions[trial].dropna()
+
+        # floor pre reward zone and end ceil post zone end
+        trial_pos = trial_pos.apply(
+            lambda x: np.floor(x) if x <= ZONE_END else np.ceil(x)
+        )
+        # set to int
+        trial_pos = trial_pos.astype(int)
+
+        # exclude positions after tunnel reset
+        trial_pos = trial_pos[trial_pos <= TUNNEL_RESET+1]
+
+        # get firing rates for current trial of all units
+        trial_data = data.xs(
+            key=trial,
+            axis=1,
+            level="trial",
+        ).dropna(how="all").copy()
+
+        # get all indices before post reset
+        no_post_reset = trial_data.index.intersection(trial_pos.index)
+        # remove post reset rows
+        trial_data = trial_data.loc[no_post_reset]
+        trial_pos = trial_pos.loc[no_post_reset]
+
+        # put trial positions in trial data df
+        trial_data["position"] = trial_pos.values
+
+        if data_type == "spike_rate":
+            # group values by position and get mean data
+            how = "mean"
+        elif data_type == "spiked":
+            # group values by position and get sum data
+            how = "sum"
+        grouped_data = group_and_aggregate(trial_data, "position", "sum")
+
+        # reindex into full tunnel length
+        pos_data[trial] = grouped_data.reindex(indices)
+        # get trial occupancy
+        pos_count = trial_data.groupby("position").size()
+        occupancy[pos_count.index.values, t] = pos_count.values
+
+    # concatenate dfs
+    pos_data = pd.concat(pos_data, axis=1, names=["trial", "unit"])
+    # convert to df
+    occupancy = pd.DataFrame(
+        data=occupancy,
+        index=indices,
+        columns=positions.columns,
+    )
+
+    # add another level of starting position
+    # group trials by their starting index
+    trial_level = pos_data.columns.get_level_values("trial")
+    unit_level = pos_data.columns.get_level_values("unit")
+    # map start level
+    start_level = trial_level.map(starts)
+    # define new columns
+    new_cols = pd.MultiIndex.from_arrays(
+        [start_level, unit_level, trial_level],
+        names=["start", "unit", "trial"],
+    )
+    pos_data.columns = new_cols
+    # sort by unit
+    pos_data = pos_data.sort_index(level="unit", axis=1)
+
+    return pos_data, occupancy
