@@ -525,6 +525,34 @@ class Stream:
         return binned
 
 
+    @cacheable
+    def get_positional_data(
+        self, label, event, end_event=None, sigma=None, units=None,
+    ):
+        """
+        Get positional firing rate of selected units in vr, and spatial
+        occupancy of each position.
+        """
+        # NOTE: order of args matters for loading the cache!
+        # always put units first, cuz it is like that in
+        # experiemnt.align_trials, otherwise the same cache cannot be loaded
+
+        # get aligned firing rates and positions
+        trials = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            data="trial_rate", # NOTE: ALWAYS the second arg
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event,
+        )
+
+        # get positional spike rate, spike count, and occupancy
+        positional_data = xut.get_vr_positional_data(trials)
+
+        return positional_data
+
+
     def save_spike_chance(self, spiked, sigma):
         # TODO apr 21 2025:
         # do we put this func here or in stream.py??
