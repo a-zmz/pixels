@@ -46,10 +46,41 @@ class Stream:
 
     @cacheable
     def align_trials(self, units, data, label, event, sigma, end_event):
+        """
+        Align pixels data to behaviour trials.
 
-        if "trial" in data:
+        params
+        ===
+        units : list of lists of ints, optional
+            The output from self.select_units, used to only apply this method to a
+            selection of units.
+
+        data : str, optional
+            The data type to align.
+
+        label : int
+            An action label value to specify which trial types are desired.
+
+        event : int
+            An event type value to specify which event to align the trials to.
+
+        sigma : int, optional
+            Time in milliseconds of sigma of gaussian kernel to use when
+            aligning firing rates.
+
+        end_event : int | None
+            For VR behaviour, when aligning to the whole trial, this param is
+            the end event to align to.
+
+        return
+        ===
+        df, output from individual functions according to data type.
+        """
+
+        if "trial_rate" in data:
             logging.info(
-                f"\n> Aligning {data} of {units} units to <{label}> trials."
+                f"\n> Aligning trial_times and {data} of {units} units to "
+                f"<{label}> trials."
             )
             return self._get_aligned_trials(
                 label, event, data=data, units=units, sigma=sigma,
