@@ -37,6 +37,7 @@ class Stream:
     def __repr__(self):
         return f"<Stream id = {self.stream_id}>"
 
+
     def load_raw_ap(self):
         paths = [self.session.find_file(path) for path in self.files["ap_raw"]]
         self.files["si_rec"] = xut.load_raw(paths, self.stream_id)
@@ -79,7 +80,7 @@ class Stream:
 
         if "trial_rate" in data:
             logging.info(
-                f"\n> Aligning trial_times and {data} of {units} units to "
+                f"\n> Aligning spike times and spike rate of {units} units to "
                 f"<{label}> trials."
             )
             return self._get_aligned_trials(
@@ -466,7 +467,7 @@ class Stream:
             return None
 
         logging.info(
-            f"\n> Binning label <{label}> trials from {self.stream_id} "
+            f"\n> Binning <{label}> trials from {self.stream_id} "
             f"in {units}."
         )
 
