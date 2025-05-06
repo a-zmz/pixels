@@ -794,6 +794,10 @@ class Behaviour(ABC):
                 files=stream_files,
                 session=self,
             )
+
+            logging.info(
+                f"\n> Loading raw {stream_id} data."
+            )
             raw_rec = stream.load_raw_ap()
 
             # now the value for streams dict is recording extractor
@@ -1978,7 +1982,8 @@ class Behaviour(ABC):
 
         if "trial" in data:
             logging.info(
-                f"\nAligning {data} of {units} units to label <{label}> trials."
+                f"\n> Aligning {self.name} {data} of {units} units to label "
+                f"<{label}> trials."
             )
             return self._get_aligned_trials(
                 label, event, data=data, units=units, sigma=sigma,
@@ -2703,6 +2708,11 @@ class Behaviour(ABC):
                 files=stream_files,
                 session=self,
             )
+
+            logging.info(
+                f"\n> Getting binned <{label}> trials from {stream_id} "
+                f"in {units}."
+            )
             binned[stream_id] = stream.get_binned_trials(
                 label=label,
                 event=event,
@@ -2822,6 +2832,10 @@ class Behaviour(ABC):
                 stream_num=stream_num,
                 files=stream_files,
                 session=self,
+            )
+
+            logging.info(
+                f"\n> Synchonising pixels data with vr."
             )
             stream.sync_vr(vr)
 
