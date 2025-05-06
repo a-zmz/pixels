@@ -465,11 +465,20 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None):
         ])
 
         if of_date is not None:
-            date_struct = datetime.datetime.strptime(of_date, session_date_fmt)
-            mouse_sessions = [mouse_sessions[session_dates.index(date_struct)]]
-            print(f"\n> Getting 1 session from {mouse} of "
+            if isinstance(of_date, str):
+                date_list = [of_date]
+            else:
+                date_list = of_date
+
+            date_sessions = []
+            for date in date_list:
+                date_struct = datetime.datetime.strptime(date, session_date_fmt)
+                date_sessions.append(mouse_sessions[session_dates.index(date_struct)])
+                logging.info(
+                    f"\n> Getting one session from {mouse} on "
                     f"{datetime.datetime.strftime(date_struct, '%Y %B %d')}."
-            )
+                )
+            mouse_sessions = date_sessions
 
         if not meta_dir:
             # Do not collect metadata
