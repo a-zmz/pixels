@@ -418,6 +418,7 @@ class Stream:
         return synched_vr, action_labels
 
     
+    @cacheable
     def get_binned_trials(
         self, label, event, units=None, sigma=None, end_event=None,
         time_bin=None, pos_bin=None
