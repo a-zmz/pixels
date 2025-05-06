@@ -142,7 +142,7 @@ def correct_motion(rec, mc_method="dredge"):
     ===
     None
     """
-    logging.info(f"\t> correct motion with {mc_method}.")
+    logging.info(f"\n\t> correct motion with {mc_method}.")
     # reduce spatial window size for four-shank
     estimate_motion_kwargs = {
         "win_step_um": 100,
