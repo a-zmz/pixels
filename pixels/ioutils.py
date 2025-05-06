@@ -17,6 +17,7 @@ import pandas as pd
 from nptdms import TdmsFile
 
 from pixels.error import PixelsError
+from pixels.configs import *
 
 
 def get_data_files(data_dir, session_name):
