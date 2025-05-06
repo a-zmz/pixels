@@ -256,32 +256,27 @@ class Experiment:
                 names=["session", "trial", "scorer", "bodyparts", "coords"]
             )
 
-        # TODO apr 3 2025:
-        # make sure trial_times is here too
         if "trial_rate" in kwargs.values():
-            frs = {}
-            positions = {}
-            for s in trials:
-                frs[s] = trials[s]["fr"]
-                positions[s] = trials[s]["positions"]
-
-            frs_df = pd.concat(
-                frs.values(),
-                axis=1,
-                copy=False,
-                keys=frs.keys(),
-                names=["session"]
+            level_names = ["session", "stream", "unit", "trial"]
+            fr = ioutils.get_aligned_data_across_sessions(
+                trials=trials,
+                key="fr",
+                level_names=level_names,
             )
-            pos_df = pd.concat(
-                positions.values(),
-                axis=1,
-                copy=False,
-                keys=positions.keys(),
-                names=["session"]
+            spiked = ioutils.get_aligned_data_across_sessions(
+                trials=trials,
+                key="spiked",
+                level_names=level_names,
+            )
+            positions = ioutils.get_aligned_data_across_sessions(
+                trials=trials,
+                key="positions",
+                level_names=["session", "stream", "trial"],
             )
             df = {
-                "fr": frs_df,
-                "positions": pos_df,
+                "fr": fr,
+                "spiked": spiked,
+                "positions": positions,
             }
         else:
             df = pd.concat(
@@ -489,50 +484,94 @@ class Experiment:
         raise PixelsError
 
 
-    def get_positional_rate(self, *args, units=None, **kwargs):
+    def get_positional_data(self, *args, units=None, **kwargs):
         """
         Get positional firing rate for aligned vr trials.
-        Check behaviours.base.Behaviour.align_trials for usage information.
+        Check behaviours.base.Behaviour.get_positional_data for usage
+        information.
         """
         trials = {}
         for i, session in enumerate(self.sessions):
+            name = session.name
             result = None
             if units:
-                if units[i]:
-                    result = session.get_positional_rate(
+                if units[name]:
+                    result = session.get_positional_data(
                         *args,
-                        units=units[i],
+                        units=units[name],
                         **kwargs,
                     )
             else:
-                result = session.get_positional_rate(*args, **kwargs)
+                result = session.get_positional_data(*args, **kwargs)
             if result is not None:
-                trials[i] = result
+                trials[name] = result
 
-        pos_frs = {}
-        occupancies = {}
-        for s in trials:
-            pos_frs[s] = trials[s]["pos_fr"]
-            occupancies[s] = trials[s]["occupancy"]
-
-        pos_frs_df = pd.concat(
-            pos_frs.values(),
-            axis=1,
-            copy=False,
-            keys=pos_frs.keys(),
-            names=["session"]
+        level_names = ["session", "stream", "start", "unit", "trial"]
+        pos_fr = ioutils.get_aligned_data_across_sessions(
+            trials=trials,
+            key="pos_fr",
+            level_names=level_names,
         )
-        occu_df = pd.concat(
-            occupancies.values(),
-            axis=1,
-            copy=False,
-            keys=occupancies.keys(),
-            names=["session"]
+        pos_fc = ioutils.get_aligned_data_across_sessions(
+            trials=trials,
+            key="pos_fc",
+            level_names=level_names,
+        )
+        occupancies = ioutils.get_aligned_data_across_sessions(
+            trials=trials,
+            key="occupancy",
+            level_names=["session", "stream", "trial"],
         )
         df = {
-            "pos_fr": pos_frs_df,
-            "occupancy": occu_df,
+            "pos_fr": pos_fr,
+            "pos_fc": pos_fc,
+            "occupancy": occupancies,
         }
 
         return df
 
+
+    def get_binned_trials(self, *args, units=None, **kwargs):
+        """
+        Get binned firing rate and spike count for aligned vr trials.
+        Check behaviours.base.Behaviour.get_binned_trials for usage information.
+        """
+        trials = {}
+        for i, session in enumerate(self.sessions):
+            name = session.name
+            result = None
+            if units:
+                if units[name]:
+                    result = session.get_binned_trials(
+                        *args,
+                        units=units[name],
+                        **kwargs,
+                    )
+            else:
+                result = session.get_binned_trials(*args, **kwargs)
+            if result is not None:
+                trials[name] = result
+
+        level_names = ["session", "stream", "unit", "trial"]
+        bin_fr = ioutils.get_aligned_data_across_sessions(
+            trials=trials,
+            key="bin_fr",
+            level_names=level_names,
+        )
+        bin_fc = ioutils.get_aligned_data_across_sessions(
+            trials=trials,
+            key="bin_fc",
+            level_names=level_names,
+        )
+        bin_pos = ioutils.get_aligned_data_across_sessions(
+            trials=trials,
+            key="bin_pos",
+            level_names=["session", "stream", "pos_type", "trial"],
+        )
+        df = {
+            "bin_fr": bin_fr,
+            "bin_fc": bin_fc,
+            "bin_pos": bin_pos,
+        }
+
+        return df
