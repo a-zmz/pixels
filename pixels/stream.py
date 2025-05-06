@@ -483,7 +483,7 @@ class Stream:
         #spiked_chance = ioutils.read_hdf5(spiked_chance_path, "spiked")
         #bin_counts_chance[stream_id] = {}
 
-        binned = {}
+        bin_arr = {}
         binned_count = {}
         binned_fr = {}
         for trial in positions.columns.unique():
@@ -512,19 +512,46 @@ class Stream:
 
         # stack df values into np array
         # reshape into trials x units x bins
-        binned_count = ioutils.reindex_by_longest(binned_count).T
-        binned_fr = ioutils.reindex_by_longest(binned_fr).T
+        count_arr = ioutils.reindex_by_longest(binned_count).T
+        fr_arr = ioutils.reindex_by_longest(binned_fr).T
 
         # save bin_fr and bin_count, for andrew
         # use label as array key name
-        binned["count"] = binned_count[:, :-2, :]
-        binned["fr"] = binned_fr[:, :-2, :]
-        binned["pos"] = binned_count[:, -2:, :]
+        bin_arr["count"] = count_arr[:, :-2, :]
+        bin_arr["fr"] = fr_arr[:, :-2, :]
+        bin_arr["pos"] = count_arr[:, -2:, :]
 
-        np.savez_compressed(output_path, **binned)
+        np.savez_compressed(output_path, **bin_arr)
         logging.info(f"\n> Output saved at {output_path}.")
 
-        return binned
+        # extract binned data in df format
+        bin_fc, bin_pos = self._extract_binned_data(binned_count)
+        bin_fr, _ = self._extract_binned_data(binned_fr)
+
+        return {"bin_fc": bin_fc, "bin_fr": bin_fr, "bin_pos": bin_pos}
+
+
+    def _extract_binned_data(self, binned_data):
+        """
+        """
+        df = ioutils.reindex_by_longest(
+            dfs=binned_data,
+            idx_names=["trial", "time_bin"],
+            col_names=["unit"],
+            return_format="dataframe",
+        )
+        data = df.drop(
+            labels=["positions", "bin_pos"],
+            axis=1,
+            level="unit",
+        )
+        pos = df.filter(
+            like="pos",
+            axis=1,
+        )
+        pos.columns.names = ["pos_type", "trial"]
+
+        return data, pos
 
 
     @cacheable
