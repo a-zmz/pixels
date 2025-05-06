@@ -1698,7 +1698,7 @@ class Behaviour(ABC):
                 files=stream_files,
                 session=self,
             )
-            output[stream_id] = stream.get_aligned_trials(
+            output[stream_id] = stream.align_trials(
                 units=units, # NOTE: ALWAYS the first arg
                 data="trial_rate", # NOTE: ALWAYS the second arg
                 label=label,
