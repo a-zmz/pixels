@@ -221,10 +221,10 @@ class Experiment:
         Select units based on specified criteria. The output of this can be passed to
         some other methods to apply those methods only to these units.
         """
-        units = []
+        units = {}
 
         for i, session in enumerate(self.sessions):
-            units.append(session.select_units(*args, **kwargs))
+            units[session.name] = session.select_units(*args, **kwargs)
 
         return units
 
@@ -235,14 +235,19 @@ class Experiment:
         """
         trials = {}
         for i, session in enumerate(self.sessions):
+            name = session.name
             result = None
             if units:
-                if units[i]:
-                    result = session.align_trials(*args, units=units[i], **kwargs)
+                if units[name]:
+                    result = session.align_trials(
+                        *args,
+                        units=units[name],
+                        **kwargs,
+                    )
             else:
                 result = session.align_trials(*args, **kwargs)
             if result is not None:
-                trials[i] = result
+                trials[name] = result
 
         if "motion_tracking" in args:
             df = pd.concat(
