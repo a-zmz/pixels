@@ -845,3 +845,47 @@ def save_cols_to_frame(df, path):
     )
     # NOTE: to reconstruct:
     # df.columns = col_df.values
+
+
+def get_aligned_data_across_sessions(trials, key, level_names):
+    """
+    Get aligned trials across sessions.
+
+    params
+    ===
+    trials: nested dict, aligned trials from multiple sessions.
+        keys: session_name -> stream_id -> "fr", "positions", "spiked"
+
+    key: str, type of data to get.
+        "fr": firing rate, longest trial time x (unit x trial)
+        "spiked": spiked boolean, longest trial time x (unit x trial)
+        "positions": trial positions, longest trial time x trial
+
+    return
+    ===
+    df: pandas df, concatenated key data across sessions.
+    """
+    per_session = {}
+    for s_name, s_data in trials.items():
+        key_data = {}
+        for stream_id, stream_data in s_data.items():
+            key_data[stream_id] = stream_data[key]
+
+        # concat at stream level
+        per_session[s_name] = pd.concat(
+            key_data,
+            axis=1,
+            names=level_names[1:],
+        )
+
+    # concat at session level
+    df = pd.concat(
+        per_session,
+        axis=1,
+        names=level_names,
+    )
+
+    # swap stream and session so that stream is the most outer level
+    output = df.swaplevel("session", "stream", axis=1)
+
+    return output
