@@ -93,18 +93,18 @@ def _preprocess_raw(rec, surface_depth):
     Implementation of preprocessing on raw pixels data.
     """
     # correct phase shift
-    print("\n\t> step 1: do phase shift correction.")
+    print("\t> step 1: do phase shift correction.")
     rec_ps = spre.phase_shift(rec)
 
     # remove bad channels from sorting
-    print("\n\t> step 2: remove bad channels.")
+    print("\t> step 2: remove bad channels.")
     bad_chan_ids, chan_labels = spre.detect_bad_channels(
         rec_ps,
         outside_channels_location="top",
     )
     labels, counts = np.unique(chan_labels, return_counts=True)
     for label, count in zip(labels, counts):
-        print(f"\n\t\t> Found {count} channels labelled as {label}.")
+        print(f"\t\t> Found {count} channels labelled as {label}.")
     rec_removed = rec_ps.remove_channels(bad_chan_ids)
 
     # get channel group id and use it to index into brain surface channel depth
@@ -116,9 +116,9 @@ def _preprocess_raw(rec, surface_depth):
     # remove channels outside by using identified brain surface depths
     outside_chan_ids = chan_ids[chan_depths > surface_depth]
     rec_clean = rec_removed.remove_channels(outside_chan_ids)
-    print(f"\n\t\t> Removed {outside_chan_ids.size} outside channels.")
+    print(f"\t\t> Removed {outside_chan_ids.size} outside channels.")
 
-    print("\n\t> step 3: do common median referencing.")
+    print("\t> step 3: do common median referencing.")
     # NOTE: dtype will be converted to float32 during motion correction
     cmr = spre.common_reference(
         rec_clean,
