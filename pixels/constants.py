@@ -7,7 +7,7 @@ SAMPLE_RATE = 2000
 
 freq_bands = {
     "ap":[300, 9000],
-    "lfp":[0.5, 300],
+    "lfp":[0.5, 500],
 }
 
 BEHAVIOUR_HZ = 25000
