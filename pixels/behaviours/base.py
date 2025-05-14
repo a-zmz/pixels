@@ -509,7 +509,8 @@ class Behaviour(ABC):
 
         logging.info("\n> Done!")
 
-    def correct_motion(self, mc_method="dredge"):
+
+    def correct_ap_motion(self, mc_method="dredge"):
         """
         Correct motion of recording.
 
@@ -557,6 +558,10 @@ class Behaviour(ABC):
             )
 
         return None
+
+
+    def correct_lfp_motion(self):
+        raise NotImplementedError("> Not implemented.")
 
 
     def preprocess_raw(self):
