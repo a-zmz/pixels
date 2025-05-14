@@ -681,7 +681,6 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
     sexp.export_to_phy(
         sorting_analyzer=curated_sa,
         output_folder=output/"curated_report/phy",
-        compute_pc_features=False,
         copy_binary=False,
     )
 
