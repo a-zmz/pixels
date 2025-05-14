@@ -614,11 +614,11 @@ def _curate_sorting(sorting, recording, output):
     # <<< get depth of units on each shank <<<
 
     # remove bad units
-    #rule = "sliding_rp_violation <= 0.1 & amplitude_median <= -50\
+    #rule = "sliding_rp_violation <= 0.1 & amplitude_median <= -40\
     #        & amplitude_cutoff < 0.05 & sd_ratio < 1.5 & presence_ratio > 0.9\
     #        & snr > 1.1 & rp_contamination < 0.2 & firing_rate > 0.1"
     # use the ibl methods, but amplitude_cutoff rather than noise_cutoff
-    rule = "snr > 1.1 & rp_contamination < 0.2 & amplitude_median <= -50\
+    rule = "snr > 1.1 & rp_contamination < 0.2 & amplitude_median <= -40\
             & presence_ratio > 0.9"
     good_qms = qms.query(rule)
     # TODO nov 26 2024
