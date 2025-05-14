@@ -79,6 +79,7 @@ def get_data_files(data_dir, session_name):
     pixels = {}
     for r, rec in enumerate(ap_raw):
         stream_id = rec[-12:-4]
+        probe_id = stream_id[:-3]
         # separate recordings by their stream ids
         if stream_id not in pixels:
             pixels[stream_id] = {
@@ -129,31 +130,31 @@ def get_data_files(data_dir, session_name):
         # the chance
         # memmaps for temporary storage
         pixels[stream_id]["spiked_shuffled_memmap"] = base_name.with_name(
-            f"{session_name}_{stream_id[:-3]}_spiked_shuffled.bin"
+            f"{session_name}_{probe_id}_spiked_shuffled.bin"
         )
         pixels[stream_id]["fr_shuffled_memmap"] = base_name.with_name(
-                f"{session_name}_{stream_id[:-3]}_fr_shuffled.bin"
+                f"{session_name}_{probe_id}_fr_shuffled.bin"
         )
         pixels[stream_id]["shuffled_shape"] = base_name.with_name(
-            f"{session_name}_{stream_id[:-3]}_shuffled_shape.json"
+            f"{session_name}_{probe_id}_shuffled_shape.json"
         )
         pixels[stream_id]["shuffled_index"] = base_name.with_name(
-            f"{session_name}_{stream_id[:-3]}_shuffled_index.h5"
+            f"{session_name}_{probe_id}_shuffled_index.h5"
         )
         pixels[stream_id]["shuffled_columns"] = base_name.with_name(
-            f"{session_name}_{stream_id[:-3]}_shuffled_columns.h5"
+            f"{session_name}_{probe_id}_shuffled_columns.h5"
         )
         # .h5 files
         pixels[stream_id]["spiked_shuffled"] = base_name.with_name(
-            f"{session_name}_{stream_id[:-3]}_spiked_shuffled.h5"
+            f"{session_name}_{probe_id}_spiked_shuffled.h5"
         )
         pixels[stream_id]["fr_shuffled"] = base_name.with_name(
-            f"{session_name}_{stream_id[:-3]}_fr_shuffled.h5"
+            f"{session_name}_{probe_id}_fr_shuffled.h5"
         )
 
         # noise in curated units
         pixels[stream_id]["noisy_units"] = base_name.with_name(
-                f"{session_name}_{stream_id[:-3]}_noisy_units.yaml"
+                f"{session_name}_{probe_id}_noisy_units.yaml"
         )
 
         # old catgt data
