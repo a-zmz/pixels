@@ -815,9 +815,10 @@ class Behaviour(ABC):
 
         # set ks4 parameters
         ks4_params = {
-            "do_correction": ks_mc,
             "do_CAR": False, # do not common average reference
-            "save_preprocessed_copy": True, # save ks4 preprocessed data
+            "skip_kilosort_preprocessing": not ks_mc,
+            "do_correction": ks_mc,
+            "save_preprocessed_copy": ks_mc, # save ks4 preprocessed data
         }
 
         streams = self.files["pixels"]
