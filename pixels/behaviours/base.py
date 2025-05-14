@@ -625,8 +625,7 @@ class Behaviour(ABC):
                 continue
 
             # get ap band
-            ap_file = self.find_file(stream_files["ap_extracted"])
-            rec = si.load_extractor(ap_file)
+            rec = stream_files["ap_extracted"]
 
             # detect and localise peaks
             df = xut.detect_n_localise_peaks(rec)
