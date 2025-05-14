@@ -825,10 +825,8 @@ class Behaviour(ABC):
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             # check if already sorted and exported
             sa_dir = self.processed / stream_files["sorting_analyser"]
-            if not sa_dir.exists():
-                logging.info(f"\n> {self.name} {stream_id} not sorted/exported.")
-            else:
-                logging.info("\n> Already sorted and exported, next session.")
+            if sa_dir.exists():
+                logging.info("\n> Already sorted and exported, next stream.")
                 continue
 
             # get catgt directory
