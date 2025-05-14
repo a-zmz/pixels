@@ -387,17 +387,80 @@ def _sort_spikes_by_group(rec, sa_rec, output, ks_image_path, ks4_params):
 
     recording: spikeinterface recording object.
     """
+    logging.info("\n> Sorting spikes per shank.")
+
     # run sorter per shank
-    #sorting = ss.run_sorter_by_property(
-    #    sorter_name='kilosort4',
-    #    recording=rec,
-    #    grouping_property="group",
-    #    folder=output,
-    #    singularity_image=ks_image_path,
-    #    remove_existing_folder=True,
-    #    verbose=True,
-    #    **ks4_params,
-    #)
+    sorting = ss.run_sorter_by_property(
+        sorter_name="kilosort4",
+        recording=rec,
+        grouping_property="group",
+        folder=output,
+        singularity_image=ks_image_path,
+        remove_existing_folder=True,
+        verbose=True,
+        **ks4_params,
+    )
+
+    if not sa_rec:
+        recs = []
+        groups = rec.split_by("group")
+        for g, group in groups.items():
+            ks_preprocessed = se.read_binary(
+                file_paths=output/f"{g}/sorter_output/temp_wh.dat",
+                sampling_frequency=group.sampling_frequency,
+                dtype=np.int16,
+                num_channels=group.get_num_channels(),
+                is_filtered=True,
+            )
+
+            # attach probe # to ks4 preprocessed recording, from the raw
+            with_probe = ks_preprocessed.set_probe(group.get_probe())
+            # set properties to make sure sorting & sorting sa have all
+            # probe # properties to form correct rec_attributes, esp
+            with_probe._properties = group._properties
+
+            # >>> annotations >>>
+            annotations = group.get_annotation_keys()
+            annotations.remove("is_filtered")
+            for ann in annotations:
+                with_probe.set_annotation(
+                    annotation_key=ann,
+                    value=group.get_annotation(ann),
+                    overwrite=True,
+                )
+            # <<< annotations <<<
+            recs.append(with_probe)
+
+        recording = si.aggregate_channels(recs)
+    else:
+        recording = sa_rec
+
+    return sorting, recording
+
+
+def _sort_spikes(rec, sa_rec, output, ks_image_path, ks4_params):
+    """
+    Sort spikes with kilosort 4.
+    
+    params
+    ===
+    rec: spikeinterface recording object.
+
+    sa_rec: spikeinterface recording object for creating sorting analyser.
+
+    output: path object, directory of output.
+
+    ks_image_path: path object, directory of local kilosort 4 singularity image.
+
+    ks4_params: dict, parameters for kilosort 4.
+
+    return
+    ===
+    sorting: spikeinterface sorting object.
+
+    recording: spikeinterface recording object.
+    """
+    logging.info("\n> Sorting spikes.")
 
     # run sorter
     sorting = ss.run_sorter(
@@ -424,30 +487,33 @@ def _sort_spikes_by_group(rec, sa_rec, output, ks_image_path, ks4_params):
     # 1. without whitening, peak amplitude should be ~-70mV
     # 2. with whitening, peak amplitude should be between -1 to 1
 
-    # load ks preprocessed recording for # sorting analyser
-    ks_preprocessed = se.read_binary(
-        file_paths=output/"sorter_output/temp_wh.dat",
-        sampling_frequency=rec.sampling_frequency,
-        dtype=np.int16,
-        num_channels=rec.get_num_channels(),
-        is_filtered=True,
-    )
-    # attach probe # to ks4 preprocessed recording, from the raw
-    recording = ks_preprocessed.set_probe(rec.get_probe())
-    # set properties to make sure sorting & sorting sa have all
-    # probe # properties to form correct rec_attributes, esp
-    recording._properties = rec._properties
-
-    # >>> annotations >>>
-    annotations = rec.get_annotation_keys()
-    annotations.remove("is_filtered")
-    for ann in annotations:
-        recording.set_annotation(
-            annotation_key=ann,
-            value=rec.get_annotation(ann),
-            overwrite=True,
+    if not sa_rec:
+        # load ks preprocessed recording for # sorting analyser
+        ks_preprocessed = se.read_binary(
+            file_paths=output/"sorter_output/temp_wh.dat",
+            sampling_frequency=rec.sampling_frequency,
+            dtype=np.int16,
+            num_channels=rec.get_num_channels(),
+            is_filtered=True,
         )
-    # <<< annotations <<<
+        # attach probe # to ks4 preprocessed recording, from the raw
+        recording = ks_preprocessed.set_probe(rec.get_probe())
+        # set properties to make sure sorting & sorting sa have all
+        # probe # properties to form correct rec_attributes, esp
+        recording._properties = rec._properties
+
+        # >>> annotations >>>
+        annotations = rec.get_annotation_keys()
+        annotations.remove("is_filtered")
+        for ann in annotations:
+            recording.set_annotation(
+                annotation_key=ann,
+                value=rec.get_annotation(ann),
+                overwrite=True,
+            )
+        # <<< annotations <<<
+    else:
+        recording = sa_rec
 
     return sorting, recording
 
