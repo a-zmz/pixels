@@ -294,6 +294,17 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
 
 
 def sort_spikes(rec, output, curated_sa_dir, ks_image_path, ks4_params):
+def whiten(rec):
+    whitened = spre.whiten(
+        recording=rec,
+        dtype=np.float32,
+        mode="local",
+        radius_um=240.0, # 16 nearby chans in line with ks4
+    )
+
+    return whitened
+
+
     """
     Sort spikes with kilosort 4, curate sorting, save sorting analyser to disk,
     and export results to disk.
