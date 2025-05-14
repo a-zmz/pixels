@@ -641,45 +641,22 @@ class Behaviour(ABC):
         extract data of ap and lfp frequency bands from the raw neural recording
         data.
         """
-        if freqs == None:
-            bands = freq_bands
-        elif isinstance(freqs, str) and freqs in freq_bands.keys():
-            bands = {freqs: freq_bands[freqs]}
-        elif isinstance(freqs, dict):
-            bands = freqs
+        # preprocess raw
+        self.preprocess_raw()
 
         streams = self.files["pixels"]
-        for stream_id, stream_files in streams.items():
-            for name, freqs in bands.items():
-                output = self.processed / stream_files[f"{name}_extracted"]
-                if output.exists():
-                    logging.info(f"\n> {name} bands from {stream_id} loaded.")
-                    continue
-                
-                # preprocess raw data
-                self.preprocess_raw()
-
-                logging.info(
-                    f"\n>>>>> Extracting {name} bands from {self.name} "
-                    f"{stream_id} in total of {self.stream_count} stream(s)"
-                )
-
-                # load preprocessed
-                rec = stream_files["preprocessed"]
-
-                # do bandpass filtering
-                extracted = xut.extract_band(
-                    rec,
-                    freq_min=freqs[0],
-                    freq_max=freqs[1],
-                )
-
-                # write to disk
-                extracted.save(
-                    format="zarr",
-                    folder=output,
-                    compressor=wv_compressor,
-                )
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            logging.info(
+                f"\n>>>>> Extracting bands from {self.name} "
+                f"{stream_id} in total of {self.stream_count} stream(s)"
+            )
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+            stream.extract_bands(freqs)
 
             """
             if self._lag[rec_num] is None:
