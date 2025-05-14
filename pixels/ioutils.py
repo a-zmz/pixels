@@ -48,8 +48,9 @@ def get_data_files(data_dir, session_name):
                 "ap_raw": [PosixPath("name.bin")],
                 "ap_meta": [PosixPath("name.meta")],
                 "preprocessed": spikeinterface recording obj,
-                "ap_downsampled": PosixPath("name.zarr"),
-                "lfp_downsampled": PosixPath("name.zarr"),
+                "ap_extracted": spikeinterface recording obj,
+                "ap_whitened": spikeinterface recording obj,
+                "lfp_extracted": spikeinterface recording obj,
                 "surface_depth": PosixPath("name.yaml"),
                 "sorting_analyser": PosixPath("name.zarr"),
             },
@@ -85,6 +86,9 @@ def get_data_files(data_dir, session_name):
                 "ap_meta": [],
                 "si_rec": None, # there could be only one, thus None
                 "preprocessed": None,
+                "ap_extracted": None,
+                "ap_whitened": None,
+                "lfp_extracted": None,
                 "CatGT_ap_data": [],
                 "CatGT_ap_meta": [],
             }
@@ -93,28 +97,25 @@ def get_data_files(data_dir, session_name):
         pixels[stream_id]["ap_raw"].append(base_name)
         pixels[stream_id]["ap_meta"].append(original_name(ap_meta[r]))
 
-        # spikeinterface cache
-        pixels[stream_id]["motion_corrected"] = base_name.with_name(
+        # >>> spikeinterface cache >>>
+        # extracted & motion corrected ap stream, 300Hz+
+        pixels[stream_id]["ap_motion_corrected"] = base_name.with_name(
             f"{base_name.stem}.mcd.zarr"
+        )
+        # extracted & motion corrected lfp stream, 500Hz-
+        pixels[stream_id]["lfp_motion_corrected"] = base_name.with_name(
+            f"{base_name.stem[:-3]}.lf.mcd.zarr"
         )
         pixels[stream_id]["detected_peaks"] = base_name.with_name(
             f"{base_name.stem}_detected_peaks.h5"
         )
         pixels[stream_id]["sorting_analyser"] = base_name.parent/\
-            f"sorted_stream_{stream_id[-4]}/curated_sa.zarr"
-
-        # extracted ap stream, 300Hz+
-        pixels[stream_id]["ap_extracted"] = base_name.with_name(
-            f"{base_name.stem}.extracted.zarr"
-        )
-        # extracted lfp stream, 300Hz-
-        pixels[stream_id]["lfp_extracted"] = base_name.with_name(
-            f"{base_name.stem[:-3]}.lf.extracted.zarr"
-        )
+            f"sorted_stream_{probe_id[-1]}/curated_sa.zarr"
+        # <<< spikeinterface cache <<<
 
         # depth info of probe
         pixels[stream_id]["surface_depth"] = base_name.with_name(
-                f"{session_name}_{stream_id[:-3]}_surface_depth.yaml"
+                f"{session_name}_{probe_id}_surface_depth.yaml"
         )
         pixels[stream_id]["clustered_channels"] = base_name.with_name(
             f"{session_name}_{stream_id}_channel_clustering_results.h5"
