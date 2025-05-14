@@ -748,9 +748,9 @@ class Behaviour(ABC):
 
     def load_raw_ap(self):
         """
-        Write a function to load and concatenate raw recording files for each
-        stream (i.e., probe), so that data from all runs of the same probe can
-        be preprocessed and sorted together.
+        Load and concatenate raw recording files for each stream (i.e., probe),
+        so that data from all runs of the same probe can be preprocessed and
+        sorted together.
         """
         # if multiple runs for the same probe, concatenate them
         streams = self.files["pixels"]
