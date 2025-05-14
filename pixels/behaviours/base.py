@@ -805,13 +805,13 @@ class Behaviour(ABC):
         if not ks_image_path.exists():
             raise PixelsError("Have you craeted Singularity image for sorting?")
 
-        # preprocess and motion correct raw
-        self.correct_motion(mc_method)
-
         if mc_method == "ks":
             ks_mc = True
         else:
             ks_mc = False
+            # preprocess and motion correct raw, also whiten
+            self.correct_ap_motion(mc_method)
+            self.whiten_ap()
 
         # set ks4 parameters
         ks4_params = {
