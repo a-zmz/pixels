@@ -578,33 +578,19 @@ class Behaviour(ABC):
 
         return
         ===
-        preprocessed: spikeinterface recording.
+        None
         """
-        # load raw recording as si recording extractor
-        self.load_raw_ap()
-
         # get pixels streams
         streams = self.files["pixels"]
 
-        for stream_id, stream_files in streams.items():
-            # load raw si rec
-            rec = stream_files["si_rec"]
-            logging.info(
-                f"\n>>>>> Preprocessing data for recording from {stream_id} "
-                f"in total of {self.stream_count} stream(s)"
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
             )
-
-            # load brain surface depths
-            depth_info = load_yaml(
-                path=self.histology / stream_files["depth_info"],
-            )
-            surface_depths = depth_info["raw_signal_depths"][stream_id]
-
-            # preprocess
-            stream_files["preprocessed"] = xut.preprocess_raw(
-                rec,
-                surface_depths,
-            )
+            stream.preprocess_raw()
 
         return None
 
