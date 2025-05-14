@@ -774,6 +774,21 @@ class Behaviour(ABC):
         return None
 
 
+    def whiten_ap(self):
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+            logging.info(f"\n> Whitening {stream_id}.")
+            stream.whiten_ap()
+
+        return None
+
+
     def sort_spikes(self, mc_method="dredge"):
         """
         Run kilosort spike sorting on raw spike data.
