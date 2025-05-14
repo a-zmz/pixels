@@ -47,7 +47,7 @@ def get_data_files(data_dir, session_name):
             "imec0":{
                 "ap_raw": [PosixPath("name.bin")],
                 "ap_meta": [PosixPath("name.meta")],
-                "preprocessed": PosixPath("name.zarr"),
+                "preprocessed": spikeinterface recording obj,
                 "ap_downsampled": PosixPath("name.zarr"),
                 "lfp_downsampled": PosixPath("name.zarr"),
                 "surface_depth": PosixPath("name.yaml"),
