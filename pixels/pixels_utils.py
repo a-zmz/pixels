@@ -142,18 +142,27 @@ def correct_ap_motion(rec, mc_method="dredge"):
     ===
     None
     """
-    logging.info(f"\n\t> correct motion with {mc_method}.")
+    logging.info(f"\n> Correcting motion with {mc_method}.")
+
     # reduce spatial window size for four-shank
+    # TODO may 8 2025 "method":"dredge_ap" after it's implemented?
     estimate_motion_kwargs = {
+        "method": "decentralized",
         "win_step_um": 100,
         "win_margin_um": -150,
+        "verbose": True,
+    }
+
+    # make sure recording dtype is float for interpolation
+    interpolate_motion_kwargs = {
+        "dtype": np.float32,
     }
 
     mcd = spre.correct_motion(
         rec,
         preset=mc_method,
         estimate_motion_kwargs=estimate_motion_kwargs,
-        #interpolate_motion_kwargs={'border_mode':'force_extrapolate'},
+        interpolate_motion_kwargs=interpolate_motion_kwargs,
     )
 
     # convert to int16 to save space
