@@ -428,24 +428,16 @@ class Stream:
         # define output path for binned spike rate
         output_path = self.cache/ f"{self.session.name}_{label}_{units}_"\
                                 f"{time_bin}_{pos_bin}cm_{self.stream_id}.npz"
-
-        if output_path.exists():
-            binned = np.load(output_path)
-            logging.info(
-                f"\n> <{label}> trials from {self.stream_id} in {units} "
-                "already binned, now loaded."
-            )
-        else:
-            binned = self._bin_aligned_trials(
-                label=label,
-                event=event,
-                units=units,
-                sigma=sigma,
-                end_event=end_event,
-                time_bin=time_bin,
-                pos_bin=pos_bin,
-                output_path=output_path,
-            )
+        binned = self._bin_aligned_trials(
+            label=label,
+            event=event,
+            units=units,
+            sigma=sigma,
+            end_event=end_event,
+            time_bin=time_bin,
+            pos_bin=pos_bin,
+            output_path=output_path,
+        )
 
         return binned
 
