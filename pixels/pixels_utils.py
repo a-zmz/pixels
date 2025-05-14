@@ -573,7 +573,7 @@ def _curate_sorting(sorting, recording, output):
         "template_similarity",
         "spike_amplitudes",
         "correlograms",
-        #"principal_components", # for # phy
+        "principal_components", # for # phy
     ]
     sa.compute(required_extensions, save=True)
 
@@ -585,6 +585,7 @@ def _curate_sorting(sorting, recording, output):
         max_chan = si.get_template_extremum_channel(sa).values()
         # get group id for each unit
         unit_group = group[list(max_chan)]
+        try:
         # set unit group as a property for sorting
         sa.sorting.set_property(
             key="group",
