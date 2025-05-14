@@ -293,7 +293,6 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
     return band
 
 
-def sort_spikes(rec, output, curated_sa_dir, ks_image_path, ks4_params):
 def whiten(rec):
     whitened = spre.whiten(
         recording=rec,
@@ -305,6 +304,7 @@ def whiten(rec):
     return whitened
 
 
+def sort_spikes(rec, sa_rec, output, curated_sa_dir, ks_image_path, ks4_params):
     """
     Sort spikes with kilosort 4, curate sorting, save sorting analyser to disk,
     and export results to disk.
@@ -312,6 +312,8 @@ def whiten(rec):
     params
     ===
     rec: spikeinterface recording object.
+
+    sa_rec: spikeinterface recording object for creating sorting analyser.
 
     output: path object, directory of output.
 
@@ -338,6 +340,7 @@ def whiten(rec):
     # sort spikes
     sorting, recording = _sort_spikes(
         rec,
+        sa_rec,
         output,
         ks_image_path,
         ks4_params,
@@ -361,13 +364,16 @@ def whiten(rec):
     return None
 
 
-def _sort_spikes(rec, output, ks_image_path, ks4_params):
+def _sort_spikes_by_group(rec, sa_rec, output, ks_image_path, ks4_params):
     """
-    Sort spikes with kilosort 4.
+    Sort spikes with kilosort 4 by group/shank.
     
     params
     ===
     rec: spikeinterface recording object.
+
+    sa_rec: spikeinterface recording object for creating sorting analyser.
+        if None, then use the temp_wh.dat from ks output.
 
     output: path object, directory of output.
 
