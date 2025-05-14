@@ -840,25 +840,18 @@ class Behaviour(ABC):
             else:
                 output = self.processed / f"sorted_stream_cat_{stream_num}"
 
-            # load rec
-            if ks_mc:
-                # preprocess raw recording
-                self.preprocess_raw()
-                rec = stream_files["preprocessed"]
-            else:
-                rec_dir = self.find_file(stream_files["motion_corrected"])
-                rec = si.load_extractor(rec_dir)
-
-            # move current working directory to interim
-            os.chdir(self.interim)
-
-            # sort spikes and save sorting analyser to disk
-            xut.sort_spikes(
-                rec=rec,
-                output=output,
-                curated_sa_dir=sa_dir,
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+            stream.sort_spikes(
+                ks_mc=ks_mc,
                 ks_image_path=ks_image_path,
                 ks4_params=ks4_params,
+                output=output,
+                sa_dir=sa_dir,
             )
 
         return None
