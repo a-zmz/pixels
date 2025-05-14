@@ -127,7 +127,7 @@ def _preprocess_raw(rec, surface_depth):
     return cmr
 
 
-def correct_motion(rec, mc_method="dredge"):
+def correct_ap_motion(rec, mc_method="dredge"):
     """
     Correct motion of recording.
 
