@@ -536,6 +536,8 @@ def _curate_sorting(sorting, recording, output):
 
     curated_sa: curated spikeinterface sorting analyser.
     """
+    logging.info("\n> Curating sorting.")
+
     # curate sorter output
     # remove spikes exceeding recording number of samples
     sorting = sc.remove_excess_spikes(sorting, recording)
@@ -643,6 +645,8 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
     ===
     None
     """
+    logging.info("\n> Exporting sorting results.")
+
     # export pre curation report
     sexp.export_report(
         sorting_analyzer=sa,
