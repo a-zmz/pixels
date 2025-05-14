@@ -29,8 +29,9 @@ class Stream:
         self.BEHAVIOUR_SAMPLE_RATE = session.SAMPLE_RATE
         self.raw = session.raw
         self.interim = session.interim
-        self.processed = session.processed
         self.cache = self.interim / "cache/"
+        self.processed = session.processed
+        self.histology = session.histology
 
         self._use_cache = True
 
