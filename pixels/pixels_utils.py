@@ -272,9 +272,9 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
 
     ftype: str, filter type.
         since its posthoc, we use 5th order acausal filter, and takes
-        second-order sections (SOS) representation of the filter. but more
-        filters to choose from, e.g., bessel with filter_order=2, presumably
-        preserves waveform better? see lussac.
+        second-order sections (SOS) representation of the filter,
+        forward-backward. but more filters to choose from, e.g., bessel with
+        filter_order=2, presumably preserves waveform better? see lussac.
 
     return
     ===
@@ -284,7 +284,10 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
         rec,
         freq_min=freq_min,
         freq_max=freq_max,
+        margin_ms=5.0,
+        filter_order=5,
         ftype=ftype,
+        direction="forward-backward",
     )
 
     return band
