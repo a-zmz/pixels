@@ -79,12 +79,6 @@ def preprocess_raw(rec, surface_depths):
         # preprocess
         preprocessed = _preprocess_raw(rec, surface_depth)
 
-    # NOTE jan 16 2025:
-    # BUG: cannot set dtype back to int16, units from ks4 will have
-    # incorrect amp & loc
-    if not preprocessed.dtype == np.dtype("int16"):
-        preprocessed = spre.astype(preprocessed, dtype=np.int16)
-
     return preprocessed
 
 
@@ -119,9 +113,9 @@ def _preprocess_raw(rec, surface_depth):
     print(f"\t\t> Removed {outside_chan_ids.size} outside channels.")
 
     print("\t> step 3: do common median referencing.")
-    # NOTE: dtype will be converted to float32 during motion correction
     cmr = spre.common_reference(
         rec_clean,
+        dtype=np.int16, # make sure output is int16
     )
 
     return cmr
