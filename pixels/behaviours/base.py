@@ -532,26 +532,27 @@ class Behaviour(ABC):
         # get pixels streams
         streams = self.files["pixels"]
 
-        for stream_id, stream_files in streams.items():
-            output = self.interim / stream_files["motion_corrected"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            output = self.processed / stream_files["ap_motion_corrected"]
             if output.exists():
-                logging.info(f"\n> Motion corrected {stream_id} loaded.")
+                logging.info(f"\n> {stream_id} already motion corrected.")
+                stream_files["ap_motion_corrected"] = si.load(output)
                 continue
 
-            # preprocess raw recording
-            self.preprocess_raw()
-
-            # load preprocessed rec
-            rec = stream_files["preprocessed"]
-
             logging.info(
-                f"\n>>>>> Correcting motion for recording from {stream_id} "
+                f"\n>>>>> Correcting motion for ap band from {stream_id} "
                 f"in total of {self.stream_count} stream(s) with {mc_method}"
             )
 
-            mcd = xut.correct_motion(rec)
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+            stream.correct_ap_motion()
 
-            mcd.save(
+            stream_files["ap_motion_corrected"].save(
                 format="zarr",
                 folder=output,
                 compressor=wv_compressor,
