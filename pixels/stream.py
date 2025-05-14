@@ -576,6 +576,118 @@ class Stream:
         return positional_data
 
 
+    def preprocess_raw(self):
+        # load raw ap
+        raw_rec = self.load_raw_ap()
+
+        # load brain surface depths
+        depth_info = file_utils.load_yaml(
+            path=self.histology / self.files["depth_info"],
+        )
+        surface_depths = depth_info["raw_signal_depths"][self.stream_id]
+
+        # preprocess
+        self.files["preprocessed"] = xut.preprocess_raw(
+            raw_rec,
+            surface_depths,
+        )
+
+        return None
+
+
+    def extract_bands(self, freqs):
+        self.preprocess_raw()
+
+        if freqs == None:
+            bands = freq_bands
+        elif isinstance(freqs, str) and freqs in freq_bands.keys():
+            bands = {freqs: freq_bands[freqs]}
+        elif isinstance(freqs, dict):
+            bands = freqs
+
+        for name, freqs in bands.items():
+            logging.info(
+                f"\n> Extracting {name} bands from {self.stream_id}."
+            )
+            # do bandpass filtering
+            self.files[f"{name}_extracted"] = xut.extract_band(
+                self.files["preprocessed"],
+                freq_min=freqs[0],
+                freq_max=freqs[1],
+            )
+
+        return None
+
+
+    def correct_ap_motion(self):
+        # get ap band
+        self.extract_bands("ap")
+        ap_rec = self.files["ap_extracted"]
+
+        # correct ap motion
+        self.files["ap_motion_corrected"] = xut.correct_ap_motion(ap_rec)
+
+        return None
+
+
+    def correct_lfp_motion(self):
+        raise NotImplementedError("> Not implemented.")
+
+
+    def whiten_ap(self):
+        # get motion corrected ap
+        mcd = self.files["ap_motion_corrected"]
+
+        # whiten
+        self.files["ap_whitened"] = xut.whiten(mcd)
+
+        return None
+
+
+    def sort_spikes(self, ks_mc, ks4_params, ks_image_path, output, sa_dir):
+        """
+        Sort spikes of stream.
+
+        params
+        ===
+        ks_mc: bool, whether using kilosort 4 innate motion correction.
+
+        ks4_params: dict, kilosort 4 parameters.
+
+        output: path, directory to save sorting output.
+
+        sa_dir: path, directory to save sorting analyser.
+
+        return
+        ===
+
+        """
+        # use only preprocessed if use ks motion correction
+        if ks_mc:
+            self.preprocess_raw()
+            rec = self.files["preprocessed"]
+            sa_rec = None
+        else:
+            # whiten ap band and feed to ks
+            rec = self.files["ap_whitened"]
+            # use non-whitened recording for sorting analyser
+            #sa_rec = self.files["ap_motion_corrected"]
+            sa_rec = rec
+            # TODO may 13 2025: test building sa with whitened
+
+        # sort spikes and save sorting analyser to disk
+        xut.sort_spikes(
+            rec=rec,
+            sa_rec=sa_rec,
+            output=output,
+            curated_sa_dir=sa_dir,
+            ks_image_path=ks_image_path,
+            ks4_params=ks4_params,
+        )
+
+        return None
+
+
     def save_spike_chance(self, spiked, sigma):
         # TODO apr 21 2025:
         # do we put this func here or in stream.py??
