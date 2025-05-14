@@ -584,13 +584,18 @@ def _curate_sorting(sorting, recording, output):
         # get max peak channel for each unit
         max_chan = si.get_template_extremum_channel(sa).values()
         # get group id for each unit
-        unit_group = group[list(max_chan)]
         try:
+            unit_group = group[list(max_chan)]
+        except IndexError:
+            unit_group = group[sa.channel_ids_to_indices(max_chan)]
         # set unit group as a property for sorting
         sa.sorting.set_property(
             key="group",
             values=unit_group,
         )
+    else:
+        # get max peak channel for each unit
+        max_chan = si.get_template_extremum_channel(sa).values()
 
     # calculate quality metrics
     qms = sqm.compute_quality_metrics(sa)
