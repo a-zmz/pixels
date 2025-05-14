@@ -1740,7 +1740,7 @@ class Behaviour(ABC):
             stream_files = self.files["pixels"]["imec0.ap"]
             sa_dir = self.find_file(stream_files["sorting_analyser"])
             # load sorting analyser
-            temp_sa = si.load_sorting_analyzer(sa_dir)
+            temp_sa = si.load(sa_dir)
 
             # remove noisy units
             try:
