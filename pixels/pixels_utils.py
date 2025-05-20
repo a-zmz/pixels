@@ -299,7 +299,8 @@ def whiten(rec):
     return whitened
 
 
-def sort_spikes(rec, sa_rec, output, curated_sa_dir, ks_image_path, ks4_params):
+def sort_spikes(rec, sa_rec, output, curated_sa_dir, ks_image_path, ks4_params,
+                per_shank=False):
     """
     Sort spikes with kilosort 4, curate sorting, save sorting analyser to disk,
     and export results to disk.
@@ -333,13 +334,24 @@ def sort_spikes(rec, sa_rec, output, curated_sa_dir, ks_image_path, ks4_params):
     # si.aggregate_channels...
 
     # sort spikes
-    sorting, recording = _sort_spikes(
-        rec,
-        sa_rec,
-        output,
-        ks_image_path,
-        ks4_params,
-    )
+    if np.unique(rec.get_channel_groups()).size > 1 and per_shank:
+        # per shank
+        sorting, recording = _sort_spikes_by_group(
+            rec,
+            sa_rec,
+            output,
+            ks_image_path,
+            ks4_params,
+        )
+    else:
+        # all together
+        sorting, recording = _sort_spikes(
+            rec,
+            sa_rec,
+            output,
+            ks_image_path,
+            ks4_params,
+        )
 
     # curate sorting
     sa, curated_sa = _curate_sorting(
