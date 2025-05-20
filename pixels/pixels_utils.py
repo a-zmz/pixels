@@ -1252,10 +1252,10 @@ def _get_vr_positional_neural_data(positions, data_type, data):
     # get the starting index for each trial (column)
     starts = positions.iloc[0, :].astype(int)
     # create position indices
-    indices = np.arange(0, TUNNEL_RESET+2)
+    indices = np.arange(0, TUNNEL_RESET+1)
     # create occupancy array for trials
     occupancy = np.full(
-        (TUNNEL_RESET+2, positions.shape[1]),
+        (TUNNEL_RESET+1, positions.shape[1]),
         np.nan,
     )
 
