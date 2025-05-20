@@ -684,10 +684,14 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
         folder=curated_sa_dir,
     )
 
+    return None
+
+
+def export_sa_to_phy(path, sa):
     # export to phy for additional manual curation if needed
     sexp.export_to_phy(
-        sorting_analyzer=curated_sa,
-        output_folder=output/"curated_report/phy",
+        sorting_analyzer=sa,
+        output_folder=path/"phy",
         copy_binary=False,
     )
 
