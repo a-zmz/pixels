@@ -492,8 +492,7 @@ def _sort_spikes(rec, sa_rec, output, ks_image_path, ks4_params):
     # 2. still use the temp_wh.dat from ks4, but check how ks4 handles amplitude
     # and the unit of amplitude, correct it
     # WHAT TO ACHIEVE:
-    # 1. without whitening, peak amplitude should be ~-70mV
-    # 2. with whitening, peak amplitude should be between -1 to 1
+    # 1. without whitening, peak amplitude median should be ~-70uV
 
     if not sa_rec:
         # load ks preprocessed recording for # sorting analyser
