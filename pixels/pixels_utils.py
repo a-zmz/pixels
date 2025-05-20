@@ -633,7 +633,8 @@ def _curate_sorting(sorting, recording, output):
     return sa, curated_sa
 
 
-def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
+def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
+                             to_phy=False):
     """
     Export sorting analyser to disk.
     
@@ -674,6 +675,9 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir):
         format="zarr",
         folder=curated_sa_dir,
     )
+
+    if to_phy:
+        export_sa_to_phy(output, sa)
 
     return None
 
