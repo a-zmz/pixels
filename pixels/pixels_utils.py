@@ -1321,7 +1321,12 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         names=["start", "unit", "trial"],
     )
     pos_data.columns = new_cols
-    # sort by unit
-    pos_data = pos_data.sort_index(level="unit", axis=1)
+
+    # sort by unit, starting position, and then trial
+    pos_data = pos_data.sort_index(
+        axis=1,
+        level=["unit", "start", "trial"],
+        ascending=[True, False, True],
+    )
 
     return pos_data, occupancy
