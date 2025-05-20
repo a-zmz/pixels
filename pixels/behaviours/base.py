@@ -809,16 +809,17 @@ class Behaviour(ABC):
             ks_mc = True
         else:
             ks_mc = False
-            # preprocess and motion correct raw, also whiten
+            # preprocess and motion correct raw
             self.correct_ap_motion(mc_method)
-            self.whiten_ap()
+            # XXX: no whitening
+            #self.whiten_ap()
 
         # set ks4 parameters
         ks4_params = {
             "do_CAR": False, # do not common average reference
-            "skip_kilosort_preprocessing": not ks_mc,
+            "skip_kilosort_preprocessing": False,
             "do_correction": ks_mc,
-            "save_preprocessed_copy": ks_mc, # save ks4 preprocessed data
+            "save_preprocessed_copy": True, # save ks4 preprocessed data
         }
 
         streams = self.files["pixels"]
