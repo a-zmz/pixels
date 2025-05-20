@@ -1264,15 +1264,11 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         # get trial position
         trial_pos = positions[trial].dropna()
 
-        # floor pre reward zone and end ceil post zone end
-        trial_pos = trial_pos.apply(
-            lambda x: np.floor(x) if x <= ZONE_END else np.ceil(x)
-        )
-        # set to int
-        trial_pos = trial_pos.astype(int)
+        # floor position and set to int
+        trial_pos = trial_pos.apply(lambda x: np.floor(x)).astype(int)
 
         # exclude positions after tunnel reset
-        trial_pos = trial_pos[trial_pos <= TUNNEL_RESET+1]
+        trial_pos = trial_pos[trial_pos <= TUNNEL_RESET]
 
         # get firing rates for current trial of all units
         trial_data = data.xs(
