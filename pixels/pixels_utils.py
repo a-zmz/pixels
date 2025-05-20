@@ -290,8 +290,9 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
 def whiten(rec):
     whitened = spre.whiten(
         recording=rec,
-        dtype=np.int16,
-        int_scale=200, # scale traces value to sd of 200, in line with ks4
+        dtype=np.float32,
+        #dtype=np.int16,
+        #int_scale=200, # scale traces value to sd of 200, in line with ks4
         mode="local",
         radius_um=240.0, # 16 nearby chans in line with ks4
     )
