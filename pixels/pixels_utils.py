@@ -326,13 +326,6 @@ def sort_spikes(rec, sa_rec, output, curated_sa_dir, ks_image_path, ks4_params,
 
     recording: spikeinterface recording object.
     """
-    # NOTE: jan 30 2025 do we sort shanks separately???
-    # if shanks are sorted separately, they will have separate sorter output, we
-    # will have to build an analyser for each group...
-    # maybe easier to just run all shanks together?
-    # the only way to concatenate four temp.dat and only create one sorting
-    # analyser is to read temp_wh.dat, set channels separately from raw, and
-    # si.aggregate_channels...
 
     # sort spikes
     if np.unique(rec.get_channel_groups()).size > 1 and per_shank:
