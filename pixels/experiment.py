@@ -545,21 +545,22 @@ class Experiment:
         Get binned firing rate and spike count for aligned vr trials.
         Check behaviours.base.Behaviour.get_binned_trials for usage information.
         """
+        session_names = [session.name for session in self.sessions]
         trials = {}
-        for i, session in enumerate(self.sessions):
-            name = session.name
-            result = None
-            if units:
-                if units[name]:
-                    result = session.get_binned_trials(
-                        *args,
-                        units=units[name],
-                        **kwargs,
-                    )
-            else:
+        if not units is None:
+            for name in units.keys():
+                session = self.sessions[session_names.index(name)]
+                trials[name] = session.get_binned_trials(
+                    *args,
+                    units=units[name],
+                    **kwargs,
+                )
+        else:
+            for i, session in enumerate(self.sessions):
+                name = session.name
                 result = session.get_binned_trials(*args, **kwargs)
-            if result is not None:
-                trials[name] = result
+                if not result is None:
+                    trials[name] = result
 
         level_names = ["session", "stream", "unit", "trial"]
         bin_fr = ioutils.get_aligned_data_across_sessions(
