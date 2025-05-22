@@ -550,6 +550,10 @@ def _curate_sorting(sorting, recording, output):
     sa = si.create_sorting_analyzer(
         sorting=sorting,
         recording=recording,
+        sparse=True,
+        format="zarr",
+        folder=output/"sa.zarr",
+        overwrite=True,
     )
 
     # calculate all extensions BEFORE further steps
@@ -649,12 +653,6 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
     sexp.export_report(
         sorting_analyzer=sa,
         output_folder=output/"report",
-    )
-
-    # save pre-curated analyser to disk
-    sa.save_as(
-        format="zarr",
-        folder=output/"sa.zarr",
     )
 
     # export curated report
