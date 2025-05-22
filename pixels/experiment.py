@@ -12,6 +12,7 @@ import pandas as pd
 
 from pixels import ioutils
 from pixels.error import PixelsError
+from pixels.configs import *
 
 
 class Experiment:
@@ -224,7 +225,15 @@ class Experiment:
         units = {}
 
         for i, session in enumerate(self.sessions):
-            units[session.name] = session.select_units(*args, **kwargs)
+            name = session.name
+            selected = session.select_units(*args, **kwargs)
+            if len(selected) == 0:
+                logging.warning(
+                    f"\n> {name} does not have units in {selected}, "
+                    "skip."
+                )
+            else:
+                units[name] = selected
 
         return units
 
