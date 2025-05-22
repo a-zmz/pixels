@@ -320,6 +320,10 @@ def sort_spikes(rec, sa_rec, output, curated_sa_dir, ks_image_path, ks4_params,
 
     ks4_params: dict, parameters for kilosort 4.
 
+    per_shank: bool, whether to sort recording per shank.
+        Default: False (as of may 2025, sort shanks separately by ks4 gives less
+        units)
+
     return
     ===
     sorting: spikeinterface sorting object.
