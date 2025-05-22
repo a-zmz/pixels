@@ -221,7 +221,7 @@ class VR(Behaviour):
         # label trial starts
         action_labels[trial_starts, 1] += Events.trial_start
 
-        if not trial_starts.size == vr_data.trial_count.max():
+        if not trial_starts.size == vr_data[in_tunnel].trial_count.max():
             raise PixelsError(f"Number of trials does not equal to "
                     "{vr_data.trial_count.max()}.")
         # NOTE: if trial starts at 0, the first position_in_tunnel value will
