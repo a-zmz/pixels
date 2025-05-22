@@ -789,16 +789,18 @@ class Behaviour(ABC):
         return None
 
 
-    def sort_spikes(self, mc_method="dredge"):
+    def sort_spikes(self, mc_method="ks"):
         """
         Run kilosort spike sorting on raw spike data.
 
         params
         ===
         mc_method: str, motion correction method.
-            Default: "dredge".
-                (as of jan 2025, dredge performs better than ks motion correction.)
+            Default: "ks".
+                (as of may 2025, feeding ap dredged recording to kilosort 4
+                gives much less unit, so just let ks4 does its thing.)
             "ks": do motion correction with kilosort.
+            "dredge": do motion correction with dredge on ap band.
         """
         ks_image_path = self.interim.parent / ks4_image_name
 
