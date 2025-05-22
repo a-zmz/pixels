@@ -666,14 +666,12 @@ class Stream:
         if ks_mc:
             self.preprocess_raw()
             rec = self.files["preprocessed"]
-            sa_rec = None
+            sa_rec = self.files["ap_motion_corrected"]
         else:
-            # whiten ap band and feed to ks
-            rec = self.files["ap_whitened"]
-            # use non-whitened recording for sorting analyser
-            #sa_rec = self.files["ap_motion_corrected"]
-            sa_rec = rec
-            # TODO may 13 2025: test building sa with whitened
+            # XXX: as of may 2025, whiten ap band and feed to ks reduce units!
+            #rec = self.files["ap_whitened"]
+            # use non-whitened recording for ks4 and sorting analyser
+            sa_rec = rec = self.files["ap_motion_corrected"]
 
         # sort spikes and save sorting analyser to disk
         xut.sort_spikes(
