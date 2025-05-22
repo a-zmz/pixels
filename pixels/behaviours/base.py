@@ -807,12 +807,13 @@ class Behaviour(ABC):
         if not ks_image_path.exists():
             raise PixelsError("Have you craeted Singularity image for sorting?")
 
+        # ap band motion correct ONLY for building sorting analyser
+        self.correct_ap_motion()
+
         if mc_method == "ks":
             ks_mc = True
         else:
             ks_mc = False
-            # preprocess and motion correct raw
-            self.correct_ap_motion(mc_method)
             # XXX: no whitening
             #self.whiten_ap()
 
