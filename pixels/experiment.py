@@ -585,3 +585,14 @@ class Experiment:
         }
 
         return df
+
+
+    def sync_vr(self, vr):
+        """
+        Synchronise virtual reality data with pixels streams.
+        """
+        trials = {}
+        for i, session in enumerate(self.sessions):
+            session.sync_vr(vr)
+
+        return None
