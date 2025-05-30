@@ -3,7 +3,7 @@ This file contains some constants parameters for the pixels pipeline.
 """
 import numpy as np
 
-SAMPLE_RATE = 2000
+SAMPLE_RATE = 2000 # Hz
 
 freq_bands = {
     "ap":[300, 9000],
