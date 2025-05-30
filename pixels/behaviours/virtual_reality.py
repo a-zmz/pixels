@@ -68,6 +68,10 @@ class ActionLabels:
     rewarded_dark = triggered_dark | auto_dark | reinf_dark
     given_light = default_light | auto_light | reinf_light
     given_dark = auto_dark | reinf_dark
+    # no punishment, i.e., no missing data
+    completed_light = miss_light | triggered_light | default_light\
+            | auto_light | reinf_light
+    completed_dark = miss_dark | triggered_dark | auto_dark | reinf_dark
 
 
 class Events:
