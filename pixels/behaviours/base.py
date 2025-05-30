@@ -2655,8 +2655,8 @@ class Behaviour(ABC):
                 units=units, # NOTE: put units first!
                 label=label,
                 event=event,
-                end_event=end_event,
                 sigma=sigma,
+                end_event=end_event,
             )
 
         return output
