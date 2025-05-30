@@ -2821,3 +2821,38 @@ class Behaviour(ABC):
             stream.sync_vr(vr)
 
         return None
+
+
+    def get_spatial_psd(
+        self, label, event, end_event=None, sigma=None, units=None,
+    ):
+        """
+        Get spatial power spectral density of selected units.
+        """
+        # NOTE: order of args matters for loading the cache!
+        # always put units first, cuz it is like that in
+        # experiemnt.align_trials, otherwise the same cache cannot be loaded
+
+        output = {}
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+
+            logging.info(
+                f"\n> Getting spatial PSD of {units} units in "
+                f"<{label}> trials."
+            )
+            output[stream_id] = stream.get_spatial_psd(
+                units=units, # NOTE: put units first!
+                label=label,
+                event=event,
+                sigma=sigma,
+                end_event=end_event, # NOTE: put units last!
+            )
+
+        return output
