@@ -21,7 +21,7 @@ from pixels.ioutils import write_hdf5, reindex_by_longest
 from pixels.error import PixelsError
 from pixels.configs import *
 
-from common_utils.math_utils import random_sampling, group_and_aggregate
+from common_utils import math_utils
 from common_utils.file_utils import init_memmap, read_hdf5
 
 def load_raw(paths, stream_id):
@@ -1287,7 +1287,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         elif data_type == "spiked":
             # group values by position and get sum data
             how = "sum"
-        grouped_data = group_and_aggregate(trial_data, "position", how)
+        grouped_data = math_utils.group_and_aggregate(trial_data, "position", how)
 
         # reindex into full tunnel length
         pos_data[trial] = grouped_data.reindex(indices)
