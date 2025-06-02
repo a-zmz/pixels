@@ -274,6 +274,7 @@ class VR(Behaviour):
 
         # TODO jun 27 2024 positional events and valve events needs mapping
 
+        # >>>> Event: end of pre dark length >>>>
         # NOTE: AL remove pre_dark_len + 10cm of his data
         # get starting positions of all trials
         start_pos = vr_data[in_tunnel].groupby(
@@ -300,9 +301,16 @@ class VR(Behaviour):
         )
         action_labels[pre_dark_end_idx, 1] += Events.pre_dark_end
         # <<<< Event: end of pre dark length <<<<
+
+        # >>>> Event: reward zone >>>>
+        assert 0
+        # TODO jun 2 2025:
+        # do positional event mapping
+        vr_data.position_in_tunnel
+        # <<<< Event: reward zone <<<<
+
         logging.info("\n>> Mapping vr action times...")
 
-        # >>>> map reward types >>>>
         # get non-zero reward types
         reward_not_none = (vr_data.reward_type != Outcomes.NONE)
 
