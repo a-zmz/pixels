@@ -238,6 +238,12 @@ class VR(Behaviour):
         action_labels[light_off, 1] += Events.light_off
         # <<<< light <<<<
 
+        # NOTE: dark trials should in theory have EQUAL index pre_dark_end_idx
+        # and dark_on, BUT! after interpolation, some dark trials have their
+        # dark onset earlier than expected, those are corrected to the first
+        # expected position, they will have the same index as pre_dark_end_idx.
+        # others will not since their world_index change later than expected.
+
         # NOTE: if dark trial is aborted, light tunnel only turns off once; but
         # if it is a reward is dispensed, light tunnel turns off twice
 
@@ -268,6 +274,7 @@ class VR(Behaviour):
 
         # TODO jun 27 2024 positional events and valve events needs mapping
 
+        # NOTE: AL remove pre_dark_len + 10cm of his data
         logging.info("\n>> Mapping vr action times...")
 
         # >>>> map reward types >>>>
@@ -281,12 +288,15 @@ class VR(Behaviour):
             trial_idx = np.where(of_trial)[0]
             # get start index of current trial
             start_idx = trial_idx[np.isin(trial_idx, trial_starts)]
+
             # find where is non-zero reward type in current trial
             reward_typed = vr_data[of_trial & reward_not_none]
             # get trial type of current trial
             trial_type = int(vr_data[of_trial].trial_type.unique())
             # get name of trial type in string
             trial_type_str = trial_type_lookup.get(trial_type).lower()
+
+            # >>>> map reward types >>>>
 
             # >>>> punished >>>>
             if (reward_typed.size == 0)\
@@ -338,7 +348,8 @@ class VR(Behaviour):
                     )
                     action_labels[valve_closed_idx, 1] += Events.valve_closed
                 # <<<< non aborted, valve only <<<<
-        # <<<< map reward types <<<<
+
+            # <<<< map reward types <<<<
 
         # put pixels timestamps in the third column
         action_labels = np.column_stack((action_labels, vr_data.index.values))
