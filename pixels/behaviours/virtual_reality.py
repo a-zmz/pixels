@@ -93,19 +93,20 @@ class Events:
     trial_end = 1 << 9 # 512
 
     # positional events
-    black = 1 << 10 # 0 - 60 cm
-    wall = 1 << 11 # in between landmarks
-    landmark1 = 1 << 12 # 110 - 130 cm
-    landmark2 = 1 << 13 # 190 - 210 cm
-    landmark3 = 1 << 14 # 270 - 290 cm
-    landmark4 = 1 << 15 # 350 - 370 cm
-    landmark5 = 1 << 16 # 430 - 450 cm
-    reward_zone = 1 << 17 # 460 - 495 cm
+    pre_dark_end = 1 << 10 # 50 cm
+    black = 1 << 12 # 0 - 60 cm
+    wall = 1 << 12 # in between landmarks
+    landmark1 = 1 << 13 # 110 - 130 cm
+    landmark2 = 1 << 14 # 190 - 210 cm
+    landmark3 = 1 << 15 # 270 - 290 cm
+    landmark4 = 1 << 16 # 350 - 370 cm
+    landmark5 = 1 << 17 # 430 - 450 cm
+    reward_zone = 1 << 18 # 460 - 495 cm
 
     # sensors
-    valve_open = 1 << 18 # 262144
-    valve_closed = 1 << 19 # 524288
-    licked = 1 << 20 # 1048576
+    valve_open = 1 << 19 # 262144
+    valve_closed = 1 << 20 # 524288
+    licked = 1 << 21 # 1048576
     #run_start = 1 << 12
     #run_stop = 1 << 13
 
