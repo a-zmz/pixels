@@ -571,7 +571,7 @@ class Stream:
         )
 
         # get positional spike rate, spike count, and occupancy
-        positional_data = xut.get_vr_positional_data(trials)
+        positional_data = xut.get_vr_positional_data(event, trials)
 
         return positional_data
 

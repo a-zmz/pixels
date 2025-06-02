@@ -1186,7 +1186,7 @@ def correct_group_id(rec):
     return group_ids
 
 
-def get_vr_positional_data(trial_data):
+def get_vr_positional_data(event, trial_data):
     """
     Get positional firing rate and spike count for VR behaviour.
 
@@ -1200,11 +1200,13 @@ def get_vr_positional_data(trial_data):
     data in 1cm resolution.
     """
     pos_fr, occupancy = _get_vr_positional_neural_data(
+        event=event,
         positions=trial_data["positions"],
         data_type="spike_rate",
         data=trial_data["fr"],
     )
     pos_fc, _ = _get_vr_positional_neural_data(
+        event=event,
         positions=trial_data["positions"],
         data_type="spiked",
         data=trial_data["spiked"],
@@ -1213,7 +1215,7 @@ def get_vr_positional_data(trial_data):
     return {"pos_fr": pos_fr, "pos_fc": pos_fc, "occupancy": occupancy}
 
 
-def _get_vr_positional_neural_data(positions, data_type, data):
+def _get_vr_positional_neural_data(event, positions, data_type, data):
     """
     Get positional neural data for VR behaviour.
 
@@ -1242,10 +1244,15 @@ def _get_vr_positional_neural_data(positions, data_type, data):
     logging.info(f"\n> Getting positional {data_type}...")
 
     # get constants from vd
-    from vision_in_darkness.constants import TUNNEL_RESET, ZONE_END
+    from vision_in_darkness.constants import TUNNEL_RESET, ZONE_END,\
+        PRE_DARK_LEN
+    from pixels.behaviours.virtual_reality import Events
 
     # get the starting index for each trial (column)
     starts = positions.iloc[0, :].astype(int)
+    # if align to dark_onset, actual starting position is before that
+    if event == Events.dark_on:
+        starts = starts - PRE_DARK_LEN
     # create position indices
     indices = np.arange(0, TUNNEL_RESET+1)
     # create occupancy array for trials
