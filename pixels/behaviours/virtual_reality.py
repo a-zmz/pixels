@@ -275,6 +275,31 @@ class VR(Behaviour):
         # TODO jun 27 2024 positional events and valve events needs mapping
 
         # NOTE: AL remove pre_dark_len + 10cm of his data
+        # get starting positions of all trials
+        start_pos = vr_data[in_tunnel].groupby(
+            "trial_count"
+        )["position_in_tunnel"].first()
+
+        # plus pre dark
+        end_pre_dark = start_pos + vr.pre_dark_len
+
+        def _first_post_pre_dark(df):
+            trial = df.name
+            pre_dark_end = end_pre_dark.loc[trial]
+            # mask and pick the first index
+            mask = df['position_in_tunnel'] >= pre_dark_end
+            if not mask.any():
+                return None
+            return df.index[mask].min()
+
+        pre_dark_end_t = vr_data[in_tunnel].groupby("trial_count").apply(
+            _first_post_pre_dark
+        )
+        pre_dark_end_idx = vr_data.index.get_indexer(
+            pre_dark_end_t.dropna().astype(int)
+        )
+        action_labels[pre_dark_end_idx, 1] += Events.pre_dark_end
+        # <<<< Event: end of pre dark length <<<<
         logging.info("\n>> Mapping vr action times...")
 
         # >>>> map reward types >>>>
