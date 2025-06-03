@@ -88,20 +88,27 @@ class Events(IntFlag):
 
     # positional events
     pre_dark_end = auto()#1 << 10 # 50 cm
-    black_off = auto()#1 << 11 # 0 - 60 cm
-    wall = auto()#1 << 12 # in between landmarks
-    landmark1_on = auto()#1 << 13 # 110 cm
-    landmark2_on = auto()#1 << 14 # 190 cm
-    landmark3_on = auto()#1 << 15 # 270 cm
-    landmark4_on = auto()#1 << 16 # 350 cm
-    landmark5_on = auto()#1 << 17 # 430 cm
-    reward_zone_on = auto()#1 << 18 # 460 cm
 
+    wall = auto()#1 << 12 # in between landmarks
+
+    black_off = auto()#1 << 11 # 0 - 60 cm
+
+    landmark1_on = auto()#1 << 13 # 110 cm
     landmark1_off = auto()#1 << 19 # 130 cm
+
+    landmark2_on = auto()#1 << 14 # 190 cm
     landmark2_off = auto()#1 << 20 # 210 cm
+
+    landmark3_on = auto()#1 << 15 # 270 cm
     landmark3_off = auto()#1 << 21 # 290 cm
+
+    landmark4_on = auto()#1 << 16 # 350 cm
     landmark4_off = auto()#1 << 22 # 370 cm
+
+    landmark5_on = auto()#1 << 17 # 430 cm
     landmark5_off = auto()#1 << 23 # 450 cm
+
+    reward_zone_on = auto()#1 << 18 # 460 cm
     reward_zone_off = auto()#1 << 24 # 495 cm
 
     # sensors
