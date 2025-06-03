@@ -320,11 +320,34 @@ class VR(Behaviour):
         np.bitwise_or.at(events_arr, pre_dark_end_idx, Events.pre_dark_end)
         # <<<< Event: end of pre dark length <<<<
 
+        # >>>> Event: landmark 1 >>>>
+
+        # <<<< Event: landmark 1 <<<<
+
         # >>>> Event: reward zone >>>>
-        assert 0
-        # TODO jun 2 2025:
-        # do positional event mapping
-        vr_data.position_in_tunnel
+        # all indices in reward zone
+        in_zone = (
+            vr_data.position_in_tunnel >= vr.reward_zone_start
+        ) & (
+            vr_data.position_in_tunnel <= vr.reward_zone_end
+        )
+        # reward zone on
+        zone_on_t = (
+            vr_data[in_zone]
+              .groupby("trial_count")
+              .apply(lambda g: g.index.min())
+        )
+        zone_on_idx = vr_data.index.get_indexer(zone_on_t)
+        np.bitwise_or.at(events_arr, zone_on_idx, Events.reward_zone_on)
+
+        # reward zone off
+        zone_off_t = (
+            vr_data[in_zone]
+              .groupby("trial_count")
+              .apply(lambda g: g.index.max())
+        )
+        zone_off_idx = vr_data.index.get_indexer(zone_off_t) + 1
+        np.bitwise_or.at(events_arr, zone_off_idx, Events.reward_zone_off)
         # <<<< Event: reward zone <<<<
 
         logging.info("\n>> Mapping vr action times...")
