@@ -20,14 +20,14 @@ from pixels.behaviours import Behaviour
 from pixels.configs import *
 
 
-class ActionLabels(IntFlag):
+class TrialTypes(IntFlag):
     """
-    These actions cover all possible trial types.
+    These cover all possible trial types.
 
     To align trials to more than one action type they can be bitwise OR'd i.e.
     `miss_light | miss_dark` will match all miss trials.
 
-    Actions can NOT be added on top of each other, they should be mutually
+    Trial types can NOT be added on top of each other, they should be mutually
     exclusive.
     """
     # TODO jun 7 2024 does the name "action" make sense?
@@ -337,8 +337,11 @@ class VR(Behaviour):
                 & (vr_data[of_trial & in_white].size != 0):
                 # punished outcome
                 outcome = f"punished_{trial_type_str}"
-                action_labels[trial_idx, 0] = getattr(ActionLabels, outcome)
-                #action_labels[start_idx, 0] = getattr(ActionLabels, outcome)
+                outcomes_arr[trial_idx] = getattr(TrialTypes, outcome)
+                # or only mark the beginning of the trial?
+                #outcomes_arr[start_idx] = getattr(TrialTypes, outcome)
+
+                #action_labels[start_idx, 0] = getattr(TrialTypes, outcome)
             # <<<< punished <<<<
 
             elif (reward_typed.size == 0)\
@@ -366,8 +369,9 @@ class VR(Behaviour):
                     """ given & aborted """
                     outcome = _outcome_map[reward_type]
                 # label outcome
-                action_labels[trial_idx, 0] = getattr(ActionLabels, outcome)
-                #action_labels[start_idx, 0] = getattr(ActionLabels, outcome)
+                outcomes_arr[trial_idx] = getattr(TrialTypes, outcome)
+                # or only mark the beginning of the trial?
+                #outcomes_arr[start_idx] = getattr(TrialTypes, outcome)
                 # <<<< non punished <<<<
 
                 # >>>> non aborted, valve only >>>>
