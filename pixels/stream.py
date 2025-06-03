@@ -107,14 +107,14 @@ class Stream:
         spikes = self.get_spike_times(units)
 
         # get action and event label file
-        actions = action_labels["outcome"]
+        outcomes = action_labels["outcome"]
         events = action_labels["events"]
         # get timestamps index of behaviour in self.BEHAVIOUR_SAMPLE_RATE hz, to convert
         # it to ms, do timestamps*1000/self.BEHAVIOUR_SAMPLE_RATE
         timestamps = action_labels["timestamps"]
 
         # select frames of wanted trial type
-        trials = np.where(np.bitwise_and(actions, label))[0]
+        trials = np.where(np.bitwise_and(outcomes, label))[0]
         # map starts by event
         starts = np.where(np.bitwise_and(events, event))[0]
         # map starts by end event
