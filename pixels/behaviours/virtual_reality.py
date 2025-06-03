@@ -142,6 +142,12 @@ class VR(Behaviour):
 
         # create action label array for trial types & events
         labels = np.zeros((vr_data.shape[0], 2), dtype=np.uint32)
+        # create arr view to make it more clear which column i'm writing into
+        # NOTE: the original array would not get updated if i do fancy indexing
+        # on the original, i.e., labels[mask, 0]
+        outcomes_arr = labels[:, 0]
+        events_arr = labels[:, 1]
+
         # >>>> definitions >>>>
         # define in gray
         in_gray = (vr_data.world_index == Worlds.GRAY)
