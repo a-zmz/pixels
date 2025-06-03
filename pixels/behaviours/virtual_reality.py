@@ -131,7 +131,7 @@ class VR(Behaviour):
 
     def _extract_action_labels(self, vr, vr_data):
         # create action label array for actions & events
-        action_labels = np.zeros((vr_data.shape[0], 2), dtype=np.int32)
+        action_labels = np.zeros((vr_data.shape[0], 2), dtype=np.uint32)
 
         # >>>> definitions >>>>
         # define in gray
