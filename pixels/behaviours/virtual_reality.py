@@ -137,9 +137,11 @@ trial_type_lookup = {v: k for k, v in vars(Conditions).items()}
 class VR(Behaviour):
 
     def _extract_action_labels(self, vr, vr_data):
-        # create action label array for actions & events
-        action_labels = np.zeros((vr_data.shape[0], 2), dtype=np.uint32)
+        # NOTE: this func still called _extract_action_labels cuz it is
+        # inherited from motor data analysis, where each unit is an action.
 
+        # create action label array for trial types & events
+        labels = np.zeros((vr_data.shape[0], 2), dtype=np.uint32)
         # >>>> definitions >>>>
         # define in gray
         in_gray = (vr_data.world_index == Worlds.GRAY)
@@ -347,8 +349,6 @@ class VR(Behaviour):
                 outcomes_arr[trial_idx] = getattr(TrialTypes, outcome)
                 # or only mark the beginning of the trial?
                 #outcomes_arr[start_idx] = getattr(TrialTypes, outcome)
-
-                #action_labels[start_idx, 0] = getattr(TrialTypes, outcome)
             # <<<< punished <<<<
 
             elif (reward_typed.size == 0)\
@@ -397,9 +397,9 @@ class VR(Behaviour):
             # <<<< map reward types <<<<
 
         # put pixels timestamps in the third column
-        action_labels = np.column_stack((action_labels, vr_data.index.values))
+        labels = np.column_stack((labels, vr_data.index.values))
 
-        return action_labels
+        return labels
 
 
     def _check_action_labels(self, vr_data, action_labels, plot=True):
