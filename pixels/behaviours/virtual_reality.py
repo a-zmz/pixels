@@ -409,103 +409,285 @@ class VR(Behaviour):
 
         return action_labels
 
-    '''
-    # TODO sep 30 2024:
-    # refactored code from chatgpt
-    # needs testing!
-    def _assign_event_label(self, action_labels, event_times, event_type, column=1):
+'''
+from enum import IntFlag, auto
+from typing    import NamedTuple, List, Tuple
+
+import numpy  as np
+import pandas as pd
+
+from vision_in_darkness.base import Outcomes, Worlds, Conditions
+from pixels.behaviours       import Behaviour
+from pixels                   import PixelsError
+
+
+class Events(IntFlag):
+    """Bit-flags for everything that can happen to the animal in VR."""
+    NONE            = 0
+    trial_start     = auto()
+    gray_on         = auto()
+    gray_off        = auto()
+    light_on        = auto()
+    light_off       = auto()
+    dark_on         = auto()
+    dark_off        = auto()
+    punish_on       = auto()
+    punish_off      = auto()
+    pre_dark_end    = auto()
+    reward_zone     = auto()
+    valve_open      = auto()
+    valve_closed    = auto()
+    lick            = auto()
+
+
+class ActionLabels(IntFlag):
+    """Mutually exclusive trial‐outcome labels, plus helpful combos."""
+    NONE              = 0
+    miss_light        = auto()
+    miss_dark         = auto()
+    triggered_light   = auto()
+    triggered_dark    = auto()
+    punished_light    = auto()
+    punished_dark     = auto()
+    default_light     = auto()
+    auto_light        = auto()
+    auto_dark         = auto()
+    reinf_light       = auto()
+    reinf_dark        = auto()
+
+    # handy OR-combos
+    miss        = miss_light      | miss_dark
+    triggered   = triggered_light | triggered_dark
+    punished    = punished_light  | punished_dark
+
+    light       = (miss_light    | triggered_light | punished_light
+                   | default_light | auto_light      | reinf_light)
+    dark        = (miss_dark     | triggered_dark  | punished_dark
+                   | auto_dark     | reinf_dark)
+    rewarded_light = (triggered_light | default_light
+                      | auto_light   | reinf_light)
+    rewarded_dark  = (triggered_dark  | auto_dark
+                      | reinf_dark)
+    given_light    = default_light    | auto_light | reinf_light
+    given_dark     = auto_dark        | reinf_dark
+    completed_light = miss_light     | triggered_light | default_light \
+                      | auto_light    | reinf_light
+    completed_dark  = miss_dark      | triggered_dark  | auto_dark \
+                      | reinf_dark
+
+
+class LabeledEvents(NamedTuple):
+    """Structured return from _extract_action_labels."""
+    timestamps: np.ndarray       # shape (N,)
+    outcome:    np.ndarray       # shape (N,) of ActionLabels
+    events:     np.ndarray       # shape (N,) of Events
+
+
+class VR(Behaviour):
+    """Behaviour subclass that extracts events & action labels from vr_data."""
+
+    def _extract_action_labels(
+        self,
+        vr_data: pd.DataFrame
+    ) -> LabeledEvents:
         """
-        Helper function to assign event labels to action_labels array.
+        Go over every frame in vr_data and assign:
+         - `events[i]` := bitmask of Events that occur at frame i
+         - `outcome[i]` := the trial‐outcome (one and only one ActionLabel) at i
         """
-        event_indices = event_times.index
-        event_on_idx = np.where(event_indices.diff() != 1)[0]
+        N = len(vr_data)
+        events  = np.zeros(N, dtype=np.uint64)
+        outcome = np.zeros(N, dtype=np.uint64)
 
-        # Find first and last timepoints for events
-        event_on_t = event_indices[event_on_idx]
-        event_off_t = np.append(event_indices[event_on_idx[1:] - 1], event_indices[-1])
+        # 1) stamp world‐based events (gray, light, dark, punish) via run masks
+        for evt, mask in self._world_event_masks(vr_data):
+            self._stamp_mask(events, mask, evt)
 
-        event_on = event_times.index.get_indexer(event_on_t)
-        event_off = event_times.index.get_indexer(event_off_t)
+        # 2) stamp positional events (pre‐dark end, reward‐zone)
+        for evt, mask in self._position_event_masks(vr_data):
+            self._stamp_mask(events, mask, evt)
 
-        action_labels[event_on, column] += event_type['on']
-        action_labels[event_off, column] += event_type['off']
+        # 3) stamp sensors: lick, valve open/closed
+        self._stamp_rising(events, vr_data.lick_detect.values, Events.lick)
+        # (if you have valve signals, do same for them)
 
-        return action_labels
+        # 4) map each trial’s outcome into the outcome array
+        outcome_map = self._build_outcome_map()
+        for trial_id, group in vr_data.groupby("trial_count"):
+            idxs = group.index.values
+            flag = self._compute_outcome_flag(group, outcome_map)
+            outcome[idxs] = flag
 
-    def _map_trial_events(self, action_labels, vr_data, vr):
+            # stamp trial_start at the first frame of each triggered trial:
+            if flag in (ActionLabels.triggered_light, ActionLabels.triggered_dark):
+                first_idx = idxs[0]
+                events[first_idx] |= Events.trial_start
+
+        # 5) return timestamps + two bit‐masked channels
+        return LabeledEvents(
+            timestamps = vr_data.index.values,
+            outcome    = outcome.astype(np.uint32),
+            events     = events.astype(np.uint32)
+        )
+
+
+    # -------------------------------------------------------------------------
+    #  Helpers to apply a flag wherever mask is true or on rising edges
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _stamp_mask(
+        storage: np.ndarray,
+        mask:    np.ndarray,
+        flag:    IntFlag
+    ) -> None:
+        """Bitwise‐OR `flag` into `storage` at every True in `mask`."""
+        storage[mask] |= flag
+
+    @staticmethod
+    def _stamp_rising(
+        storage: np.ndarray,
+        signal:  np.ndarray,
+        flag:    IntFlag
+    ) -> None:
         """
-        Maps different trial events like gray, light, dark, and punishments.
+        Find rising‐edge frames in a 0/1 `signal` array (diff == +1)
+        and stamp `flag` at those indices.
         """
-        # Define event mappings for gray, light, dark, punishments
-        event_mappings = {
-            'gray': {'on': Events.gray_on, 'off': Events.gray_off,
-                'condition': vr_data.world_index == Worlds.GRAY},
-            'light': {'on': Events.light_on, 'off': Events.light_off,
-                'condition': vr_data.world_index == Worlds.TUNNEL},
-            'dark': {'on': Events.dark_on, 'off': Events.dark_off,
-                'condition': (vr_data.world_index == Worlds.DARK_5)\
-                    | (vr_data.world_index == Worlds.DARK_2_5)\
-                    | (vr_data.world_index == Worlds.DARK_FULL)},
-            'punish': {'on': Events.punish_on, 'off': Events.punish_off,
-                'condition': vr_data.world_index == Worlds.WHITE},
+        edges = np.flatnonzero(np.diff(signal, prepend=0) == 1)
+        storage[edges] |= flag
+
+
+    # -------------------------------------------------------------------------
+    #  Build lists of (EventFlag, boolean_mask) for world & positional events
+    # -------------------------------------------------------------------------
+
+    def _world_event_masks(
+        self,
+        df: pd.DataFrame
+    ) -> List[Tuple[Events, np.ndarray]]:
+        w = Worlds
+        return [
+            # gray: enters in GRAY, leaves when GRAY ends
+            (Events.gray_on,  self._first_in_run(df.world_index == w.GRAY)),
+            (Events.gray_off, self._last_in_run (df.world_index == w.GRAY)),
+
+            # white (“punish” region)
+            (Events.punish_on,  self._first_in_run(df.world_index == w.WHITE)),
+            (Events.punish_off, self._last_in_run (df.world_index == w.WHITE)),
+
+            # light tunnel
+            (Events.light_on,   self._first_in_run(df.world_index == w.TUNNEL)),
+            (Events.light_off,  self._last_in_run (df.world_index == w.TUNNEL)),
+
+            # dark tunnels (could be multiple dark worlds)
+            (Events.dark_on,    self._first_in_run(df.world_index.isin(w.DARKS))),
+            (Events.dark_off,   self._last_in_run (df.world_index.isin(w.DARKS))),
+        ]
+
+    def _position_event_masks(
+        self,
+        df: pd.DataFrame
+    ) -> List[Tuple[Events, np.ndarray]]:
+        # pre‐dark end: when position ≥ (start_pos + pre_dark_len)
+        start_pos = df[df.world_index==Worlds.TUNNEL] \
+                    .groupby("trial_count")["position_in_tunnel"] \
+                    .first()
+        end_vals  = start_pos + self.pre_dark_len
+        # mask per‐trial then merge
+        pre_dark_mask = np.zeros(len(df), bool)
+        for trial, thresh in end_vals.items():
+            idx = df.trial_count==trial
+            pre_dark_mask[idx] |= (df.position_in_tunnel[idx] >= thresh)
+
+        # reward zone: any frame at or beyond rz_start
+        rz_mask = df.position_in_tunnel >= self.rz_start
+
+        return [
+            (Events.pre_dark_end, pre_dark_mask),
+            (Events.reward_zone,  rz_mask),
+        ]
+
+
+    # -------------------------------------------------------------------------
+    #  Utilities for detecting run‐start and run‐end of a boolean mask
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _first_in_run(mask: np.ndarray) -> np.ndarray:
+        """
+        True exactly at the first True of each contiguous run in `mask`.
+        """
+        idx = np.flatnonzero(mask)
+        if idx.size == 0:
+            return np.zeros_like(mask)
+        # a run starts where current True differs from previous True
+        starts = np.concatenate([[True],
+                                 mask[idx[1:]] != mask[idx[:-1]]])
+        first_idx = idx[starts]
+        out = np.zeros_like(mask)
+        out[first_idx] = True
+        return out
+
+    @staticmethod
+    def _last_in_run(mask: np.ndarray) -> np.ndarray:
+        """
+        True exactly at the last True of each contiguous run in `mask`.
+        """
+        idx = np.flatnonzero(mask)
+        if idx.size == 0:
+            return np.zeros_like(mask)
+        ends = np.concatenate([mask[idx[:-1]] != mask[idx[1:]], [True]])
+        last_idx = idx[ends]
+        out = np.zeros_like(mask)
+        out[last_idx] = True
+        return out
+
+
+    # -------------------------------------------------------------------------
+    #  Outcome‐mapping machinery
+    # -------------------------------------------------------------------------
+
+    def _build_outcome_map(self) -> dict:
+        """
+        Returns a dict mapping (Outcomes, Conditions) → ActionLabels.
+        """
+        m = {
+            (Outcomes.ABORTED_DARK,   Conditions.DARK):  ActionLabels.miss_dark,
+            (Outcomes.ABORTED_LIGHT,  Conditions.LIGHT): ActionLabels.miss_light,
+            (Outcomes.PUNISHED,       Conditions.LIGHT): ActionLabels.punished_light,
+            (Outcomes.PUNISHED,       Conditions.DARK):  ActionLabels.punished_dark,
+            (Outcomes.AUTO_LIGHT,     Conditions.LIGHT): ActionLabels.auto_light,
+            (Outcomes.DEFAULT,        Conditions.LIGHT): ActionLabels.default_light,
+            (Outcomes.REINF_LIGHT,    Conditions.LIGHT): ActionLabels.reinf_light,
+            (Outcomes.AUTO_DARK,      Conditions.DARK):  ActionLabels.auto_dark,
+            (Outcomes.REINF_DARK,     Conditions.DARK):  ActionLabels.reinf_dark,
+
+            # triggered must include light vs dark
+            (Outcomes.TRIGGERED,      Conditions.LIGHT): ActionLabels.triggered_light,
+            (Outcomes.TRIGGERED,      Conditions.DARK):  ActionLabels.triggered_dark,
         }
+        return m
 
-        for event_name, event_type in event_mappings.items():
-            event_times = vr_data[event_type['condition']]
-            action_labels = self._assign_event_label(action_labels, event_times, event_type)
-
-        return action_labels
-
-    def _assign_trial_outcomes(self, action_labels, vr_data, vr):
+    def _compute_outcome_flag(
+        self,
+        trial_df:   pd.DataFrame,
+        outcome_map: dict
+    ) -> ActionLabels:
         """
-        Assign outcomes for each trial, including rewards and punishments.
+        Given one trial's DataFrame, look at its reward_type & trial_type
+        and return the matching ActionLabels member.
         """
-        for t, trial in enumerate(vr_data.trial_count.unique()):
-            # Extract trial-specific information
-            of_trial = (vr_data.trial_count == trial)
-            trial_idx = np.where(of_trial)[0]
+        rts = trial_df.reward_type.unique()
+        if rts.size == 0:
+            # no reward_type → unfinished or last‐trial abort
+            return ActionLabels.NONE
 
-            reward_not_none = (vr_data.reward_type != Outcomes.NONE)
-            reward_typed = vr_data[of_trial & reward_not_none]
-            trial_type = int(vr_data[of_trial].trial_type.unique())
-            trial_type_str = trial_type_lookup.get(trial_type).lower()
-
-            if reward_typed.size == 0\
-                and vr_data[of_trial\
-                    & (vr_data.world_index == Worlds.WHITE)].size != 0:
-                # Handle punishment case
-                outcome = f"punished_{trial_type_str}"
-            else:
-                reward_type = int(reward_typed.reward_type.unique())
-                outcome = _outcome_map.get(reward_type, "unknown")
-
-                if reward_type == Outcomes.TRIGGERED:
-                    outcome = f"{outcome}_{trial_type_str}"
-
-            action_labels[trial_idx, 0] = getattr(ActionLabels, outcome, 0)
-
-            if reward_type > Outcomes.NONE:
-                valve_open_idx = vr_data.index.get_indexer([reward_typed.index[0]])
-                valve_closed_idx = vr_data.index.get_indexer([reward_typed.index[-1]])
-                action_labels[valve_open_idx, 1] += Events.valve_open
-                action_labels[valve_closed_idx, 1] += Events.valve_closed
-
-        return action_labels
-
-    def _extract_action_labels(self, vr, vr_data):
-        """
-        Extract action labels from VR data and assign events and outcomes.
-        """
-        action_labels = np.zeros((vr_data.shape[0], 2), dtype=np.int32)
-
-        # Map events
-        action_labels = self._map_trial_events(action_labels, vr_data, vr)
-
-        # Assign trial outcomes
-        action_labels = self._assign_trial_outcomes(action_labels, vr_data, vr)
-
-        # Add timestamps to action labels
-        action_labels = np.column_stack((action_labels, vr_data.index.values))
-
-        return action_labels
-    '''
+        rt = Outcomes(int(rts[0]))
+        cond = Conditions(int(trial_df.trial_type.iloc[0]))
+        key  = (rt, cond)
+        try:
+            return outcome_map[key]
+        except KeyError:
+            raise PixelsError(f"No outcome mapping for {key}")
+'''
