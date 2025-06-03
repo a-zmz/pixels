@@ -20,7 +20,7 @@ from pixels.behaviours import Behaviour
 from pixels.configs import *
 
 
-class ActionLabels:
+class ActionLabels(IntFlag):
     """
     These actions cover all possible trial types.
 
@@ -35,19 +35,19 @@ class ActionLabels:
     # TODO jul 4 2024 only label trial type at the first frame of the trial to
     # make it easier for alignment???
     # triggered vr trials
-    miss_light = 1 << 0 # 1
-    miss_dark = 1 << 1 # 2
-    triggered_light = 1 << 2 # 4
-    triggered_dark = 1 << 3 # 8
-    punished_light = 1 << 4 # 16
-    punished_dark = 1 << 5 # 32
+    miss_light = auto()#1 << 0 # 1
+    miss_dark = auto()#1 << 1 # 2
+    triggered_light = auto()#1 << 2 # 4
+    triggered_dark = auto()#1 << 3 # 8
+    punished_light = auto()#1 << 4 # 16
+    punished_dark = auto()#1 << 5 # 32
 
     # given reward
-    default_light = 1 << 6 # 64
-    auto_light = 1 << 7 # 128
-    auto_dark = 1 << 8 # 256
-    reinf_light = 1 << 9 # 512
-    reinf_dark = 1 << 10 # 1024
+    default_light = auto()#1 << 6 # 64
+    auto_light = auto()#1 << 7 # 128
+    auto_dark = auto()#1 << 8 # 256
+    reinf_light = auto()#1 << 9 # 512
+    reinf_dark = auto()#1 << 10 # 1024
 
     # combos
     miss = miss_light | miss_dark
@@ -68,41 +68,48 @@ class ActionLabels:
     completed_dark = miss_dark | triggered_dark | auto_dark | reinf_dark
 
 
-class Events:
+class Events(IntFlag):
     """
     Defines events that could happen during vr sessions.
 
     Events can be added on top of each other.
     """
     # vr events
-    trial_start = 1 << 0 # 1
-    gray_on = 1 << 1 # 2
-    gray_off = 1 << 2 # 4
-    light_on = 1 << 3 # 8
-    light_off = 1 << 4 # 16
-    dark_on = 1 << 5 # 32
-    dark_off = 1 << 6 # 64
-    punish_on = 1 << 7 # 128
-    punish_off = 1 << 8 # 256
-    trial_end = 1 << 9 # 512
+    trial_start = auto()#1 << 0 # 1
+    gray_on = auto()#1 << 1 # 2
+    gray_off = auto()#1 << 2 # 4
+    light_on = auto()#1 << 3 # 8
+    light_off = auto()#1 << 4 # 16
+    dark_on = auto()#1 << 5 # 32
+    dark_off = auto()#1 << 6 # 64
+    punish_on = auto()#1 << 7 # 128
+    punish_off = auto()#1 << 8 # 256
+    trial_end = auto()#1 << 9 # 512
 
     # positional events
-    pre_dark_end = 1 << 10 # 50 cm
-    black = 1 << 12 # 0 - 60 cm
-    wall = 1 << 12 # in between landmarks
-    landmark1 = 1 << 13 # 110 - 130 cm
-    landmark2 = 1 << 14 # 190 - 210 cm
-    landmark3 = 1 << 15 # 270 - 290 cm
-    landmark4 = 1 << 16 # 350 - 370 cm
-    landmark5 = 1 << 17 # 430 - 450 cm
-    reward_zone = 1 << 18 # 460 - 495 cm
+    pre_dark_end = auto()#1 << 10 # 50 cm
+    black_off = auto()#1 << 11 # 0 - 60 cm
+    wall = auto()#1 << 12 # in between landmarks
+    landmark1_on = auto()#1 << 13 # 110 cm
+    landmark2_on = auto()#1 << 14 # 190 cm
+    landmark3_on = auto()#1 << 15 # 270 cm
+    landmark4_on = auto()#1 << 16 # 350 cm
+    landmark5_on = auto()#1 << 17 # 430 cm
+    reward_zone_on = auto()#1 << 18 # 460 cm
+
+    landmark1_off = auto()#1 << 19 # 130 cm
+    landmark2_off = auto()#1 << 20 # 210 cm
+    landmark3_off = auto()#1 << 21 # 290 cm
+    landmark4_off = auto()#1 << 22 # 370 cm
+    landmark5_off = auto()#1 << 23 # 450 cm
+    reward_zone_off = auto()#1 << 24 # 495 cm
 
     # sensors
-    valve_open = 1 << 19 # 262144
-    valve_closed = 1 << 20 # 524288
-    licked = 1 << 21 # 1048576
-    #run_start = 1 << 12
-    #run_stop = 1 << 13
+    valve_open = auto()#1 << 25 # 524288
+    valve_closed = auto()#1 << 26 # 1048576
+    licked = auto()#1 << 27 # 134217728
+    #run_start = 1 << 28
+    #run_stop = 1 << 29
 
 
 # map trial outcome
