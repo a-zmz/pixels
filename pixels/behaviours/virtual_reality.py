@@ -7,9 +7,7 @@ This module provides reach task specific operations.
 # as a train of 0s and 1s, we align to the first 1s and the last 1s of a given
 # event, except for licks since it could only be on or off per frame.
 
-from __future__ import annotations
-
-import pickle
+from enum import IntFlag, auto
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,13 +15,9 @@ import pandas as pd
 
 from vision_in_darkness.base import Outcomes, Worlds, Conditions
 
-from pixels import Experiment, PixelsError
-import pixels.signal_utils as signal
-from pixels import ioutils
+from pixels import PixelsError
 from pixels.behaviours import Behaviour
 from pixels.configs import *
-
-from common_utils import file_utils
 
 
 class ActionLabels:
