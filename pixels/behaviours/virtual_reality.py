@@ -331,7 +331,7 @@ class VR(Behaviour):
         ) & (
             vr_data.position_in_tunnel <= vr.reward_zone_end
         )
-        # reward zone on
+        # first frame in reward zone
         zone_on_t = (
             vr_data[in_zone]
               .groupby("trial_count")
@@ -340,13 +340,13 @@ class VR(Behaviour):
         zone_on_idx = vr_data.index.get_indexer(zone_on_t)
         np.bitwise_or.at(events_arr, zone_on_idx, Events.reward_zone_on)
 
-        # reward zone off
+        # last frame in reward zone
         zone_off_t = (
             vr_data[in_zone]
               .groupby("trial_count")
               .apply(lambda g: g.index.max())
         )
-        zone_off_idx = vr_data.index.get_indexer(zone_off_t) + 1
+        zone_off_idx = vr_data.index.get_indexer(zone_off_t)
         np.bitwise_or.at(events_arr, zone_off_idx, Events.reward_zone_off)
         # <<<< Event: reward zone <<<<
 
