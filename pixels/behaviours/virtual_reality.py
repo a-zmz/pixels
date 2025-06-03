@@ -178,13 +178,14 @@ class VR(Behaviour):
         gray_on_t = gray_idx[grays]
         # find their index in vr data
         gray_on = vr_data.index.get_indexer(gray_on_t)
-        action_labels[gray_on, 1] += Events.gray_on
+        # bitwise_or.at will do: for each idx in gray_on: dst[idx] |= Events.gray_on
+        np.bitwise_or.at(events_arr, gray_on, Events.gray_on)
 
         # find time for last frame of gray
         gray_off_t = np.append(gray_idx[grays[1:] - 1], gray_idx[-1])
         # find their index in vr data
         gray_off = vr_data.index.get_indexer(gray_off_t)
-        action_labels[gray_off, 1] += Events.gray_off
+        np.bitwise_or.at(events_arr, gray_off, Events.gray_off)
         # <<<< gray <<<<
 
         # >>>> punishment >>>>
@@ -197,18 +198,18 @@ class VR(Behaviour):
         punish_on_t = punish_idx[punishes]
         # find their index in vr data
         punish_on = vr_data.index.get_indexer(punish_on_t)
-        action_labels[punish_on, 1] += Events.punish_on
+        np.bitwise_or.at(events_arr, punish_on, Events.punish_on)
 
         # find time for last frame of punish
         punish_off_t = np.append(punish_idx[punishes[1:] - 1], punish_idx[-1])
         # find their index in vr data
         punish_off = vr_data.index.get_indexer(punish_off_t)
-        action_labels[punish_off, 1] += Events.punish_off
+        np.bitwise_or.at(events_arr, punish_off, Events.punish_off)
         # <<<< punishment <<<<
 
         # >>>> trial ends >>>>
         # trial ends right before punishment starts
-        action_labels[punish_on-1, 1] += Events.trial_end
+        np.bitwise_or.at(events_arr, punish_on-1, Events.trial_end)
 
         # for non punished trials, right before gray on is when trial ends, and
         # the last frame of the session
@@ -218,7 +219,7 @@ class VR(Behaviour):
         no_punished_t = pre_gray_on.drop(punish_off_t).index
         # get index of trial ends in non punished trials
         no_punished_idx = vr_data.index.get_indexer(no_punished_t)
-        action_labels[no_punished_idx, 1] += Events.trial_end
+        np.bitwise_or.at(events_arr, no_punished_idx, Events.trial_end)
         # <<<< trial ends <<<<
 
         # >>>> light >>>>
@@ -230,7 +231,7 @@ class VR(Behaviour):
         light_on_t = light_idx[lights]
         # get index of when light turns on
         light_on = vr_data.index.get_indexer(light_on_t)
-        action_labels[light_on, 1] += Events.light_on
+        np.bitwise_or.at(events_arr, light_on, Events.light_on)
 
         # get interval of possible starting position
         start_interval = int(vr.meta_item('rand_start_int'))
@@ -240,7 +241,7 @@ class VR(Behaviour):
             vr_data.iloc[light_on].position_in_tunnel % start_interval == 0
         )[0]]
         # label trial starts
-        action_labels[trial_starts, 1] += Events.trial_start
+        np.bitwise_or.at(events_arr, trial_starts, Events.trial_start)
 
         if not trial_starts.size == vr_data[in_tunnel].trial_count.max():
             raise PixelsError(f"Number of trials does not equal to "
@@ -251,7 +252,7 @@ class VR(Behaviour):
         # last frame of light
         light_off_t = np.append(light_idx[lights[1:] - 1], light_idx[-1])
         light_off = vr_data.index.get_indexer(light_off_t)
-        action_labels[light_off, 1] += Events.light_off
+        np.bitwise_or.at(events_arr, light_off, Events.light_off)
         # <<<< light <<<<
 
         # NOTE: dark trials should in theory have EQUAL index pre_dark_end_idx
@@ -274,21 +275,22 @@ class VR(Behaviour):
         # first frame of dark
         dark_on_t = dark_idx[darks]
         dark_on = vr_data.index.get_indexer(dark_on_t)
-        action_labels[dark_on, 1] += Events.dark_on
+        np.bitwise_or.at(events_arr, dark_on, Events.dark_on)
 
         # last frame of dark
         dark_off_t = np.append(dark_idx[darks[1:] - 1], dark_idx[-1])
         dark_off = vr_data.index.get_indexer(dark_off_t)
-        action_labels[dark_off, 1] += Events.dark_off
+        np.bitwise_or.at(events_arr, dark_off, Events.dark_off)
         # <<<< dark <<<<
 
         # >>>> licks >>>>
         lick_onsets = np.diff(vr_data.lick_detect, prepend=0)
         licked_idx = np.where(lick_onsets == 1)[0]
-        action_labels[licked_idx, 1] += Events.licked
+        np.bitwise_or.at(events_arr, licked_idx, Events.licked)
         # <<<< licks <<<<
 
         # TODO jun 27 2024 positional events and valve events needs mapping
+        # >>>> positional event mapping >>>>
 
         # >>>> Event: end of pre dark length >>>>
         # NOTE: AL remove pre_dark_len + 10cm of his data
@@ -315,7 +317,7 @@ class VR(Behaviour):
         pre_dark_end_idx = vr_data.index.get_indexer(
             pre_dark_end_t.dropna().astype(int)
         )
-        action_labels[pre_dark_end_idx, 1] += Events.pre_dark_end
+        np.bitwise_or.at(events_arr, pre_dark_end_idx, Events.pre_dark_end)
         # <<<< Event: end of pre dark length <<<<
 
         # >>>> Event: reward zone >>>>
@@ -392,12 +394,12 @@ class VR(Behaviour):
                 if reward_type > Outcomes.NONE:
                     # map valve open
                     valve_open_idx = vr_data.index.get_indexer([reward_typed.index[0]])
-                    action_labels[valve_open_idx, 1] += Events.valve_open
+                    np.bitwise_or.at(events_arr, valve_open_idx, Events.valve_open)
                     # map valve closed
                     valve_closed_idx = vr_data.index.get_indexer(
                         [reward_typed.index[-1]]
                     )
-                    action_labels[valve_closed_idx, 1] += Events.valve_closed
+                    np.bitwise_or.at(events_arr, valve_closed_idx, Events.valve_closed)
                 # <<<< non aborted, valve only <<<<
 
             # <<<< map reward types <<<<
