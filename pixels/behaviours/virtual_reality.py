@@ -8,6 +8,7 @@ This module provides reach task specific operations.
 # event, except for licks since it could only be on or off per frame.
 
 from enum import IntFlag, auto
+from typing import NamedTuple
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -519,11 +520,17 @@ class ActionLabels(IntFlag):
 
 
 class LabeledEvents(NamedTuple):
-    """Structured return from _extract_action_labels."""
-    timestamps: np.ndarray       # shape (N,)
-    outcome:    np.ndarray       # shape (N,) of ActionLabels
-    events:     np.ndarray       # shape (N,) of Events
+    """Return type: timestamps + bitfields for outcome & events."""
+    timestamps: np.ndarray # shape (N,)
+    outcome: np.ndarray # shape (N,) dtype uint32
+    events: np.ndarray # shape (N,) dtype uint32
 
+class WorldMasks(NamedTuple):
+    in_gray: pd.Series
+    in_dark: pd.Series
+    in_white: pd.Series
+    in_light: pd.Series
+    in_tunnel: pd.Series
 
 class VR(Behaviour):
     """Behaviour subclass that extracts events & action labels from vr_data."""
