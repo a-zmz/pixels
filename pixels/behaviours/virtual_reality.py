@@ -575,30 +575,12 @@ class VR(Behaviour):
 
 
     # -------------------------------------------------------------------------
-    #  Build lists of (EventFlag, boolean_mask) for world & positional events
+    #  Build world‐based event masks
     # -------------------------------------------------------------------------
 
-    def _world_event_masks(
-        self,
-        df: pd.DataFrame
-    ) -> List[Tuple[Events, np.ndarray]]:
-        w = Worlds
-        return [
-            # gray: enters in GRAY, leaves when GRAY ends
-            (Events.gray_on,  self._first_in_run(df.world_index == w.GRAY)),
-            (Events.gray_off, self._last_in_run (df.world_index == w.GRAY)),
 
-            # white (“punish” region)
-            (Events.punish_on,  self._first_in_run(df.world_index == w.WHITE)),
-            (Events.punish_off, self._last_in_run (df.world_index == w.WHITE)),
+        world_masks = self._get_world_masks(df)
 
-            # light tunnel
-            (Events.light_on,   self._first_in_run(df.world_index == w.TUNNEL)),
-            (Events.light_off,  self._last_in_run (df.world_index == w.TUNNEL)),
-
-            # dark tunnels (could be multiple dark worlds)
-            (Events.dark_on,    self._first_in_run(df.world_index.isin(w.DARKS))),
-            (Events.dark_off,   self._last_in_run (df.world_index.isin(w.DARKS))),
         ]
 
     def _position_event_masks(
