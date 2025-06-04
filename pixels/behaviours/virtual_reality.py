@@ -78,48 +78,52 @@ class Events(IntFlag):
     """
     NONE = 0
     # vr events
-    trial_start = auto()#1 << 0 # 1
-    gray_on = auto()#1 << 1 # 2
-    gray_off = auto()#1 << 2 # 4
-    light_on = auto()#1 << 3 # 8
-    light_off = auto()#1 << 4 # 16
-    dark_on = auto()#1 << 5 # 32
-    dark_off = auto()#1 << 6 # 64
-    punish_on = auto()#1 << 7 # 128
-    punish_off = auto()#1 << 8 # 256
-    trial_end = auto()#1 << 9 # 512
+    trial_start = auto() # 1
+    gray_on = auto() # 2
+    gray_off = auto() # 4
+    light_on = auto() # 8
+    light_off = auto() # 16
+    dark_on = auto() # 32
+    dark_off = auto() # 64
+    punish_on = auto() # 128
+    punish_off = auto() # 256
+    trial_end = auto() # 512
 
     # positional events
-    pre_dark_end = auto()#1 << 10 # 50 cm
+    pre_dark_end = auto()# 50 cm
 
-    wall = auto()#1 << 12 # in between landmarks
+    # TODO jun 4 2025:
+    # how to mark wall?
+    wall = auto()# in between landmarks
 
-    black_off = auto()#1 << 11 # 0 - 60 cm
+    # black wall
+    landmark0_on = auto()# wherever trial starts, before 60cm
+    landmark0_off = auto()# 60 cm
 
-    landmark1_on = auto()#1 << 13 # 110 cm
-    landmark1_off = auto()#1 << 19 # 130 cm
+    landmark1_on = auto()# 110 cm
+    landmark1_off = auto()# 130 cm
 
-    landmark2_on = auto()#1 << 14 # 190 cm
-    landmark2_off = auto()#1 << 20 # 210 cm
+    landmark2_on = auto()# 190 cm
+    landmark2_off = auto()# 210 cm
 
-    landmark3_on = auto()#1 << 15 # 270 cm
-    landmark3_off = auto()#1 << 21 # 290 cm
+    landmark3_on = auto()# 270 cm
+    landmark3_off = auto()# 290 cm
 
-    landmark4_on = auto()#1 << 16 # 350 cm
-    landmark4_off = auto()#1 << 22 # 370 cm
+    landmark4_on = auto()# 350 cm
+    landmark4_off = auto()# 370 cm
 
-    landmark5_on = auto()#1 << 17 # 430 cm
-    landmark5_off = auto()#1 << 23 # 450 cm
+    landmark5_on = auto()# 430 cm
+    landmark5_off = auto()# 450 cm
 
-    reward_zone_on = auto()#1 << 18 # 460 cm
-    reward_zone_off = auto()#1 << 24 # 495 cm
+    reward_zone_on = auto()# 460 cm
+    reward_zone_off = auto()# 495 cm
 
     # sensors
-    valve_open = auto()#1 << 25 # 524288
-    valve_closed = auto()#1 << 26 # 1048576
-    licked = auto()#1 << 27 # 134217728
-    #run_start = 1 << 28
-    #run_stop = 1 << 29
+    valve_open = auto()
+    valve_closed = auto()
+    licked = auto()
+    #run_start = auto()
+    #run_stop = auto()
 
 
 # map trial outcome
