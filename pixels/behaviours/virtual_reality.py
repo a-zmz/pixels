@@ -811,23 +811,56 @@ class VR(Behaviour):
 
     def _compute_outcome_flag(
         self,
-        trial_df:   pd.DataFrame,
-        outcome_map: dict
-    ) -> ActionLabels:
-        """
-        Given one trial's DataFrame, look at its reward_type & trial_type
-        and return the matching ActionLabels member.
-        """
-        rts = trial_df.reward_type.unique()
-        if rts.size == 0:
-            # no reward_type → unfinished or last‐trial abort
-            return ActionLabels.NONE
+        trial_id: int,
+        trial_df: pd.DataFrame,
+        outcome_map: dict,
+        session,
+    ) -> TrialTypes:
 
-        rt = Outcomes(int(rts[0]))
-        cond = Conditions(int(trial_df.trial_type.iloc[0]))
-        key  = (rt, cond)
+        valve_events = {}
+
+        # get non-zero reward types
+        reward_not_none = (trial_df.reward_type != Outcomes.NONE)
+        reward_typed = trial_df[reward_not_none]
+
+        # get trial type
+        trial_type = int(trial_df.trial_type.iloc[0])
+
+        # get punished
+        punished = (trial_df.world_index == Worlds.WHITE)
+
+        if (reward_typed.size == 0) & (not np.any(punished)):
+                # >>>> unfinished trial >>>>
+                # double check it is the last trial
+                assert (trial_df.position_in_tunnel.max()\
+                        < session.tunnel_reset)
+                logging.info(f"\n> trial {trial_id} is unfinished when session "
+                      "ends, so there is no outcome.")
+                return TrialTypes.NONE, valve_events
+                # <<<< unfinished trial <<<<
+        elif (reward_typed.size == 0) & np.any(punished):
+            logging.info(f"\n> trial {trial_id} is punished.")
+            # get reward type zero for punished
+            reward_type = int(trial_df.reward_type.unique())
+        else:
+            # get non-zero reward type in current trial
+            reward_type = int(reward_typed.reward_type.unique())
+
+            if reward_type > Outcomes.NONE:
+                # >>>> non aborted, valve events >>>>
+                # if not aborted, map valve open & closed
+                # map valve open
+                valve_open_t = reward_typed.index[0]
+                valve_events[Events.valve_open] = [valve_open_t]
+                # map valve closed
+                valve_closed_t = reward_typed.index[-1]
+                valve_events[Events.valve_closed] = [valve_closed_t]
+                # <<<< non aborted, valve events <<<<
+
+        # build key for outcome_map
+        key = (reward_type, trial_type)
+
         try:
-            return outcome_map[key]
+            return outcome_map[key], valve_events
         except KeyError:
-            raise PixelsError(f"No outcome mapping for {key}")
-'''
+            raise PixelsError(f"No mapping for outcome {key}")
