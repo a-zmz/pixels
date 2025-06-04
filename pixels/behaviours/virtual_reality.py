@@ -460,72 +460,7 @@ class VR(Behaviour):
             plt.show()
 
         return action_labels
-
 '''
-from enum import IntFlag, auto
-from typing    import NamedTuple, List, Tuple
-
-import numpy  as np
-import pandas as pd
-
-from vision_in_darkness.base import Outcomes, Worlds, Conditions
-from pixels.behaviours       import Behaviour
-from pixels                   import PixelsError
-
-
-class Events(IntFlag):
-    """Bit-flags for everything that can happen to the animal in VR."""
-    NONE            = 0
-    trial_start     = auto()
-    gray_on         = auto()
-    gray_off        = auto()
-    light_on        = auto()
-    light_off       = auto()
-    dark_on         = auto()
-    dark_off        = auto()
-    punish_on       = auto()
-    punish_off      = auto()
-    pre_dark_end    = auto()
-    reward_zone     = auto()
-    valve_open      = auto()
-    valve_closed    = auto()
-    lick            = auto()
-
-
-class ActionLabels(IntFlag):
-    """Mutually exclusive trial‐outcome labels, plus helpful combos."""
-    NONE              = 0
-    miss_light        = auto()
-    miss_dark         = auto()
-    triggered_light   = auto()
-    triggered_dark    = auto()
-    punished_light    = auto()
-    punished_dark     = auto()
-    default_light     = auto()
-    auto_light        = auto()
-    auto_dark         = auto()
-    reinf_light       = auto()
-    reinf_dark        = auto()
-
-    # handy OR-combos
-    miss        = miss_light      | miss_dark
-    triggered   = triggered_light | triggered_dark
-    punished    = punished_light  | punished_dark
-
-    light       = (miss_light    | triggered_light | punished_light
-                   | default_light | auto_light      | reinf_light)
-    dark        = (miss_dark     | triggered_dark  | punished_dark
-                   | auto_dark     | reinf_dark)
-    rewarded_light = (triggered_light | default_light
-                      | auto_light   | reinf_light)
-    rewarded_dark  = (triggered_dark  | auto_dark
-                      | reinf_dark)
-    given_light    = default_light    | auto_light | reinf_light
-    given_dark     = auto_dark        | reinf_dark
-    completed_light = miss_light     | triggered_light | default_light \
-                      | auto_light    | reinf_light
-    completed_dark  = miss_dark      | triggered_dark  | auto_dark \
-                      | reinf_dark
 
 
 class LabeledEvents(NamedTuple):
