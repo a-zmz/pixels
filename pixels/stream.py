@@ -395,11 +395,10 @@ class Stream:
             vr_session,
             synched_vr,
         )
+        labels_dict = action_labels._asdict()
         np.savez_compressed(
             action_labels_path,
-            outcome=action_labels[:, 0],
-            events=action_labels[:, 1],
-            timestamps=action_labels[:, 2],
+            **labels_dict,
         )
         logging.info(f"\n> Action labels saved to: {action_labels_path}.")
 
