@@ -435,10 +435,12 @@ class VR(Behaviour):
 
             # <<<< map reward types <<<<
 
-        # put pixels timestamps in the third column
-        labels = np.column_stack((labels, vr_data.index.values))
-
-        return labels
+        # return typed arrays
+        return LabeledEvents(
+            outcome = outcomes_arr,
+            events = events_arr,
+            timestamps = vr_data.index.values,
+        )
 
 
     def _check_action_labels(self, vr_data, action_labels, plot=True):
