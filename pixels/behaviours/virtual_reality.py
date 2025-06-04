@@ -141,19 +141,15 @@ _outcome_map = {
 # function to look up trial type
 trial_type_lookup = {v: k for k, v in vars(Conditions).items()}
 
+'''
 class VR(Behaviour):
 
     def _extract_action_labels(self, vr, vr_data):
         # NOTE: this func still called _extract_action_labels cuz it is
         # inherited from motor data analysis, where each unit is an action.
 
-        # create action label array for trial types & events
-        labels = np.zeros((vr_data.shape[0], 2), dtype=np.uint32)
-        # create arr view to make it more clear which column i'm writing into
-        # NOTE: the original array would not get updated if i do fancy indexing
-        # on the original, i.e., labels[mask, 0]
-        outcomes_arr = labels[:, 0]
-        events_arr = labels[:, 1]
+        events_arr = np.zeros(len(vr_data), dtype=np.uint32)
+        outcomes_arr = np.zeros(len(vr_data), dtype=np.uint32)
 
         # >>>> definitions >>>>
         # define in gray
