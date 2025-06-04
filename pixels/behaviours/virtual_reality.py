@@ -654,27 +654,121 @@ class VR(Behaviour):
         return masks
 
 
+    # -------------------------------------------------------------------------
+    #  Build positional event masks (landmarks, pre_dark_end, reward zone)
+    # -------------------------------------------------------------------------
+
+    def _position_event_indices(
         self,
+        session,
         df: pd.DataFrame
-    ) -> List[Tuple[Events, np.ndarray]]:
-        # pre‐dark end: when position ≥ (start_pos + pre_dark_len)
-        start_pos = df[df.world_index==Worlds.TUNNEL] \
-                    .groupby("trial_count")["position_in_tunnel"] \
-                    .first()
-        end_vals  = start_pos + self.pre_dark_len
-        # mask per‐trial then merge
-        pre_dark_mask = np.zeros(len(df), bool)
-        for trial, thresh in end_vals.items():
-            idx = df.trial_count==trial
-            pre_dark_mask[idx] |= (df.position_in_tunnel[idx] >= thresh)
+    ) -> dict[Events, pd.Series]:
+        masks: dict[Events, pd.Series] = {}
 
-        # reward zone: any frame at or beyond rz_start
-        rz_mask = df.position_in_tunnel >= self.rz_start
+        in_tunnel = self._get_world_masks(df).in_tunnel
 
-        return [
-            (Events.pre_dark_end, pre_dark_mask),
-            (Events.reward_zone,  rz_mask),
-        ]
+        def _first_post_mark(group_df, check_marks):
+            if isinstance(check_marks, pd.Series):
+                group_id = group_df.name
+                mark = check_marks.loc[group_id]
+            elif isinstance(check_marks, int):
+                mark = check_marks
+
+            # mask and pick the first index
+            mask = (group_df["position_in_tunnel"] >= mark)
+            if not mask.any():
+                return None
+            return group_df.index[mask].min()
+
+        # >>> distance travelled before dark onset per trial >>>
+        # NOTE: this applies to light trials too to keep data symetrical
+        # AL remove pre_dark_len + 10cm in all his data
+        in_tunnel_trials = df[in_tunnel].groupby("trial_count")
+        # get start of each trial
+        trial_starts = in_tunnel_trials.apply(self._first_index)
+        masks[Events.trial_start] = trial_starts
+
+        # get starting positions of all trials
+        start_pos = in_tunnel_trials["position_in_tunnel"].first()
+        # plus pre dark
+        end_pre_dark = start_pos + session.pre_dark_len
+
+        pre_dark_end_t = in_tunnel_trials.apply(
+            lambda df: _first_post_mark(df, end_pre_dark)
+        ).dropna().astype(int)
+
+        masks[Events.pre_dark_end] = pre_dark_end_t
+        # >>> distance travelled before dark onset per trial >>>
+
+        # >>> landmark 0 black wall >>>
+        black_off = session.landmarks[0]
+
+        starts_before_black = (start_pos < black_off)
+        early_ids = start_pos[starts_before_black].index
+        early_trials = df[
+            in_tunnel & df.trial_count.isin(early_ids)
+        ].groupby("trial_count")
+
+        # first frame of black wall
+        landmark0_on = early_trials.apply(
+            self._first_index
+        )
+        masks[Events.landmark0_on] = landmark0_on
+
+        # last frame of black wall
+        landmark0_off = early_trials.apply(
+            lambda df: _first_post_mark(df, black_off)
+        )
+        masks[Events.landmark0_off] = landmark0_off
+        # <<< landmark 0 black wall <<<
+
+        # >>> landmarks 1 to 5 >>>
+        landmarks = session.landmarks[1:]
+
+        for l, landmark in enumerate(landmarks):
+            if l % 2 != 0:
+                continue
+
+            landmark_idx = l // 2 + 1
+
+            # even idx on, odd idx off
+            landmark_on = landmark
+            landmark_off = landmarks[l + 1]
+
+            in_landmark = (
+                (df.position_in_tunnel >= landmark_on) &
+                (df.position_in_tunnel <= landmark_off)
+            )
+
+            landmark_on = df[in_landmark].groupby("trial_count").apply(
+                self._first_index
+            )
+            landmark_off = df[in_landmark].groupby("trial_count").apply(
+                self._last_index
+            )
+
+            masks[getattr(Events, f"landmark{landmark_idx}_on")] = landmark_on
+            masks[getattr(Events, f"landmark{landmark_idx}_off")] = landmark_off
+        # <<< landmarks 1 to 5 <<<
+
+        # >>> reward zone >>>
+        in_zone = (
+            df.position_in_tunnel >= session.reward_zone_start
+        ) & (
+            df.position_in_tunnel <= session.reward_zone_end
+        )
+        in_zone_trials = df[in_zone].groupby("trial_count")
+
+        # first frame in reward zone
+        zone_on_t = in_zone_trials.apply(self._first_index)
+        masks[Events.reward_zone_on] = zone_on_t
+
+        # last frame in reward zone
+        zone_off_t = in_zone_trials.apply(self._last_index)
+        masks[Events.reward_zone_off] = zone_off_t
+        # <<< reward zone <<<
+
+        return masks
 
 
     # -------------------------------------------------------------------------
