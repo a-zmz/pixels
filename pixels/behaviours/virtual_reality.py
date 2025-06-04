@@ -504,9 +504,10 @@ class VR(Behaviour):
         data: pd.DataFrame
     ) -> LabeledEvents:
         """
-        Go over every frame in vr_data and assign:
-         - `events[i]` := bitmask of Events that occur at frame i
-         - `outcome[i]` := the trial‐outcome (one and only one ActionLabel) at i
+        Go over every frame in data and assign:
+         - `events_arr[i]` := bitmask of Events that occur at frame i
+         - `outcomes_arr[i]` := the trial‐outcome (one and only one TrialType)
+           at i
         """
         N = len(data)
         events_arr = np.zeros(N, dtype=np.uint32)
