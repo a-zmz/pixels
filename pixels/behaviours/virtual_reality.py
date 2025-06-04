@@ -477,7 +477,26 @@ class WorldMasks(NamedTuple):
     in_tunnel: pd.Series
 
 class VR(Behaviour):
-    """Behaviour subclass that extracts events & action labels from vr_data."""
+    """Behaviour subclass to extract action labels & events from vr_data."""
+    def _get_world_masks(self, df: pd.DataFrame) -> WorldMasks:
+        # define in gray
+        in_gray = (df.world_index == Worlds.GRAY)
+        # define in dark
+        in_dark = (df.world_index.isin(Worlds.DARKS))
+        # define in white
+        in_white = (df.world_index == Worlds.WHITE)
+        # define in light
+        in_light = (df.world_index == Worlds.TUNNEL)
+        # define in tunnel
+        in_tunnel = (~in_gray & ~in_white)
+
+        return WorldMasks(
+            in_gray = in_gray,
+            in_dark = in_dark,
+            in_white = in_white,
+            in_light = in_light,
+            in_tunnel = in_tunnel,
+        )
 
     def _extract_action_labels(
         self,
