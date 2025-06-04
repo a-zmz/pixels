@@ -785,27 +785,27 @@ class VR(Behaviour):
         return df.index.get_indexer(index)
 
     # -------------------------------------------------------------------------
-    #  Outcome‐mapping machinery
+    #  Outcome mapping
     # -------------------------------------------------------------------------
 
     def _build_outcome_map(self) -> dict:
-        """
-        Returns a dict mapping (Outcomes, Conditions) → ActionLabels.
-        """
         m = {
-            (Outcomes.ABORTED_DARK,   Conditions.DARK):  ActionLabels.miss_dark,
-            (Outcomes.ABORTED_LIGHT,  Conditions.LIGHT): ActionLabels.miss_light,
-            (Outcomes.PUNISHED,       Conditions.LIGHT): ActionLabels.punished_light,
-            (Outcomes.PUNISHED,       Conditions.DARK):  ActionLabels.punished_dark,
-            (Outcomes.AUTO_LIGHT,     Conditions.LIGHT): ActionLabels.auto_light,
-            (Outcomes.DEFAULT,        Conditions.LIGHT): ActionLabels.default_light,
-            (Outcomes.REINF_LIGHT,    Conditions.LIGHT): ActionLabels.reinf_light,
-            (Outcomes.AUTO_DARK,      Conditions.DARK):  ActionLabels.auto_dark,
-            (Outcomes.REINF_DARK,     Conditions.DARK):  ActionLabels.reinf_dark,
+            (Outcomes.ABORTED_LIGHT, Conditions.LIGHT): TrialTypes.miss_light,
+            (Outcomes.ABORTED_DARK, Conditions.DARK): TrialTypes.miss_dark,
 
-            # triggered must include light vs dark
-            (Outcomes.TRIGGERED,      Conditions.LIGHT): ActionLabels.triggered_light,
-            (Outcomes.TRIGGERED,      Conditions.DARK):  ActionLabels.triggered_dark,
+            (Outcomes.NONE, Conditions.LIGHT): TrialTypes.punished_light,
+            (Outcomes.NONE, Conditions.DARK): TrialTypes.punished_dark,
+
+            (Outcomes.DEFAULT, Conditions.LIGHT): TrialTypes.default_light,
+
+            (Outcomes.AUTO_LIGHT, Conditions.LIGHT): TrialTypes.auto_light,
+            (Outcomes.AUTO_DARK, Conditions.DARK): TrialTypes.auto_dark,
+
+            (Outcomes.REINF_LIGHT, Conditions.LIGHT): TrialTypes.reinf_light,
+            (Outcomes.REINF_DARK, Conditions.DARK): TrialTypes.reinf_dark,
+
+            (Outcomes.TRIGGERED, Conditions.LIGHT): TrialTypes.triggered_light,
+            (Outcomes.TRIGGERED, Conditions.DARK): TrialTypes.triggered_dark,
         }
         return m
 
