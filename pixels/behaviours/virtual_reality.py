@@ -36,6 +36,7 @@ class TrialTypes(IntFlag):
     # TODO jul 4 2024 only label trial type at the first frame of the trial to
     # make it easier for alignment???
     # triggered vr trials
+    NONE = 0
     miss_light = auto()#1 << 0 # 1
     miss_dark = auto()#1 << 1 # 2
     triggered_light = auto()#1 << 2 # 4
@@ -75,6 +76,7 @@ class Events(IntFlag):
 
     Events can be added on top of each other.
     """
+    NONE = 0
     # vr events
     trial_start = auto()#1 << 0 # 1
     gray_on = auto()#1 << 1 # 2
