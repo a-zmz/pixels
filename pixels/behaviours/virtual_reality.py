@@ -578,12 +578,82 @@ class VR(Behaviour):
     #  Build world‐based event masks
     # -------------------------------------------------------------------------
 
+    def _world_event_indices(
+            self,
+            df: pd.DataFrame
+        ) -> dict[Events, pd.Series]:
+        """
+        Build (event_flag, boolean_mask) for gray, white (punish),
+        light tunnel, and dark tunnels, but *per trial*,
+        so each trial contributes its own on/off.
+        """
+        masks: dict[Events, pd.Series] = {}
+        N = len(df)
 
         world_masks = self._get_world_masks(df)
 
+        specs = [
+            # (which‐world‐test, on‐event, off‐event)
+            (world_masks.in_gray, Events.gray_on, Events.gray_off),
+            (world_masks.in_white, Events.punish_on, Events.punish_off),
+            (world_masks.in_dark, Events.dark_on, Events.dark_off),
         ]
 
-    def _position_event_masks(
+        for bool_mask, event_on, event_off in specs:
+            # compute the per‐trial first‐index
+            trials = df[bool_mask].groupby("trial_count")
+            masks[event_on] = trials.apply(self._first_index)
+            # compute the per‐trial last‐index
+            masks[event_off] = trials.apply(self._last_index)
+
+
+        # >>>> trial ends >>>>
+        gray_on_t = masks[Events.gray_on]
+
+        # for non punished trials, right before gray on is when trial ends, plus
+        # the last frame of the session
+        trial_ends_t = gray_on_t.copy()
+        trial_ends_t.iloc[:-1] = (gray_on_t[1:] - 1).to_numpy()
+        trial_ends_t.iloc[-1] = df.index[-1]
+
+        # trial ends right before punishment starts
+        punish_on_t = masks[Events.punish_on]
+        trial_ends_t.loc[punish_on_t.index] = punish_on_t - 1
+
+        masks[Events.trial_end] = trial_ends_t
+        # <<<< trial ends <<<<
+
+        # >>> handle light on separately >>>
+        # build a run id that increments whenever in_light flips
+        run_id = world_masks.in_light.ne(
+            world_masks.in_light.shift(fill_value=False)
+        ).cumsum()
+
+        # restrict to just the True‐runs
+        light_runs = df[world_masks.in_light].copy()
+        light_runs['run_id'] = run_id[world_masks.in_light]
+
+        # for each (trial, run_id) get the on‐times and off‐times
+        firsts = (
+            light_runs
+            .groupby(["trial_count", "run_id"])
+            .apply(self._first_index)
+        )
+        light_ons = firsts.droplevel("run_id")
+        lasts = (
+            light_runs
+            .groupby(["trial_count", "run_id"])
+            .apply(self._last_index)
+        )
+        light_offs = lasts.droplevel("run_id")
+
+        masks[Events.light_on] = light_ons
+        masks[Events.light_off] = light_offs
+        # <<< handle light on separately <<<
+
+        return masks
+
+
         self,
         df: pd.DataFrame
     ) -> List[Tuple[Events, np.ndarray]]:
