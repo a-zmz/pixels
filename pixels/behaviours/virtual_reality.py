@@ -155,9 +155,10 @@ class VR(Behaviour):
         # define in gray
         in_gray = (vr_data.world_index == Worlds.GRAY)
         # define in dark
-        in_dark = (vr_data.world_index == Worlds.DARK_5)\
-                | (vr_data.world_index == Worlds.DARK_2_5)\
-                | (vr_data.world_index == Worlds.DARK_FULL)
+        in_dark = vr_data.world_index.isin(Worlds.DARKS)
+        #in_dark = (vr_data.world_index == Worlds.DARK_5)\
+        #        | (vr_data.world_index == Worlds.DARK_2_5)\
+        #        | (vr_data.world_index == Worlds.DARK_FULL)
         # define in white
         in_white = (vr_data.world_index == Worlds.WHITE)
         # define in tunnel
