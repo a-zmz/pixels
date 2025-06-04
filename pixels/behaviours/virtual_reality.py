@@ -500,7 +500,6 @@ class VR(Behaviour):
 
     def _extract_action_labels(
         self,
-        vr_data: pd.DataFrame
         session,
         data: pd.DataFrame
     ) -> LabeledEvents:
@@ -509,9 +508,9 @@ class VR(Behaviour):
          - `events[i]` := bitmask of Events that occur at frame i
          - `outcome[i]` := the trial‐outcome (one and only one ActionLabel) at i
         """
-        N = len(vr_data)
-        events  = np.zeros(N, dtype=np.uint64)
-        outcome = np.zeros(N, dtype=np.uint64)
+        N = len(data)
+        events_arr = np.zeros(N, dtype=np.uint32)
+        outcomes_arr = np.zeros(N, dtype=np.uint32)
 
         # 1) stamp world‐based events (gray, light, dark, punish) via run masks
         for evt, mask in self._world_event_masks(vr_data):
