@@ -512,35 +512,44 @@ class VR(Behaviour):
         events_arr = np.zeros(N, dtype=np.uint32)
         outcomes_arr = np.zeros(N, dtype=np.uint32)
 
-        # 1) stamp world‐based events (gray, light, dark, punish) via run masks
-        for evt, mask in self._world_event_masks(vr_data):
-            self._stamp_mask(events, mask, evt)
+        # world index based events
+        for event, idx in self._world_event_indices(data).items():
+            mask = self._get_index(data, idx.to_numpy())
+            self._stamp_mask(events_arr, mask, event)
 
-        # 2) stamp positional events (pre‐dark end, reward‐zone)
-        for evt, mask in self._position_event_masks(vr_data):
-            self._stamp_mask(events, mask, evt)
+        # positional events (pre‐dark end, landmarks, reward‐zone)
+        for event, idx in self._position_event_indices(session, data).items():
+            mask = self._get_index(data, idx.to_numpy())
+            self._stamp_mask(events_arr, mask, event)
 
-        # 3) stamp sensors: lick, valve open/closed
-        self._stamp_rising(events, vr_data.lick_detect.values, Events.lick)
-        # (if you have valve signals, do same for them)
+        # sensors: lick rising‐edge
+        self._stamp_rising(events_arr, data.lick_detect.values, Events.licked)
 
-        # 4) map each trial’s outcome into the outcome array
+        # map trial outcomes
         outcome_map = self._build_outcome_map()
-        for trial_id, group in vr_data.groupby("trial_count"):
-            idxs = group.index.values
-            flag = self._compute_outcome_flag(group, outcome_map)
-            outcome[idxs] = flag
+        for trial_id, group in data.groupby("trial_count"):
+            trial_t = group.index.values
+            flag, valve_events = self._compute_outcome_flag(
+                trial_id,
+                group,
+                outcome_map,
+                session,
+            )
 
-            # stamp trial_start at the first frame of each triggered trial:
-            if flag in (ActionLabels.triggered_light, ActionLabels.triggered_dark):
-                first_idx = idxs[0]
-                events[first_idx] |= Events.trial_start
+            # save outcomes
+            idx = self._get_index(data, trial_t)
+            outcomes_arr[idx] = flag
 
-        # 5) return timestamps + two bit‐masked channels
+            if len(valve_events) > 0:
+                for v_event, v_idx in valve_events.items():
+                    valve_mask = self._get_index(data, v_idx)
+                    self._stamp_mask(events_arr, valve_mask, v_event)
+
+        # return typed arrays
         return LabeledEvents(
-            timestamps = vr_data.index.values,
-            outcome    = outcome.astype(np.uint32),
-            events     = events.astype(np.uint32)
+            timestamps = data.index.values,
+            outcome = outcomes_arr,
+            events = events_arr,
         )
 
 
