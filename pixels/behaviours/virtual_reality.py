@@ -325,6 +325,10 @@ class VR(Behaviour):
         # <<<< Event: end of pre dark length <<<<
 
         # >>>> Event: landmark 1 >>>>
+        # jun 3 2025:
+        # CONTINUE HERE!
+        # might as well implement the new refactored code before extend more
+        # landmarks...
 
         # <<<< Event: landmark 1 <<<<
 
