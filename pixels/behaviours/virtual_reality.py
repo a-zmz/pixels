@@ -501,6 +501,8 @@ class VR(Behaviour):
     def _extract_action_labels(
         self,
         vr_data: pd.DataFrame
+        session,
+        data: pd.DataFrame
     ) -> LabeledEvents:
         """
         Go over every frame in vr_data and assign:
