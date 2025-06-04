@@ -772,39 +772,17 @@ class VR(Behaviour):
 
 
     # -------------------------------------------------------------------------
-    #  Utilities for detecting run‐start and run‐end of a boolean mask
+    #  Run‐start / run‐end utilities for boolean masks
     # -------------------------------------------------------------------------
 
-    @staticmethod
-    def _first_in_run(mask: np.ndarray) -> np.ndarray:
-        """
-        True exactly at the first True of each contiguous run in `mask`.
-        """
-        idx = np.flatnonzero(mask)
-        if idx.size == 0:
-            return np.zeros_like(mask)
-        # a run starts where current True differs from previous True
-        starts = np.concatenate([[True],
-                                 mask[idx[1:]] != mask[idx[:-1]]])
-        first_idx = idx[starts]
-        out = np.zeros_like(mask)
-        out[first_idx] = True
-        return out
+    def _first_index(self, group: pd.DataFrame) -> int:
+        return group.index.min()
 
-    @staticmethod
-    def _last_in_run(mask: np.ndarray) -> np.ndarray:
-        """
-        True exactly at the last True of each contiguous run in `mask`.
-        """
-        idx = np.flatnonzero(mask)
-        if idx.size == 0:
-            return np.zeros_like(mask)
-        ends = np.concatenate([mask[idx[:-1]] != mask[idx[1:]], [True]])
-        last_idx = idx[ends]
-        out = np.zeros_like(mask)
-        out[last_idx] = True
-        return out
+    def _last_index(self, group: pd.DataFrame) -> int:
+        return group.index.max()
 
+    def _get_index(self, df: pd.DataFrame, index) -> int:
+        return df.index.get_indexer(index)
 
     # -------------------------------------------------------------------------
     #  Outcome‐mapping machinery
