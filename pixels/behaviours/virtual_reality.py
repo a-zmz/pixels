@@ -583,16 +583,18 @@ class VR(Behaviour):
     # -------------------------------------------------------------------------
 
     @staticmethod
-        """Bitwise‐OR `flag` into `storage` at every True in `mask`."""
     def _stamp_mask(array: np.ndarray, mask: np.ndarray, flag: IntFlag):
+        """
+        Bitwise‐OR `flag` into `storage` at every True in `mask`.
+        """
         np.bitwise_or.at(array, mask, flag)
 
     @staticmethod
+    def _stamp_rising(array: np.ndarray, signal: np.ndarray, flag: IntFlag):
         """
         Find rising‐edge frames in a 0/1 `signal` array (diff == +1)
         and stamp `flag` at those indices.
         """
-    def _stamp_rising(array: np.ndarray, signal: np.ndarray, flag: IntFlag):
         # extract edges
         edges = np.flatnonzero(np.diff(signal, prepend=0) == 1)
         np.bitwise_or.at(array, edges, flag)
