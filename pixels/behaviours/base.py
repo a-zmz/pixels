@@ -2649,7 +2649,7 @@ class Behaviour(ABC):
 
             logging.info(
                 f"\n> Getting positional neural data of {units} units in "
-                f"<{label}> trials."
+                f"<{label.name}> trials."
             )
             output[stream_id] = stream.get_positional_data(
                 units=units, # NOTE: put units first!

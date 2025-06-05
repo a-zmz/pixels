@@ -83,7 +83,7 @@ class Stream:
         if "trial_rate" in data:
             logging.info(
                 f"\n> Aligning spike times and spike rate of {units} units to "
-                f"<{label}> trials."
+                f"<{label.name}> trials."
             )
             return self._get_aligned_trials(
                 label, event, data=data, units=units, sigma=sigma,
