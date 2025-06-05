@@ -687,7 +687,8 @@ class VR(Behaviour):
     def _position_event_indices(
         self,
         session,
-        df: pd.DataFrame
+        df: pd.DataFrame,
+        dark_on_t,
     ) -> dict[Events, pd.Series]:
         masks: dict[Events, pd.Series] = {}
 
@@ -714,14 +715,29 @@ class VR(Behaviour):
         trial_starts = in_tunnel_trials.apply(self._first_index)
         masks[Events.trial_start] = trial_starts
 
+        # NOTE: dark trials should in theory have EQUAL index pre_dark_end_t
+        # and dark_on, BUT! after interpolation, some dark trials have their
+        # dark onset earlier than expected, those are corrected to the first
+        # expected position, they will have the same index as pre_dark_end_t.
+        # others will not since their world_index change later than expected.
+        # SO! to keep it consistent, for dark trials, pre_dark_end will be the
+        # SAME frame as dark onsets.
+
         # get starting positions of all trials
         start_pos = in_tunnel_trials["position_in_tunnel"].first()
-        # plus pre dark
-        end_pre_dark = start_pos + session.pre_dark_len
 
-        pre_dark_end_t = in_tunnel_trials.apply(
-            lambda df: _first_post_mark(df, end_pre_dark)
+        # get light trials
+        lights = self._get_condition_masks(df).light_trials
+        light_trials  = df[in_tunnel & lights].groupby("trial_count")
+        # get starting positions of light trials plus pre dark length
+        light_pre_dark_len = light_trials["position_in_tunnel"].first()\
+                            + session.pre_dark_len
+        light_pre_dark_end_t = light_trials.apply(
+            lambda df: _first_post_mark(df, light_pre_dark_len)
         ).dropna().astype(int)
+
+        # concat dark and light trials
+        pre_dark_end_t = pd.concat([dark_on_t, light_pre_dark_end_t])
 
         masks[Events.pre_dark_end] = pre_dark_end_t
         # >>> distance travelled before dark onset per trial >>>
