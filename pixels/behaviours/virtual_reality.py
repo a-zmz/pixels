@@ -529,12 +529,21 @@ class VR(Behaviour):
         outcomes_arr = np.zeros(N, dtype=np.uint32)
 
         # world index based events
-        for event, idx in self._world_event_indices(data).items():
+        world_index_based_events = self._world_event_indices(data)
+        for event, idx in world_index_based_events.items():
             mask = self._get_index(data, idx.to_numpy())
             self._stamp_mask(events_arr, mask, event)
 
+        # get dark onset times for pre_dark_len labels
+        dark_on_t = world_index_based_events[Events.dark_on]
+
         # positional events (pre‐dark end, landmarks, reward‐zone)
-        for event, idx in self._position_event_indices(session, data).items():
+        pos_based_events = self._position_event_indices(
+            session,
+            data,
+            dark_on_t,
+        )
+        for event, idx in pos_based_events.items():
             mask = self._get_index(data, idx.to_numpy())
             self._stamp_mask(events_arr, mask, event)
 
