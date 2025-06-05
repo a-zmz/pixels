@@ -38,7 +38,8 @@ def cacheable(method):
                 as_list[i] = name
 
         # build a key: method name + all args
-        key_parts = [method.__name__] + [str(i) for i in as_list]
+        key_parts = [method.__name__] + [str(i.name) if hasattr(i, "name")
+                                         else str(i) for i in as_list]
         cache_path = self.cache /\
                 ("_".join(key_parts) + f"_{self.stream_id}.h5")
 
