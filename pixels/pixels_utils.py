@@ -1246,12 +1246,12 @@ def _get_vr_positional_neural_data(event, positions, data_type, data):
     # get constants from vd
     from vision_in_darkness.constants import TUNNEL_RESET, ZONE_END,\
         PRE_DARK_LEN
-    from pixels.behaviours.virtual_reality import Events
 
     # get the starting index for each trial (column)
     starts = positions.iloc[0, :].astype(int)
-    # if align to dark_onset, actual starting position is before that
-    if event == Events.dark_on:
+    # NOTE: if align to dark_onset or end of pre dark, actual starting position
+    # is before that
+    if np.isin(["dark_on", "pre_dark_end"], event.name).any():
         starts = starts - PRE_DARK_LEN
     # create position indices
     indices = np.arange(0, TUNNEL_RESET+1)
