@@ -469,12 +469,19 @@ class LabeledEvents(NamedTuple):
     outcome: np.ndarray # shape (N,) dtype uint32
     events: np.ndarray # shape (N,) dtype uint32
 
+
 class WorldMasks(NamedTuple):
     in_gray: pd.Series
     in_dark: pd.Series
     in_white: pd.Series
     in_light: pd.Series
     in_tunnel: pd.Series
+
+
+class ConditionMasks(NamedTuple):
+    light_trials: pd.Series
+    dark_trials: pd.Series
+
 
 class VR(Behaviour):
     """Behaviour subclass to extract action labels & events from vr_data."""
@@ -497,6 +504,14 @@ class VR(Behaviour):
             in_light = in_light,
             in_tunnel = in_tunnel,
         )
+
+
+    def _get_condition_masks(self, df: pd.DataFrame) -> ConditionMasks:
+        return ConditionMasks(
+            light_trials = (df.trial_type == Conditions.LIGHT),
+            dark_trials = (df.trial_type == Conditions.DARK),
+        )
+
 
     def _extract_action_labels(
         self,
