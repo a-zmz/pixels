@@ -109,8 +109,8 @@ class Stream:
         # get action and event label file
         outcomes = action_labels["outcome"]
         events = action_labels["events"]
-        # get timestamps index of behaviour in self.BEHAVIOUR_SAMPLE_RATE hz, to convert
-        # it to ms, do timestamps*1000/self.BEHAVIOUR_SAMPLE_RATE
+        # get timestamps index of behaviour in self.BEHAVIOUR_SAMPLE_RATE hz, to
+        # convert it to ms, do timestamps*1000/self.BEHAVIOUR_SAMPLE_RATE
         timestamps = action_labels["timestamps"]
 
         # select frames of wanted trial type
@@ -129,7 +129,7 @@ class Stream:
 
         if selected_starts.size == 0:
             logging.info(f"\n> No trials found with label {label} and event "
-                         f"{event}, output will be empty.")
+                         f"{event.name}, output will be empty.")
             return None
 
         # use original trial id as trial index
@@ -425,7 +425,7 @@ class Stream:
         time_bin=None, pos_bin=None
     ):
         # define output path for binned spike rate
-        output_path = self.cache/ f"{self.session.name}_{label}_{units}_"\
+        output_path = self.cache/ f"{self.session.name}_{label.name}_{units}_"\
                                 f"{time_bin}_{pos_bin}cm_{self.stream_id}.npz"
         binned = self._bin_aligned_trials(
             label=label,
@@ -456,12 +456,12 @@ class Stream:
         )
 
         if trials is None:
-            logging.info(f"\n> No trials found with label {label} and event "
-                         f"{event}, output will be empty.")
+            logging.info(f"\n> No trials found with label {label.name} and "
+                         f"event {event.name}, output will be empty.")
             return None
 
         logging.info(
-            f"\n> Binning <{label}> trials from {self.stream_id} "
+            f"\n> Binning <{label.name}> trials from {self.stream_id} "
             f"in {units}."
         )
 
