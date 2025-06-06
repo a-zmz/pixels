@@ -248,6 +248,8 @@ class Stream:
             level="trial",
             return_format="dataframe",
         )
+        positions.columns = cols_with_starts
+        positions = positions.sort_index(axis=1, ascending=[False, True])
 
         # get trials vertically stacked spiked
         stacked_spiked = pd.concat(

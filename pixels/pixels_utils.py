@@ -1316,7 +1316,14 @@ def _get_vr_positional_neural_data(event, positions, data_type, data):
     trial_level = pos_data.columns.get_level_values("trial")
     unit_level = pos_data.columns.get_level_values("unit")
     # map start level
-    start_level = trial_level.map(starts)
+    starts = positions.columns.get_level_values("start").values
+    start_series = pd.Series(
+        data=starts,
+        index=trial_ids,
+        name="start",
+    )
+    start_level = trial_level.map(start_series)
+
     # define new columns
     new_cols = pd.MultiIndex.from_arrays(
         [start_level, unit_level, trial_level],
