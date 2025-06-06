@@ -402,7 +402,7 @@ class Stream:
                 self.BEHAVIOUR_SAMPLE_RATE,
                 pixels_vr_edges,
                 pixels_idx,
-            )[vr_session.name]
+            )
 
         file_utils.write_hdf5(
             self.processed /\
