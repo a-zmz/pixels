@@ -1244,15 +1244,8 @@ def _get_vr_positional_neural_data(event, positions, data_type, data):
     logging.info(f"\n> Getting positional {data_type}...")
 
     # get constants from vd
-    from vision_in_darkness.constants import TUNNEL_RESET, ZONE_END,\
-        PRE_DARK_LEN
+    from vision_in_darkness.constants import TUNNEL_RESET
 
-    # get the starting index for each trial (column)
-    starts = positions.iloc[0, :].astype(int)
-    # NOTE: if align to dark_onset or end of pre dark, actual starting position
-    # is before that
-    if np.isin(["dark_on", "pre_dark_end"], event.name).any():
-        starts = starts - PRE_DARK_LEN
     # create position indices
     indices = np.arange(0, TUNNEL_RESET+1)
     # create occupancy array for trials
