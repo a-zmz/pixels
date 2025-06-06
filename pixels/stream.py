@@ -133,7 +133,31 @@ class Stream:
             return None
 
         # use original trial id as trial index
-        trial_ids = synched_vr.iloc[selected_starts].trial_count.unique()
+        trial_ids = pd.Index(
+            synched_vr.iloc[selected_starts].trial_count.unique()
+        )
+
+        # map actual starting locations
+        if not "trial_start" in event.name:
+            from pixels.behaviours.virtual_reality import Events
+            all_start_idx = np.where(
+                np.bitwise_and(events, Events.trial_start)
+            )[0]
+            start_idx = trials[np.where(
+                np.isin(trials, all_start_idx)
+            )[0]]
+        else:
+            start_idx = selected_starts.copy()
+
+        start_pos = synched_vr.position_in_tunnel.iloc[
+            start_idx
+        ].values.astype(int)
+
+        # create multiindex with starts
+        cols_with_starts = pd.MultiIndex.from_arrays(
+            [start_pos, trial_ids],
+            names=("start", "trial"),
+        )
 
         # pad ends with 1 second extra to remove edge effects from
         # convolution
