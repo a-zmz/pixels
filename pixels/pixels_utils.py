@@ -1288,7 +1288,11 @@ def _get_vr_positional_neural_data(event, positions, data_type, data):
         elif data_type == "spiked":
             # group values by position and get sum data
             how = "sum"
-        grouped_data = math_utils.group_and_aggregate(trial_data, "position", how)
+        grouped_data = math_utils.group_and_aggregate(
+            trial_data,
+            "position",
+            how,
+        )
 
         # reindex into full tunnel length
         pos_data[trial] = grouped_data.reindex(indices)
