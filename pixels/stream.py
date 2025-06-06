@@ -404,10 +404,9 @@ class Stream:
                 pixels_idx,
             )[vr_session.name]
 
-        # save to pixels processed dir
         file_utils.write_hdf5(
             self.processed /\
-                self.behaviour_files['vr_synched'][self.stream_num],
+                self.behaviour_files["vr_synched"][self.stream_num],
             synched_vr,
         )
 
