@@ -1255,9 +1255,10 @@ def _get_vr_positional_neural_data(event, positions, data_type, data):
     )
 
     pos_data = {}
-    for t, trial in enumerate(positions):
+    trial_ids = positions.columns.get_level_values("trial")
+    for t, trial in enumerate(trial_ids):
         # get trial position
-        trial_pos = positions[trial].dropna()
+        trial_pos = positions.xs(trial, level="trial", axis=1).dropna()
 
         # floor position and set to int
         trial_pos = trial_pos.apply(lambda x: np.floor(x)).astype(int)
