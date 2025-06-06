@@ -589,10 +589,15 @@ class Experiment:
 
     def sync_vr(self, vr):
         """
-        Synchronise virtual reality data with pixels streams.
+        Synchronise virtual reality data of a mouse (or mice) with pixels
+        streams.
         """
         trials = {}
         for i, session in enumerate(self.sessions):
-            session.sync_vr(vr)
+            # vr is a vision-in-darkness mouse object
+            vr_session = vr.sessions[i]
+            assert session.name.split("_")[0] in vr_session.name
+
+            session.sync_vr(vr_session)
 
         return None

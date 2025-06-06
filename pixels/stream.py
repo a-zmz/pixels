@@ -305,7 +305,7 @@ class Stream:
         return spike_times
 
 
-    def sync_vr(self, vr):
+    def sync_vr(self, vr_session):
         # get action labels & synched vr path
         action_labels = self.session.get_action_labels()[self.stream_num]
         synched_vr_path = self.session.find_file(
@@ -315,20 +315,19 @@ class Stream:
             logging.info(f"\n> {self.stream_id} from {self.session.name} is "
                          "already synched with vr.")
         else:
-            self._sync_vr(vr)
+            self._sync_vr(vr_session)
 
         return None
 
 
-    def _sync_vr(self, vr):
+    def _sync_vr(self, vr_session):
         # get spike data
         spike_data = self.session.find_file(
             name=self.files["ap_raw"][self.stream_num],
             copy=True,
         )
 
-        # get vr data
-        vr_session = vr.sessions[0]
+        # get synchronised vr path
         synched_vr_path = vr_session.cache_dir + "synched/" +\
                     vr_session.name + "_vr_synched.h5"
 
@@ -373,7 +372,7 @@ class Stream:
             # convert value into their index to calculate all timestamps
             pixels_idx = np.arange(pixels_syncs.shape[0])
 
-            synched_vr = vr.sync_streams(
+            synched_vr = vr_session.sync_streams(
                 self.BEHAVIOUR_SAMPLE_RATE,
                 pixels_vr_edges,
                 pixels_idx,
