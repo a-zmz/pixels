@@ -2816,7 +2816,7 @@ class Behaviour(ABC):
             )
 
             logging.info(
-                f"\n> Synchonising pixels data with vr."
+                f"\n> Synchonising {self.name} {stream_id} pixels data with vr."
             )
             stream.sync_vr(vr_session)
 
