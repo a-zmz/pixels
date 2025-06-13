@@ -1199,20 +1199,20 @@ def get_vr_positional_data(trial_data):
     dict, positional firing rate, positional spike count, positional occupancy,
     data in 1cm resolution.
     """
-    pos_fr, occupancy = _get_vr_positional_neural_data(
-        event=event,
-        positions=trial_data["positions"],
-        data_type="spike_rate",
-        data=trial_data["fr"],
-    )
-    pos_fc, _ = _get_vr_positional_neural_data(
-        event=event,
+    # NOTE: take occupancy from spike count since in we might need to
+    # interpolate fr for binned data
+    pos_fc, occupancy = _get_vr_positional_neural_data(
         positions=trial_data["positions"],
         data_type="spiked",
         data=trial_data["spiked"],
     )
+    pos_fr, _ = _get_vr_positional_neural_data(
+        positions=trial_data["positions"],
+        data_type="spike_rate",
+        data=trial_data["fr"],
+    )
 
-    return {"pos_fr": pos_fr, "pos_fc": pos_fc, "occupancy": occupancy}
+    return {"pos_fc": pos_fc, "pos_fr": pos_fr, "occupancy": occupancy}
 
 
 def _get_vr_positional_neural_data(positions, data_type, data):
