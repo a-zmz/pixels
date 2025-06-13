@@ -476,7 +476,7 @@ class Stream:
             label=label,
             event=event,
             sigma=sigma,
-            end_event=end_event,
+            end_event=end_event, # NOTE: ALWAYS the last arg
         )
 
         if trials is None:
