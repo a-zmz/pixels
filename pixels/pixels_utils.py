@@ -1310,7 +1310,26 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         )
 
         # reindex into full tunnel length
-        pos_data[trial] = grouped_data.reindex(indices)
+        reidxed = grouped_data.reindex(indices)
+
+        # check for missing values in binned data
+        if ("bin" in positions.index.name) and (data_type == "spike_rate"):
+            # remove alll nan before data actually starts
+            start_idx = grouped_data.index[0]
+            chunk_data = reidxed.loc[start_idx:, :]
+            nan_check = chunk_data.isna().any().any()
+            if nan_check:
+                # interpolate missing fr
+                logging.info(f"\n> trial {trial} has missing values, "
+                             "do linear interpolation.")
+                reidxed.loc[start_idx:, :] = chunk_data.interpolate(
+                    method="linear",
+                    axis=0,
+                )
+
+        # save to dict
+        pos_data[trial] = reidxed
+
         # get trial occupancy
         pos_count = trial_data.groupby("position").size()
         occupancy.loc[pos_count.index.values, trial] = pos_count.values
