@@ -773,6 +773,7 @@ class Stream:
 
     def get_spatial_psd(
         self, label, event, end_event=None, sigma=None, units=None,
+        crop_from=None, use_binned=False, time_bin=None, pos_bin=None,
     ):
         """
         Get spatial power spectral density of selected units.
@@ -781,15 +782,28 @@ class Stream:
         # always put units first, cuz it is like that in
         # experiemnt.align_trials, otherwise the same cache cannot be loaded
 
-        from vision_in_darkness.constants import landmarks
         # get aligned firing rates and positions
-        trials = self.get_positional_data(
-            units=units, # NOTE: ALWAYS the first arg
-            label=label,
-            event=event,
-            sigma=sigma,
-            end_event=end_event,
-        )
+        if not use_binned:
+            trials = self.get_positional_data(
+                units=units, # NOTE: ALWAYS the first arg
+                label=label,
+                event=event,
+                sigma=sigma,
+                end_event=end_event, # NOTE: ALWAYS the last arg
+            )
+            crop_from = crop_from
+        else:
+            trials = self.get_binned_trials(
+                units=units, # NOTE: ALWAYS the first arg
+                label=label,
+                event=event,
+                sigma=sigma,
+                end_event=end_event,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+            )
+            crop_from = crop_from // pos_bin + 1
+
         # get positional fr
         pos_fr = trials["pos_fr"]
 
@@ -797,14 +811,10 @@ class Stream:
         psds = {}
         for s, start in enumerate(starts):
             data = pos_fr.xs(start, level="start", axis=1)
-            # remove black wall and post last landmark
-            cropped = data.loc[landmarks[0]:landmarks[-1], :]
-            # TODO may 30 2025:
-            # only remove 60cm black wall in light, remove first 50cm of tunnel
-            # anyways in dark!
+            # crop if needed
+            cropped = data.loc[crop_from:, :]
 
             # get power spectral density
-            #psds[start] = xut.get_spatial_psd(data)
             psds[start] = xut.get_spatial_psd(cropped)
 
         psd_df = pd.concat(
