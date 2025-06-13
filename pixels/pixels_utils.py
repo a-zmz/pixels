@@ -1256,15 +1256,16 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         # create position indices
         indices_range = [0, TUNNEL_RESET+1]
 
-    # get constants from vd
-    from vision_in_darkness.constants import TUNNEL_RESET
+    # get trial ids
+    trial_ids = positions.columns.get_level_values("trial")
 
     # create position indices
-    indices = np.arange(0, TUNNEL_RESET+1)
+    indices = np.arange(*indices_range).astype(int)
     # create occupancy array for trials
-    occupancy = np.full(
-        (TUNNEL_RESET+1, positions.shape[1]),
-        np.nan,
+    occupancy = pd.DataFrame(
+        data=np.full((len(indices), positions.shape[1]), np.nan),
+        index=indices,
+        columns=trial_ids,
     )
 
     pos_data = {}
@@ -1311,16 +1312,10 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         pos_data[trial] = grouped_data.reindex(indices)
         # get trial occupancy
         pos_count = trial_data.groupby("position").size()
-        occupancy[pos_count.index.values, t] = pos_count.values
+        occupancy.loc[pos_count.index.values, trial] = pos_count.values
 
     # concatenate dfs
     pos_data = pd.concat(pos_data, axis=1, names=["trial", "unit"])
-    # convert to df
-    occupancy = pd.DataFrame(
-        data=occupancy,
-        index=indices,
-        columns=positions.columns,
-    )
 
     # add another level of starting position
     # group trials by their starting index
