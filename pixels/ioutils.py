@@ -76,6 +76,14 @@ def get_data_files(data_dir, session_name):
     if not ap_meta:
         raise PixelsError(f"{session_name}: could not find raw AP metadata file.")
 
+    pupil_raw = sorted(glob.glob(f"{data_dir}/behaviour/pupil_cam/*.avi*"))
+
+    behaviour = {
+        "vr_synched": [],
+        "action_labels": [],
+        "pupil_raw": pupil_raw,
+    }
+
     pixels = {}
     for r, rec in enumerate(ap_raw):
         stream_id = rec[-12:-4]
@@ -97,6 +105,13 @@ def get_data_files(data_dir, session_name):
         base_name = original_name(rec)
         pixels[stream_id]["ap_raw"].append(base_name)
         pixels[stream_id]["ap_meta"].append(original_name(ap_meta[r]))
+
+        behaviour["vr_synched"].append(base_name.with_name(
+            f"{session_name}_{probe_id}_vr_synched.h5"
+        ))
+        behaviour["action_labels"].append(base_name.with_name(
+            f"action_labels_{probe_id}.npz"
+        ))
 
         # >>> spikeinterface cache >>>
         # extracted & motion corrected ap stream, 300Hz+
@@ -174,19 +189,6 @@ def get_data_files(data_dir, session_name):
         #pixels[stream_id]["spike_rate_processed"] = base_name.with_name(
         #    f"spike_rate_{stream_id}.h5"
         #)
-
-    pupil_raw = sorted(glob.glob(f"{data_dir}/behaviour/pupil_cam/*.avi*"))
-
-    behaviour = {
-        "vr_synched": [],
-        "action_labels": [],
-        "pupil_raw": pupil_raw,
-    }
-
-    behaviour["vr_synched"].append(base_name.with_name(
-        f"{session_name}_vr_synched.h5"
-    ))
-    behaviour["action_labels"].append(base_name.with_name(f"action_labels.npz"))
 
     if pupil_raw:
         behaviour["pupil_processed"] = []
