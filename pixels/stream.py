@@ -620,11 +620,11 @@ class Stream:
             label=label,
             event=event,
             sigma=sigma,
-            end_event=end_event,
+            end_event=end_event, # NOTE: ALWAYS the last arg
         )
 
         # get positional spike rate, spike count, and occupancy
-        positional_data = xut.get_vr_positional_data(event, trials)
+        positional_data = xut.get_vr_positional_data(trials)
 
         return positional_data
 
