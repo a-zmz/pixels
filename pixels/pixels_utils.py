@@ -1186,7 +1186,7 @@ def correct_group_id(rec):
     return group_ids
 
 
-def get_vr_positional_data(event, trial_data):
+def get_vr_positional_data(trial_data):
     """
     Get positional firing rate and spike count for VR behaviour.
 
@@ -1215,7 +1215,7 @@ def get_vr_positional_data(event, trial_data):
     return {"pos_fr": pos_fr, "pos_fc": pos_fc, "occupancy": occupancy}
 
 
-def _get_vr_positional_neural_data(event, positions, data_type, data):
+def _get_vr_positional_neural_data(positions, data_type, data):
     """
     Get positional neural data for VR behaviour.
 
