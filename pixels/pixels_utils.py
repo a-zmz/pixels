@@ -1241,7 +1241,8 @@ def _get_vr_positional_neural_data(positions, data_type, data):
     occupancy: pandas df, count of each position.
         shape: position x trial
     """
-    logging.info(f"\n> Getting positional {data_type}...")
+    from pandas.api.types import is_integer_dtype
+
     if "bin" in positions.index.name:
         logging.info(f"\n> Getting binned positional {data_type}...")
         # create position indices for binned data
@@ -1269,16 +1270,16 @@ def _get_vr_positional_neural_data(positions, data_type, data):
     )
 
     pos_data = {}
-    trial_ids = positions.columns.get_level_values("trial")
     for t, trial in enumerate(trial_ids):
         # get trial position
         trial_pos = positions.xs(trial, level="trial", axis=1).dropna()
 
-        # floor position and set to int
-        trial_pos = trial_pos.apply(lambda x: np.floor(x)).astype(int)
-
-        # exclude positions after tunnel reset
-        trial_pos = trial_pos[trial_pos <= TUNNEL_RESET]
+        # convert to int if float 
+        if not trial_pos.dtypes.map(is_integer_dtype).all():
+            # floor position and set to int
+            trial_pos = trial_pos.apply(lambda x: np.floor(x)).astype(int)
+            # exclude positions after tunnel reset
+            trial_pos = trial_pos[trial_pos <= indices[-1]]
 
         # get firing rates for current trial of all units
         trial_data = data.xs(
