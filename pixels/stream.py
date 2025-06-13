@@ -544,13 +544,28 @@ class Stream:
         logging.info(f"\n> Output saved at {output_path}.")
 
         # extract binned data in df format
-        bin_fc, bin_pos = self._extract_binned_data(binned_count)
-        bin_fr, _ = self._extract_binned_data(binned_fr)
+        bin_fc, bin_pos = self._extract_binned_data(
+            binned_count,
+            positions.columns,
+        )
+        bin_fr, _ = self._extract_binned_data(
+            binned_fr,
+            positions.columns,
+        )
 
-        return {"bin_fc": bin_fc, "bin_fr": bin_fr, "bin_pos": bin_pos}
+        # convert it to binned positional data
+        pos_data = xut.get_vr_positional_data(
+            {
+                "positions": bin_pos.bin_pos,
+                "fr": bin_fr,
+                "spiked": bin_fc,
+            },
+        )
+
+        return pos_data
 
 
-    def _extract_binned_data(self, binned_data):
+    def _extract_binned_data(self, binned_data, pos_cols):
         """
         """
         df = ioutils.reindex_by_longest(
@@ -569,6 +584,19 @@ class Stream:
             axis=1,
         )
         pos.columns.names = ["pos_type", "trial"]
+
+        # convert columns to df
+        pos_col_df = pos.columns.to_frame(index=False)
+        start_trial_df = pos_cols.to_frame(index=False)
+        # merge columns
+        merged_cols = pd.merge(pos_col_df, start_trial_df, on="trial")
+
+        # create new columns
+        new_cols = pd.MultiIndex.from_frame(
+            merged_cols[["pos_type", "start", "trial"]],
+            names=["pos_type", "start", "trial"],
+        )
+        pos.columns = new_cols
 
         return data, pos
 
