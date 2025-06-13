@@ -1124,7 +1124,7 @@ def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
     # set position index too
     positions.index = data.index
 
-    # resample to 100ms bin, and get position mean
+    # resample to ms bin, and get position mean
     mean_pos = positions.resample(time_bin).mean()
 
     if bin_method == "sum":
