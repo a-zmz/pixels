@@ -832,7 +832,21 @@ class VR(Behaviour):
 
 
     def _last_index(self, group: pd.DataFrame) -> int:
-        return group.index.max()
+        # only check the second half in case the discontinuity happened at the
+        # beginning
+        idx = group.index
+        late_idx = idx[-len(idx)//4:]
+
+        # double check the last index is the first time reaching that point
+        idx_discontinued = (np.diff(late_idx) > 1)
+        if np.any(idx_discontinued):
+            logging.warning("\n> index discontinued.")
+            print(group)
+            first_disc = np.where(idx_discontinued)[0][0]
+            return late_idx[first_disc]
+        else:
+            return idx.max()
+
 
     def _get_index(self, df: pd.DataFrame, index) -> int:
         return df.index.get_indexer(index)
