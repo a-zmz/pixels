@@ -1242,6 +1242,19 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         shape: position x trial
     """
     logging.info(f"\n> Getting positional {data_type}...")
+    if "bin" in positions.index.name:
+        logging.info(f"\n> Getting binned positional {data_type}...")
+        # create position indices for binned data
+        indices_range = [
+            positions.min().min(),
+            positions.max().max()+1,
+        ]
+    else:
+        logging.info(f"\n> Getting positional {data_type}...")
+        # get constants from vd
+        from vision_in_darkness.constants import TUNNEL_RESET
+        # create position indices
+        indices_range = [0, TUNNEL_RESET+1]
 
     # get constants from vd
     from vision_in_darkness.constants import TUNNEL_RESET
