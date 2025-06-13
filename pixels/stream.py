@@ -503,10 +503,12 @@ class Stream:
         bin_arr = {}
         binned_count = {}
         binned_fr = {}
-        for trial in positions.columns.unique():
+
+        trial_ids = positions.columns.get_level_values("trial").unique()
+        for trial in trial_ids:
             counts = spiked.xs(trial, level="trial", axis=1).dropna()
             rates = fr.xs(trial, level="trial", axis=1).dropna()
-            trial_pos = positions[trial].dropna()
+            trial_pos = positions.xs(trial, level="trial", axis=1).dropna()
 
             # get bin spike count
             binned_count[trial] = xut.bin_vr_trial(
