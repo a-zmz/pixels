@@ -774,12 +774,12 @@ class VR(Behaviour):
             landmark_idx = l // 2 + 1
 
             # even idx on, odd idx off
-            landmark_on = landmark
-            landmark_off = landmarks[l + 1]
+            on_landmark = landmark
+            off_landmark = landmarks[l + 1]
 
             in_landmark = (
-                (df.position_in_tunnel >= landmark_on) &
-                (df.position_in_tunnel <= landmark_off)
+                (df.position_in_tunnel >= on_landmark) &
+                (df.position_in_tunnel <= off_landmark)
             )
 
             landmark_on = df[in_landmark].groupby("trial_count").apply(
