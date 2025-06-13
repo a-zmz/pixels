@@ -1964,7 +1964,7 @@ class Behaviour(ABC):
         if "trial" in data:
             logging.info(
                 f"\n> Aligning {self.name} {data} of {units} units to label "
-                f"<{label}> trials."
+                f"<{label.name}> trials."
             )
             return self._get_aligned_trials(
                 label, event, data=data, units=units, sigma=sigma,
@@ -2691,7 +2691,7 @@ class Behaviour(ABC):
             )
 
             logging.info(
-                f"\n> Getting binned <{label}> trials from {stream_id} "
+                f"\n> Getting binned <{label.name}> trials from {stream_id} "
                 f"in {units}."
             )
             binned[stream_id] = stream.get_binned_trials(
@@ -2845,7 +2845,7 @@ class Behaviour(ABC):
 
             logging.info(
                 f"\n> Getting spatial PSD of {units} units in "
-                f"<{label}> trials."
+                f"<{label.name}> trials."
             )
             output[stream_id] = stream.get_spatial_psd(
                 units=units, # NOTE: put units first!
