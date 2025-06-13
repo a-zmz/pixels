@@ -1364,6 +1364,8 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         ascending=[True, False, True],
     ).dropna(how="all")
 
+    occupancy = occupancy.dropna(how="all")
+
     return pos_data, occupancy
 
 
