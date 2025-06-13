@@ -738,7 +738,6 @@ class VR(Behaviour):
 
         # concat dark and light trials
         pre_dark_end_t = pd.concat([dark_on_t, light_pre_dark_end_t])
-
         masks[Events.pre_dark_end] = pre_dark_end_t
         # >>> distance travelled before dark onset per trial >>>
 
@@ -818,7 +817,19 @@ class VR(Behaviour):
     # -------------------------------------------------------------------------
 
     def _first_index(self, group: pd.DataFrame) -> int:
+        idx = group.index
+        early_idx = idx[:len(idx) // 2]
+
+        # double check the last index is the first time reaching that point
+        idx_discontinued = (np.diff(early_idx) > 1)
+        #if np.any(idx_discontinued):
+        #    print("discontinued")
+        #    assert 0
+        #    last_disc = np.where(idx_discontinued)[0][-1]
+        #    return group.iloc[last_disc:].index.min()
+        #else:
         return group.index.min()
+
 
     def _last_index(self, group: pd.DataFrame) -> int:
         return group.index.max()
