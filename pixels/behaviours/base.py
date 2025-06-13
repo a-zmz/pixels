@@ -2825,6 +2825,7 @@ class Behaviour(ABC):
 
     def get_spatial_psd(
         self, label, event, end_event=None, sigma=None, units=None,
+        crop_from=None, use_binned=False, time_bin=None, pos_bin=None,
     ):
         """
         Get spatial power spectral density of selected units.
@@ -2848,11 +2849,15 @@ class Behaviour(ABC):
                 f"<{label.name}> trials."
             )
             output[stream_id] = stream.get_spatial_psd(
-                units=units, # NOTE: put units first!
+                units=units,
                 label=label,
                 event=event,
                 sigma=sigma,
-                end_event=end_event, # NOTE: put units last!
+                end_event=end_event,
+                crop_from=crop_from,
+                use_binned=use_binned,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
             )
 
         return output
