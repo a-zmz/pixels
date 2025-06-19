@@ -996,24 +996,23 @@ def save_chance(orig_idx, orig_col, spiked_memmap_path, fr_memmap_path,
     return None
 
 
-def get_spike_chance(sample_rate, positions, time_bin, pos_bin,
-                     spiked_memmap_path, fr_memmap_path, memmap_shape_path,
-                     idx_path, col_path):
+def get_spike_chance(sample_rate, positions, spiked_memmap_path, fr_memmap_path,
+                     memmap_shape_path, idx_path, col_path):
     if not fr_memmap_path.exists():
         raise PixelsError("\nHave you saved spike chance data yet?")
     else:
         # TODO apr 3 2025: we need to get positions here for binning!!!
         # BUT HOW????
-        _get_spike_chance(sample_rate, positions, time_bin, pos_bin,
-                          spiked_memmap_path, fr_memmap_path, memmap_shape_path,
-                          idx_path, col_path)
+        fr_chance, idx, cols = _get_spike_chance(
+            sample_rate, positions, spiked_memmap_path, fr_memmap_path,
+            memmap_shape_path, idx_path, col_path)
+        return fr_chance, idx, cols
 
     return None
 
 
-def _get_spike_chance(sample_rate, positions, time_bin, pos_bin,
-                      spiked_memmap_path, fr_memmap_path, memmap_shape_path,
-                      idx_path, col_path):
+def _get_spike_chance(sample_rate, positions, spiked_memmap_path,
+                      fr_memmap_path, memmap_shape_path, idx_path, col_path):
 
     # TODO apr 9 2025:
     # i do not need to save shape to file, all i need is unit count, repeat,
@@ -1039,6 +1038,11 @@ def _get_spike_chance(sample_rate, positions, time_bin, pos_bin,
     col_df = read_hdf5(col_path, key="cols")
     cols = pd.Index(col_df["unit"])
 
+    return fr_chance, idx, cols
+    assert 0
+
+    # TODO jun 16 2025:
+    # have a separate func for binning chance data
     binned_shuffle = {}
     temp = {}
     # TODO apr 3 2025: implement multiprocessing here!
