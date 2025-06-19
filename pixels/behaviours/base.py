@@ -2695,9 +2695,9 @@ class Behaviour(ABC):
                 f"in {units}."
             )
             binned[stream_id] = stream.get_binned_trials(
+                units=units, # NOTE: always the first arg!
                 label=label,
                 event=event,
-                units=units,
                 sigma=sigma,
                 end_event=end_event,
                 time_bin=time_bin,
