@@ -1286,11 +1286,19 @@ def _get_vr_positional_neural_data(positions, data_type, data):
             trial_pos = trial_pos[trial_pos <= indices[-1]]
 
         # get firing rates for current trial of all units
-        trial_data = data.xs(
-            key=trial,
-            axis=1,
-            level="trial",
-        ).dropna(how="all").copy()
+        try:
+            trial_data = data.xs(
+                key=trial,
+                axis=1,
+                level="trial",
+            ).dropna(how="all").copy()
+        except TypeError:
+            # chance data has trial and time on index, not column
+            trial_data = data.T.xs(
+                key=trial,
+                axis=1,
+                level="trial",
+            ).T.dropna(how="all").copy()
 
         # get all indices before post reset
         no_post_reset = trial_data.index.intersection(trial_pos.index)
