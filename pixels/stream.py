@@ -829,3 +829,41 @@ class Stream:
         # all nan in other starts, so remember to dropna(axis=1)!
 
         return psd_df
+
+
+    def get_spike_chance(self, units, label, event, sigma, end_event):
+        trials = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            data="trial_rate", # NOTE: ALWAYS the second arg
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event, # NOTE: ALWAYS the last arg
+        )
+        positions = trials["positions"]
+
+        probe_id = self.stream_id[:-3]
+        name = self.session.name
+        paths = {
+            "spiked_memmap_path": self.interim/\
+                f"{name}_{probe_id}_{label.name}_spiked_shuffled.bin",
+            "fr_memmap_path": self.interim/\
+                f"{name}_{probe_id}_{label.name}_fr_shuffled.bin",
+            "memmap_shape_path": self.interim/\
+                f"{name}_{probe_id}_{label.name}_shuffled_shape.json",
+            "idx_path": self.interim/\
+                f"{name}_{probe_id}_{label.name}_shuffled_index.h5",
+            "col_path": self.interim/\
+                f"{name}_{probe_id}_{label.name}_shuffled_columns.h5",
+        }
+
+        fr_chance, idx, cols = xut.get_spike_chance(
+            sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+            positions=positions,
+            **paths,
+        )
+        
+        return positions, fr_chance, idx, cols
+
+
+
