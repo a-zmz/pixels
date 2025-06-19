@@ -778,6 +778,10 @@ class Stream:
         """
         Get spatial power spectral density of selected units.
         """
+        # NOTE: jun 19 2025
+        # potentially we could use aligned trials directly for psd estimation,
+        # with trial position as x, fr as y, and use lomb-scargle method
+
         # NOTE: order of args matters for loading the cache!
         # always put units first, cuz it is like that in
         # experiemnt.align_trials, otherwise the same cache cannot be loaded
