@@ -1377,6 +1377,10 @@ def _get_vr_positional_neural_data(positions, data_type, data):
     ).dropna(how="all")
 
     occupancy = occupancy.dropna(how="all")
+    # remove negative position values
+    if occupancy.index.min() < 0:
+        occupancy = occupancy.loc[0:, :]
+        pos_data = pos_data.loc[0:, :]
 
     return pos_data, occupancy
 
