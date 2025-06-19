@@ -1259,7 +1259,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         # get constants from vd
         from vision_in_darkness.constants import TUNNEL_RESET
         # create position indices
-        indices_range = [0, TUNNEL_RESET+1]
+        indices_range = [np.floor(positions.min().min()), TUNNEL_RESET+1]
 
     # get trial ids
     trial_ids = positions.columns.get_level_values("trial")
