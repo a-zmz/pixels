@@ -20,6 +20,7 @@ import pixels.signal_utils as signal
 from pixels.ioutils import write_hdf5, reindex_by_longest
 from pixels.error import PixelsError
 from pixels.configs import *
+from pixels.constants import *
 
 from common_utils import math_utils
 from common_utils.file_utils import init_memmap, read_hdf5

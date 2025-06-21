@@ -13,3 +13,5 @@ freq_bands = {
 BEHAVIOUR_HZ = 25000
 
 np.random.seed(BEHAVIOUR_HZ)
+
+REPEATS = 100
