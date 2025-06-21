@@ -1402,3 +1402,89 @@ def get_spatial_psd(pos_fr):
     psd = pos_fr.apply(_compute_psd, axis=0)
 
     return psd
+
+
+def _psd_chance_worker(r, sample_rate, positions, paths, cut_start, cut_end):
+    """
+    Worker that computes one set of psd.
+
+    params
+    ===
+    i: index of current repeat.
+
+    return
+    ===
+    """
+    logging.info(f"\nProcessing repeat {r}...")
+    chance_data, idx, cols = get_spike_chance(
+        sample_rate=sample_rate,
+        positions=positions,
+        **paths,
+    )
+
+    pos_fr, _ = _get_vr_positional_neural_data(
+        positions=positions,
+        data_type="spike_rate",
+        data=pd.DataFrame(chance_data[..., r], index=idx, columns=cols),
+    )
+    del chance_data, positions
+
+    psd = {}
+    starts = pos_fr.columns.get_level_values("start").unique()
+
+    for start in starts:
+        start_df = pos_fr.xs(
+            start,
+            level="start",
+            axis=1,
+        ).dropna(how="all")
+
+        cropped = start_df.loc[start+cut_start:cut_end, :]
+        psd[start] = get_spatial_psd(cropped)
+
+        del cropped, start_df
+
+    psd_df = pd.concat(
+        psd,
+        names=["start", "frequency"],
+    )
+
+    logging.info(f"\nRepeat {r} finished.")
+
+    return psd_df
+
+
+def save_chance_psd(sample_rate, positions, paths):#chance_data, idx, cols):
+    """
+    Implementation of saving chance level spike data.
+    """
+    #import concurrent.futures
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    from vision_in_darkness.constants import PRE_DARK_LEN, landmarks
+
+    # Set up the process pool to run the worker in parallel.
+    # Submit jobs for each repeat.
+    futures = []
+    with ProcessPoolExecutor() as executor:
+        for r in range(REPEATS):
+            future = executor.submit(
+                _psd_chance_worker,
+                r,
+                sample_rate,
+                positions,
+                paths,
+                PRE_DARK_LEN,
+                landmarks[-1] - 1
+            )
+            futures.append(future)
+        # collect and concat
+        results = [f.result() for f in as_completed(futures)]
+
+    psds = pd.concat(
+        results,
+        axis=1,
+        keys=range(REPEATS),
+        names=["repeat", "unit", "trial"],
+    )
+
+    return psds
