@@ -280,7 +280,7 @@ class Experiment:
             positions = ioutils.get_aligned_data_across_sessions(
                 trials=trials,
                 key="positions",
-                level_names=["session", "stream", "trial"],
+                level_names=["session", "stream", "start", "trial"],
             )
             df = {
                 "fr": fr,
@@ -562,7 +562,7 @@ class Experiment:
                 if not result is None:
                     trials[name] = result
 
-        level_names = ["session", "stream", "unit", "trial"]
+        level_names = ["session", "stream", "start", "unit", "trial"]
         bin_fr = ioutils.get_aligned_data_across_sessions(
             trials=trials,
             key="bin_fr",
