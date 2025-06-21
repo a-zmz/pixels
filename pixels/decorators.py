@@ -76,25 +76,26 @@ def cacheable(method):
                 logging.info("\n> df is None, cache will exist but be empty.")
             else:
                 # allows to save multiple dfs in a dict in one hdf5 file
-                if ioutils.is_nested_dict(df):
-                    for probe_id, nested_dict in df.items():
-                        # NOTE: we remove `.ap` in stream id cuz having `.`in
-                        # the key name get problems
-                        for name, values in nested_dict.items():
+                if isinstance(df, dict):
+                    if ioutils.is_nested_dict(df):
+                        for probe_id, nested_dict in df.items():
+                            # NOTE: we remove `.ap` in stream id cuz having `.`in
+                            # the key name get problems
+                            for name, values in nested_dict.items():
+                                ioutils.write_hdf5(
+                                    path=cache_path,
+                                    df=values,
+                                    key=f"/{probe_id}/{name}",
+                                    mode="a",
+                                )
+                    else:
+                        for name, values in df.items():
                             ioutils.write_hdf5(
                                 path=cache_path,
                                 df=values,
-                                key=f"/{probe_id}/{name}",
+                                key=name,
                                 mode="a",
                             )
-                elif isinstance(df, dict):
-                    for name, values in df.items():
-                        ioutils.write_hdf5(
-                            path=cache_path,
-                            df=values,
-                            key=name,
-                            mode="a",
-                        )
                 else:
                     ioutils.write_hdf5(cache_path, df)
         return df
