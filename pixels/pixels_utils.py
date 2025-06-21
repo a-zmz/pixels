@@ -1247,6 +1247,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         shape: position x trial
     """
     from pandas.api.types import is_integer_dtype
+    from vision_in_darkness.constants import SPATIAL_SAMPLE_RATE
 
     if "bin" in positions.index.name:
         logging.info(f"\n> Getting binned positional {data_type}...")
@@ -1266,7 +1267,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
     trial_ids = positions.columns.get_level_values("trial")
 
     # create position indices
-    indices = np.arange(*indices_range).astype(int)
+    indices = np.arange(*indices_range, SPATIAL_SAMPLE_RATE).astype(int)
     # create occupancy array for trials
     occupancy = pd.DataFrame(
         data=np.full((len(indices), positions.shape[1]), np.nan),
