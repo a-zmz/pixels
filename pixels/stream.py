@@ -832,6 +832,24 @@ class Stream:
 
 
     def get_spike_chance(self, units, label, event, sigma, end_event):
+        positions, paths = self._get_chance_args(
+            units,
+            label,
+            event,
+            sigma,
+            end_event,
+        )
+
+        fr_chance, idx, cols = xut.get_spike_chance(
+            sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+            positions=positions,
+            **paths,
+        )
+        
+        return positions, fr_chance, idx, cols
+
+
+    def _get_chance_args(self, units, label, event, sigma, end_event):
         trials = self.align_trials(
             units=units, # NOTE: ALWAYS the first arg
             data="trial_rate", # NOTE: ALWAYS the second arg
@@ -857,20 +875,13 @@ class Stream:
                 f"{name}_{probe_id}_{label.name}_shuffled_columns.h5",
         }
 
-        fr_chance, idx, cols = xut.get_spike_chance(
-            sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
-            positions=positions,
-            **paths,
-        )
-        
-        return positions, fr_chance, idx, cols
+        return positions, paths
 
 
     @cacheable
     def get_chance_positional_psd(self, units, label, event, sigma, end_event):
-        assert 0
         from vision_in_darkness.constants import PRE_DARK_LEN, landmarks
-        positions, fr_chance, idx, cols = self.get_spike_chance(
+        positions, paths = self._get_chance_args(
             units,
             label,
             event,
@@ -878,36 +889,7 @@ class Stream:
             end_event,
         )
 
-        psds = {}
-        for r in range(fr_chance.shape[-1]):
-            repeat = fr_chance[:, :, r]
-            fr = pd.DataFrame(repeat, index=idx, columns=cols)
+        logging.info("> getting chance psd")
+        psds = xut.save_chance_psd(self.BEHAVIOUR_SAMPLE_RATE, positions, paths)
 
-            pos_fr, _ = xut._get_vr_positional_neural_data(
-                positions=positions,
-                data_type="spike_rate",
-                data=fr,
-            )
-
-            psds[r] = {}
-            starts = pos_fr.columns.get_level_values("start").unique()
-            for start in starts:
-                start_df = pos_fr.xs(
-                    start,
-                    level="start",
-                    axis=1,
-                ).dropna(how="all")
-
-                cropped = start_df.loc[start+PRE_DARK_LEN:landmarks[-1]-1, :]
-                psds[r][start] = xut.get_spatial_psd(cropped)
-
-            psd_df = pd.concat(
-                psds[r],
-                names=["start","frequency"],
-                levels=["repeat", "unit", "trial"],
-            )
-            psds[r] = psd_df
-
-        return pd.concat(psds, axis=1)
-
-
+        return psds
