@@ -565,23 +565,23 @@ class Experiment:
         level_names = ["session", "stream", "start", "unit", "trial"]
         bin_fr = ioutils.get_aligned_data_across_sessions(
             trials=trials,
-            key="bin_fr",
+            key="pos_fr",
             level_names=level_names,
         )
         bin_fc = ioutils.get_aligned_data_across_sessions(
             trials=trials,
-            key="bin_fc",
+            key="pos_fc",
             level_names=level_names,
         )
-        bin_pos = ioutils.get_aligned_data_across_sessions(
+        bin_occupancies = ioutils.get_aligned_data_across_sessions(
             trials=trials,
-            key="bin_pos",
-            level_names=["session", "stream", "pos_type", "trial"],
+            key="occupancy",
+            level_names=["session", "stream", "trial"],
         )
         df = {
             "bin_fr": bin_fr,
             "bin_fc": bin_fc,
-            "bin_pos": bin_pos,
+            "bin_occupancy": bin_occupancies,
         }
 
         return df
