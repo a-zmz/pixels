@@ -545,6 +545,9 @@ class Experiment:
         Get binned firing rate and spike count for aligned vr trials.
         Check behaviours.base.Behaviour.get_binned_trials for usage information.
         """
+        # TODO jun 21 2025:
+        # can we combine this func with get_positional_data since they are
+        # basically the same, we just need to add `use_binned` bool in the arg
         session_names = [session.name for session in self.sessions]
         trials = {}
         if not units is None:
