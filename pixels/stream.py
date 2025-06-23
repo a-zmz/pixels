@@ -871,8 +871,9 @@ class Stream:
                 f"{name}_{probe_id}_{label.name}_shuffled_shape.json",
             "idx_path": self.interim/\
                 f"{name}_{probe_id}_{label.name}_shuffled_index.h5",
+                # NOTE: if all units, all conditions share the same columns
             "col_path": self.interim/\
-                f"{name}_{probe_id}_{label.name}_shuffled_columns.h5",
+                self.files["shuffled_columns"],
         }
 
         return positions, paths
