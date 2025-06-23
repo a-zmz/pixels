@@ -1002,8 +1002,6 @@ def get_spike_chance(sample_rate, positions, spiked_memmap_path, fr_memmap_path,
     if not fr_memmap_path.exists():
         raise PixelsError("\nHave you saved spike chance data yet?")
     else:
-        # TODO apr 3 2025: we need to get positions here for binning!!!
-        # BUT HOW????
         fr_chance, idx, cols = _get_spike_chance(
             sample_rate, positions, spiked_memmap_path, fr_memmap_path,
             memmap_shape_path, idx_path, col_path)
