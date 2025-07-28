@@ -601,7 +601,7 @@ class Stream:
         return data, pos
 
 
-    @cacheable
+    #@cacheable
     def get_positional_data(
         self, label, event, end_event=None, sigma=None, units=None,
         normalised=False,
