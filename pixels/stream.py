@@ -648,13 +648,6 @@ class Stream:
                 self.BEHAVIOUR_SAMPLE_RATE: self.BEHAVIOUR_SAMPLE_RATE * 2
             ].loc[:, trials["fr"].columns].T.groupby("unit").mean().T
 
-            #baseline_log = np.log1p(baseline)
-            #mu_log = baseline_log.mean()
-            #std_log = baseline_log.std()
-            #fr_log = np.log1p(fr)
-            #z_fr_log = (fr_log.sub(mu_log, axis=1, level="unit")
-            #            .div(std_log, axis=1, level="unit"))
-
             mu = baseline.mean()
             centered = trials["fr"].sub(mu, axis=1, level="unit")
             std = baseline.std()
