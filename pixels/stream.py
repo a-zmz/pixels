@@ -139,9 +139,8 @@ class Stream:
 
         # map actual starting locations
         if not "trial_start" in event.name:
-            from pixels.behaviours.virtual_reality import Events
             all_start_idx = np.where(
-                np.bitwise_and(events, Events.trial_start)
+                np.bitwise_and(events, event.trial_start)
             )[0]
             start_idx = trials[np.where(
                 np.isin(trials, all_start_idx)
