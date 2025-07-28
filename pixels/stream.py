@@ -604,6 +604,7 @@ class Stream:
     @cacheable
     def get_positional_data(
         self, label, event, end_event=None, sigma=None, units=None,
+        normalised=False,
     ):
         """
         Get positional firing rate of selected units in vr, and spatial
@@ -622,6 +623,45 @@ class Stream:
             sigma=sigma,
             end_event=end_event, # NOTE: ALWAYS the last arg
         )
+
+        if normalised:
+            grays = self.align_trials(
+                units=units, # NOTE: ALWAYS the first arg
+                data="trial_rate", # NOTE: ALWAYS the second arg
+                label=getattr(label, label.name.split("_")[-1]),
+                event=event.gray_on,
+                sigma=sigma,
+                end_event=end_event.gray_off, # NOTE: ALWAYS the last arg
+            )
+
+            # NOTE july 24 2025: if get gray mu & sigma per trial we got z score
+            # of very quiet & stable in gray units >9e+15... thus, we normalise
+            # average all trials for each unit, rather than per trial
+
+            # NOTE: 500ms of 500Hz sine wave sound at each trial start, 2000ms
+            # of gray, so only take the second 1000ms in gray to get mean and
+            # std
+
+            # only select trials exists in aligned trials
+            baseline = grays["fr"].iloc[
+                self.BEHAVIOUR_SAMPLE_RATE: self.BEHAVIOUR_SAMPLE_RATE * 2
+            ].loc[:, trials["fr"].columns].T.groupby("unit").mean().T
+
+            #baseline_log = np.log1p(baseline)
+            #mu_log = baseline_log.mean()
+            #std_log = baseline_log.std()
+            #fr_log = np.log1p(fr)
+            #z_fr_log = (fr_log.sub(mu_log, axis=1, level="unit")
+            #            .div(std_log, axis=1, level="unit"))
+
+            mu = baseline.mean()
+            centered = trials["fr"].sub(mu, axis=1, level="unit")
+            std = baseline.std()
+            z_fr = centered.div(std, axis=1, level="unit")
+            trials["fr"] = z_fr
+
+            del grays, baseline, mu, std, z_fr
+            gc.collect()
 
         # get positional spike rate, spike count, and occupancy
         positional_data = xut.get_vr_positional_data(trials)

@@ -2628,6 +2628,7 @@ class Behaviour(ABC):
 
     def get_positional_data(
         self, label, event, end_event=None, sigma=None, units=None,
+        normalised=False,
     ):
         """
         Get positional firing rate of selected units in vr, and spatial
@@ -2651,12 +2652,14 @@ class Behaviour(ABC):
                 f"\n> Getting positional neural data of {units} units in "
                 f"<{label.name}> trials."
             )
+
             output[stream_id] = stream.get_positional_data(
                 units=units, # NOTE: put units first!
                 label=label,
                 event=event,
                 sigma=sigma,
                 end_event=end_event,
+                normalised=normalised,
             )
 
         return output
