@@ -162,7 +162,7 @@ class Stream:
         # convolution
         scan_pad = self.BEHAVIOUR_SAMPLE_RATE
         scan_starts = start_t - scan_pad
-        scan_ends = end_t + scan_pad
+        scan_ends = end_t + scan_pad + 1
         scan_durations = scan_ends - scan_starts
 
         cursor = 0
@@ -190,7 +190,7 @@ class Stream:
             trial = rec_spikes[trial_bool]
             # get position bin ids for current trial
             trial_pos_bool = (all_pos.index >= start_t[i])\
-                    & (all_pos.index < end_t[i])
+                    & (all_pos.index <= end_t[i])
             trial_pos = all_pos[trial_pos_bool]
 
             # initiate binary spike times array for current trial
