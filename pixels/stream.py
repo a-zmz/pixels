@@ -402,10 +402,6 @@ class Stream:
             trial_bool = (rec_spikes >= scan_starts[i])\
                     & (rec_spikes <= scan_ends[i])
             trial = rec_spikes[trial_bool]
-            # get position bin ids for current trial
-            #trial_pos_bool = (all_pos.index >= start_t[i])\
-            #        & (all_pos.index <= end_t[i])
-            #trial_pos = all_pos[trial_pos_bool]
 
             # initiate binary spike times array for current trial
             # NOTE: dtype must be float otherwise would get all 0 when passing
