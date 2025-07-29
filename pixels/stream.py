@@ -88,8 +88,7 @@ class Stream:
                 f"<{label.name}> trials."
             )
             return self._get_aligned_trials(
-                label, event, data=data, units=units, sigma=sigma,
-                end_event=end_event,
+                label, event, units=units, sigma=sigma, end_event=end_event,
             )
         else:
             raise NotImplementedError(
@@ -97,7 +96,7 @@ class Stream:
             )
 
     def _get_aligned_trials(
-        self, label, event, data, units=None, sigma=None, end_event=None,
+        self, label, event, units=None, sigma=None, end_event=None,
     ):
         # get synched pixels stream with vr and action labels
         synched_vr, action_labels = self.get_synched_vr()
