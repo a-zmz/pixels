@@ -82,7 +82,7 @@ class Stream:
         df, output from individual functions according to data type.
         """
 
-        if "trial_rate" in data:
+        if "trial" in data:
             logging.info(
                 f"\n> Aligning spike times and spike rate of {units} units to "
                 f"<{label.name}> trials."
@@ -90,12 +90,12 @@ class Stream:
             return self._get_aligned_trials(
                 label, event, units=units, sigma=sigma, end_event=end_event,
             )
-        elif data in ("spike_rate", "spike_times"):
+        elif "event" in data:
             logging.info(
                 f"\n> Aligning spike times and spike rate of {units} units to "
                 f"{event} event in <{label.name}> trials."
             )
-            return self._get_aligned_spike_times(
+            return self._get_aligned_events(
                 label, event, units=units, sigma=sigma,
             )
         else:
@@ -307,7 +307,7 @@ class Stream:
         return output
 
 
-    def _get_aligned_spike_times(self, label, event, units=None, sigma=None):
+    def _get_aligned_events(self, label, event, units=None, sigma=None):
         # get synched pixels stream with vr and action labels
         synched_vr, action_labels = self.get_synched_vr()
 
