@@ -1953,23 +1953,26 @@ class Behaviour(ABC):
         if data not in data_options:
             raise PixelsError(f"align_trials: 'data' should be one of: {data_options}")
 
-        if data in ("spike_times", "spike_rate"):
-            logging.info(f"\nAligning {data} to trials.")
-            # we let a dedicated function handle aligning spike times
-            return self._get_aligned_spike_times(
-                label, event, duration, rate=data == "spike_rate", sigma=sigma,
-                units=units,
-            )
+        streams = self.files["pixels"]
+        output = {}
 
-        if "trial" in data:
-            logging.info(
-                f"\n> Aligning {self.name} {data} of {units} units to label "
-                f"<{label.name}> trials."
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
             )
-            return self._get_aligned_trials(
-                label, event, data=data, units=units, sigma=sigma,
+            output[stream_id] = stream.align_trials(
+                units=units, # NOTE: ALWAYS the first arg
+                data=data, # NOTE: ALWAYS the second arg
+                label=label,
+                event=event,
+                sigma=sigma,
                 end_event=end_event,
             )
+
+        return output
 
         if data == "motion_tracking" and not dlc_project:
             raise PixelsError("When aligning to 'motion_tracking', dlc_project is needed.")
