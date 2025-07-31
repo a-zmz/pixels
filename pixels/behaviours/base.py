@@ -1946,8 +1946,11 @@ class Behaviour(ABC):
             'lfp',          # Raw/downsampled channels from probe (LFP)
             'motion_index', # Motion index per ROI from the video
             'motion_tracking', # Motion tracking coordinates from DLC
-            'trial_rate',   # Taking spike times from the whole duration of each
+            'spike_trial',  # Taking spike times from the whole duration of each
                             # trial, convolve into spike rate, output also
+                            # contains times.
+            'spike_event',  # Taking spike times from +/- 2s of an event,
+                            # convolve into spike rate, output also
                             # contains times.
         ]
         if data not in data_options:
