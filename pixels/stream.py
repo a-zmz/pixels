@@ -93,7 +93,7 @@ class Stream:
         elif "event" in data:
             logging.info(
                 f"\n> Aligning spike times and spike rate of {units} units to "
-                f"{event} event in <{label.name}> trials."
+                f"{event.name} event in <{label.name}> trials."
             )
             return self._get_aligned_events(
                 label, event, units=units, sigma=sigma,
