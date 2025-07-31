@@ -358,11 +358,8 @@ class Stream:
             start_idx
         ].values.astype(int)
 
-        # create multiindex with starts
-        cols_with_starts = pd.MultiIndex.from_arrays(
-            [start_pos, trial_ids],
-            names=("start", "trial"),
-        )
+        # map starting position with trial
+        start_trial_maps = dict(zip(trial_ids, start_pos))
 
         # pad ends with 1 second extra to remove edge effects from convolution,
         # during of event is 2s (pre + post)
@@ -477,6 +474,20 @@ class Stream:
             level="trial",
             return_format="dataframe",
         )
+        trial_cols = spiked.columns.get_level_values("trial")
+        start_cols = trial_cols.map(start_trial_maps)
+        unit_cols = spiked.columns.get_level_values("unit")
+        new_cols = pd.MultiIndex.from_arrays(
+            [unit_cols, start_cols, trial_cols],
+            names=["unit", "start", "trial"]
+        )
+        spiked.columns = new_cols
+        spiked = spiked.sort_index(
+            axis=1,
+            level=["unit", "start", "trial"],
+            ascending=[True, False, True],
+        )
+
         fr = ioutils.reindex_by_longest(
             dfs=trials_fr,
             level="trial",
@@ -484,6 +495,8 @@ class Stream:
             col_names=["unit"],
             return_format="dataframe",
         )
+        fr.columns = new_cols
+        fr = fr.loc[:, spiked.columns]
 
         output["spiked"] = spiked
         output["fr"] = fr
