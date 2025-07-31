@@ -365,8 +365,8 @@ class Stream:
         )
 
         # pad ends with 1 second extra to remove edge effects from convolution,
-        # during of event is 2s
-        duration = 2
+        # during of event is 2s (pre + post)
+        duration = 1
         pad_duration = 1
         scan_pad = self.BEHAVIOUR_SAMPLE_RATE
         one_side_frames = scan_pad * (duration + pad_duration)
