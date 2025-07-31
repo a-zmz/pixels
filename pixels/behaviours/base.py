@@ -1500,6 +1500,7 @@ class Behaviour(ABC):
 
         return spike_times[0] # NOTE: only deal with one stream for now
 
+
     def get_spike_times(self, units, remapped=False, use_si=False):
         """
         Returns the sorted spike times.
@@ -1752,7 +1753,7 @@ class Behaviour(ABC):
         """
         return self._get_neuro_raw('lfp')
 
-    #@_cacheable
+
     def align_trials(
         self, label, event, units=None, data='spike_times', raw=False,
         duration=1, sigma=None, dlc_project=None, video_match=None,
