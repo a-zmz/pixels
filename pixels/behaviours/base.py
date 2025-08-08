@@ -1752,7 +1752,7 @@ class Behaviour(ABC):
 
 
     def align_trials(
-        self, label, event, units=None, data='spike_times', raw=False,
+        self, label, event, units=None, data='spike_event', raw=False,
         duration=1, sigma=None, dlc_project=None, video_match=None,
         end_event=None,
     ):
@@ -1806,8 +1806,6 @@ class Behaviour(ABC):
         data_options = [
             'behavioural',  # Channels from behaviour TDMS file
             'spike',        # Raw/downsampled channels from probe (AP)
-            'spike_times',  # List of spike times per unit
-            'spike_rate',   # Spike rate signals from convolved spike times
             'lfp',          # Raw/downsampled channels from probe (LFP)
             'motion_index', # Motion index per ROI from the video
             'motion_tracking', # Motion tracking coordinates from DLC
