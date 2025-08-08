@@ -636,14 +636,11 @@ class Behaviour(ABC):
         return None
 
 
-    def extract_bands(self, freqs=None):
+    def extract_bands(self, freqs=None, preprocess=True):
         """
         extract data of ap and lfp frequency bands from the raw neural recording
         data.
         """
-        # preprocess raw
-        self.preprocess_raw()
-
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             logging.info(
@@ -656,7 +653,7 @@ class Behaviour(ABC):
                 files=stream_files,
                 session=self,
             )
-            stream.extract_bands(freqs)
+            stream.extract_bands(freqs, preprocess)
 
             """
             if self._lag[rec_num] is None:
