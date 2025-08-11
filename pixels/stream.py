@@ -887,8 +887,12 @@ class Stream:
         return None
 
 
-    def extract_bands(self, freqs):
-        self.preprocess_raw()
+    def extract_bands(self, freqs, preprocess):
+        if preprocess:
+            self.preprocess_raw()
+            rec = self.files["preprocessed"]
+        else:
+            rec = self.load_raw_ap()
 
         if freqs == None:
             bands = freq_bands
@@ -903,7 +907,7 @@ class Stream:
             )
             # do bandpass filtering
             self.files[f"{name}_extracted"] = xut.extract_band(
-                self.files["preprocessed"],
+                rec,
                 freq_min=freqs[0],
                 freq_max=freqs[1],
             )
