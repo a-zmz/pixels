@@ -82,7 +82,7 @@ class Stream:
         df, output from individual functions according to data type.
         """
 
-        if "trial" in data:
+        if "spike_trial" in data:
             logging.info(
                 f"\n> Aligning spike times and spike rate of {units} units to "
                 f"<{label.name}> trials."
@@ -90,7 +90,7 @@ class Stream:
             return self._get_aligned_trials(
                 label, event, units=units, sigma=sigma, end_event=end_event,
             )
-        elif "event" in data:
+        elif "spike_event" in data:
             logging.info(
                 f"\n> Aligning spike times and spike rate of {units} units to "
                 f"{event.name} event in <{label.name}> trials."
@@ -678,7 +678,7 @@ class Stream:
         # get aligned trials
         trials = self.align_trials(
             units=units, # NOTE: ALWAYS the first arg
-            data="trial_rate", # NOTE: ALWAYS the second arg
+            data="spike_trial", # NOTE: ALWAYS the second arg
             label=label,
             event=event,
             sigma=sigma,
@@ -823,7 +823,7 @@ class Stream:
         # get aligned firing rates and positions
         trials = self.align_trials(
             units=units, # NOTE: ALWAYS the first arg
-            data="trial_rate", # NOTE: ALWAYS the second arg
+            data="spike_trial", # NOTE: ALWAYS the second arg
             label=label,
             event=event,
             sigma=sigma,
@@ -833,7 +833,7 @@ class Stream:
         if normalised:
             grays = self.align_trials(
                 units=units, # NOTE: ALWAYS the first arg
-                data="trial_rate", # NOTE: ALWAYS the second arg
+                data="spike_trial", # NOTE: ALWAYS the second arg
                 label=getattr(label, label.name.split("_")[-1]),
                 event=event.gray_on,
                 sigma=sigma,
@@ -1091,7 +1091,7 @@ class Stream:
     def _get_chance_args(self, units, label, event, sigma, end_event):
         trials = self.align_trials(
             units=units, # NOTE: ALWAYS the first arg
-            data="trial_rate", # NOTE: ALWAYS the second arg
+            data="spike_trial", # NOTE: ALWAYS the second arg
             label=label,
             event=event,
             sigma=sigma,
