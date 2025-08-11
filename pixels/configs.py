@@ -1,3 +1,5 @@
+import os
+
 import logging
 
 from wavpack_numcodecs import WavPack
@@ -15,11 +17,15 @@ logging.basicConfig(
 #logging.warning('This is a warning message.')
 #logging.error('This is an error message.')
 
+n_cores = os.cpu_count()
 # set si job_kwargs
 job_kwargs = dict(
-    n_jobs=0.8, # 80% core
+    mp_context="fork", # linux
     chunk_duration='1s',
     progress_bar=True,
+    #n_jobs=0.8, # 80% core
+    n_jobs=int(n_cores/4), # less worker
+    max_threads_per_worker=8, # but more thread each worker
 )
 si.set_global_job_kwargs(**job_kwargs)
 
