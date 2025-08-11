@@ -343,6 +343,13 @@ class Stream:
             synched_vr.iloc[selected_starts].trial_count.unique()
         )
 
+        # TODO aug 1 2025:
+        # lick happens more than once in a trial, thus i here does not
+        # correspond to trial index, fit it
+        # check if event happens more than once in each trial
+        if start_t.size > trial_ids.size:
+            trial_counts = synched_vr.loc[start_t, "trial_count"]
+
         # map actual starting locations
         if not "trial_start" in event.name:
             all_start_idx = np.where(
@@ -395,6 +402,7 @@ class Stream:
         trials_spiked = {}
         trials_positions = {}
         for i, start in enumerate(selected_starts):
+            assert 0
             # select spike times of event in current trial
             trial_bool = (rec_spikes >= scan_starts[i])\
                     & (rec_spikes <= scan_ends[i])
