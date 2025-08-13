@@ -886,10 +886,16 @@ class Stream:
         )
         surface_depths = depth_info["raw_signal_depths"][self.stream_id]
 
+        # find faulty channels to remove
+        faulty_channels = file_utils.load_yaml(
+            path=self.processed / self.files["faulty_channels"],
+        )
+
         # preprocess
         self.files["preprocessed"] = xut.preprocess_raw(
             raw_rec,
             surface_depths,
+            faulty_channels,
         )
 
         return None

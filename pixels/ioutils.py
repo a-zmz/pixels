@@ -186,6 +186,11 @@ def get_data_files(data_dir, session_name):
             f"{mouse_id}_depth_info.yaml"
         )
 
+        # identified faulty channels
+        pixels[stream_id]["faulty_channels"] = base_name.with_name(
+            f"{session_name}_{probe_id}_faulty_channels.yaml"
+        )
+
         #pixels[stream_id]["spike_rate_processed"] = base_name.with_name(
         #    f"spike_rate_{stream_id}.h5"
         #)

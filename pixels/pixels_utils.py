@@ -50,7 +50,7 @@ def load_raw(paths, stream_id):
     return rec
 
 
-def preprocess_raw(rec, surface_depths):
+def preprocess_raw(rec, surface_depths, faulty_channels):
     group_ids = rec.get_channel_groups()
 
     if np.unique(group_ids).size < 4:
@@ -68,7 +68,7 @@ def preprocess_raw(rec, surface_depths):
             logging.info(f"\n> Preprocessing shank {g}")
             # get brain surface depth of shank
             surface_depth = surface_depths[g]
-            cleaned = _preprocess_raw(group, surface_depth)
+            cleaned = _preprocess_raw(group, surface_depth, faulty_channels[g])
             preprocessed.append(cleaned)
         # aggregate groups together
         preprocessed = si.aggregate_channels(preprocessed)
@@ -78,12 +78,16 @@ def preprocess_raw(rec, surface_depths):
         # get brain surface depth of shank
         surface_depth = surface_depths[unique_id]
         # preprocess
-        preprocessed = _preprocess_raw(rec, surface_depth)
+        preprocessed = _preprocess_raw(
+            rec,
+            surface_depth,
+            faulty_channels[unique_id],
+        )
 
     return preprocessed
 
 
-def _preprocess_raw(rec, surface_depth):
+def _preprocess_raw(rec, surface_depth, faulty_channels):
     """
     Implementation of preprocessing on raw pixels data.
     """
@@ -93,6 +97,12 @@ def _preprocess_raw(rec, surface_depth):
 
     # remove bad channels from sorting
     print("\t> step 2: remove bad channels.")
+    # remove pre-identified bad channels
+    chan_names = rec_ps.get_property("channel_name")
+    faulty_ids = rec_ps.channel_ids[np.isin(chan_names, faulty_channels)]
+    rec_ps = rec_ps.remove_channels(faulty_ids)
+
+    # detect bad channels
     bad_chan_ids, chan_labels = spre.detect_bad_channels(
         rec_ps,
         outside_channels_location="top",
