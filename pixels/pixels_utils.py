@@ -1507,3 +1507,29 @@ def save_chance_psd(sample_rate, positions, paths):#chance_data, idx, cols):
     )
 
     return psds
+
+
+def notch_freq(rec, freq, bw=4.0):
+    """
+    Notch a frequency with narrow bandwidth.
+
+    params
+    ===
+    rec: si recording object.
+
+    freq: float or int, the target frequency in Hz of the notch filter.
+
+    bw: float or int, bandwidth (Hz) of notch filter.
+        Default: 4.0Hz.
+
+    return
+    ===
+    notched: spikeinterface recording object.
+    """
+    notched = spre.notch_filter(
+        rec,
+        freq=freq,
+        q=freq/bw, # quality factor
+    )
+
+    return notched
