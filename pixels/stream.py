@@ -920,7 +920,7 @@ class Stream:
                 f"\n> Extracting {name} bands from {self.stream_id}."
             )
             # do bandpass filtering
-            self.files[f"{name}_extracted"] = xut.extract_band(
+            extracted = xut.extract_band(
                 rec,
                 freq_min=freqs[0],
                 freq_max=freqs[1],
@@ -936,6 +936,12 @@ class Stream:
                     freq=noise_freq,
                 )
                 extracted = notched
+
+            logging.info(
+                f"\n> Common average referencing {name} band."
+            )
+            self.files[f"{name}_extracted"] = xut.CAR(extracted)
+
         return None
 
 
