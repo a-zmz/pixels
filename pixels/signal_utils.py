@@ -437,3 +437,38 @@ def motion_index(video, rois):
     mi = mi / mi.max(axis=0)
 
     return mi
+
+
+def freq_notch(x, fs, w0, axis=0, bw=4.0):
+    """
+    Use a notch filter that is a band-stop filter with a narrow bandwidth
+    between 48 to 52Hz.
+    It rejects a narrow frequency band and leaves the rest of the spectrum
+    little changed.
+
+    params
+    ===
+    x: array like, data to filter.
+
+    fs: float or int, sampling frequency of x.
+
+    w0: float or int, target frequency to notch (Hz).
+
+    axis: int, axis of x to apply filter.
+
+    bw: float or int, bandwidth of notch filter.
+
+    return
+    ===
+    notched: array like, notch filtered x.
+    """
+    # convert to float
+    x = x.astype(np.float32, copy=False)
+    # set quality factor
+    Q = w0 / bw
+    # get numerator b & denominator a of IIR filter
+    b, a = scipy.signal.iirnotch(w0, Q, fs=fs)
+    # apply digital filter forward and backward
+    notched = scipy.signal.filtfilt(b, a, x, axis=axis)
+
+    return notched
