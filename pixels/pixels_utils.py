@@ -94,23 +94,23 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
     # correct phase shift
     print("\t> step 1: do phase shift correction.")
     rec_ps = spre.phase_shift(rec)
-
+    
     # remove bad channels from sorting
     print("\t> step 2: remove bad channels.")
     # remove pre-identified bad channels
     chan_names = rec_ps.get_property("channel_name")
     faulty_ids = rec_ps.channel_ids[np.isin(chan_names, faulty_channels)]
-    rec_ps = rec_ps.remove_channels(faulty_ids)
+    rec_removed = rec_ps.remove_channels(faulty_ids)
 
     # detect bad channels
     bad_chan_ids, chan_labels = spre.detect_bad_channels(
-        rec_ps,
+        rec_removed,
         outside_channels_location="top",
     )
     labels, counts = np.unique(chan_labels, return_counts=True)
     for label, count in zip(labels, counts):
         print(f"\t\t> Found {count} channels labelled as {label}.")
-    rec_removed = rec_ps.remove_channels(bad_chan_ids)
+    rec_removed = rec_removed.remove_channels(bad_chan_ids)
 
     # get channel group id and use it to index into brain surface channel depth
     shank_id = np.unique(rec_removed.get_channel_groups())[0]
