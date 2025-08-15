@@ -123,11 +123,9 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
     rec_clean = rec_removed.remove_channels(outside_chan_ids)
     print(f"\t\t> Removed {outside_chan_ids.size} outside channels.")
 
-    print("\t> step 3: do common average referencing.")
-    car = spre.common_reference(
-        rec_clean,
-        operator="average", # not median cuz all bad channels are removed
-        dtype=np.int16, # make sure output is int16
+    return rec_clean
+
+
     )
 
     return car
