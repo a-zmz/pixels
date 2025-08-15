@@ -126,10 +126,22 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
     return rec_clean
 
 
+def CMR(rec, dtype=np.int16):
+    cmr = spre.common_reference(
+        rec,
+        operator="median",
+        dtype=dtype,
     )
+    return cmr
 
+
+def CAR(rec, dtype=np.int16):
+    car = spre.common_reference(
+        rec,
+        operator="average",
+        dtype=np.int16,
+    )
     return car
-
 
 def correct_ap_motion(rec, mc_method="dredge"):
     """
