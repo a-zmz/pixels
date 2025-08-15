@@ -137,6 +137,11 @@ def get_data_files(data_dir, session_name):
             f"{session_name}_{stream_id}_channel_clustering_results.h5"
         )
 
+        # psd of theta and ripple to identify CA1 pyramidal layer
+        pixels[stream_id]["bandwise_psd"] = base_name.with_name(
+            f"{session_name}_{probe_id}_bandwise_psd.h5"
+        )
+
         # TODO mar 5 2025:
         # maybe do NOT put shuffled data in here, cuz there will be different
         # trial conditions, better to cache them???
