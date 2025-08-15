@@ -926,6 +926,16 @@ class Stream:
                 freq_max=freqs[1],
             )
 
+            if "lfp" in name:
+                noise_freq = 50 # Hz
+                logging.info(
+                    f"\n> Notching {noise_freq} Hz noise on {name} band."
+                )
+                notched = xut.notch_freq(
+                    rec=extracted,
+                    freq=noise_freq,
+                )
+                extracted = notched
         return None
 
 
