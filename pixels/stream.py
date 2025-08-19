@@ -901,7 +901,7 @@ class Stream:
         return None
 
 
-    def extract_bands(self, freqs, preprocess):
+    def extract_bands(self, freqs, preprocess=True):
         if preprocess:
             self.preprocess_raw()
             rec = self.files["preprocessed"]
