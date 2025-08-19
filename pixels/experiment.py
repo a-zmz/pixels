@@ -135,8 +135,10 @@ class Experiment:
     def sort_spikes(self, mc_method="dredge"):
         """ Extract the spikes from raw spike data for all sessions.  """
         for i, session in enumerate(self.sessions):
-            print(">>>>> Sorting spikes for session {} ({} / {})"
-                   .format(session.name, i + 1, len(self.sessions)))
+            logging.info(
+                "\n>>>>> Sorting spikes for session "
+                f"{session.name} ({i + 1} / {len(self.sessions)})"
+            )
             session.sort_spikes(mc_method=mc_method)
 
     def assess_noise(self):
