@@ -33,6 +33,7 @@ wv_compressor = WavPack(
 )
 
 # kilosort 4 singularity image names
-ks4_0_30_image_name = "si102.3_ks4-0-30_with_wavpack.sif"
+ks4_0_30_image_name = "si103.0_ks4-0-30_with_wavpack.sif"
+#ks4_0_30_image_name = "si102.3_ks4-0-30_with_wavpack.sif"
 ks4_0_18_image_name = "ks4-0-18_with_wavpack.sif"
 ks4_image_name = ks4_0_30_image_name
