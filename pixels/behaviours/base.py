@@ -90,6 +90,7 @@ class Behaviour(ABC):
             self.processed = self.data_dir / 'processed' / self.name
         else:
             self.processed =  Path(processed_dir).expanduser() / self.name
+            self.backup =  self.data_dir / 'processed' / self.name
 
         if hist_dir is None:
             self.histology = self.data_dir / 'histology'\
@@ -633,6 +634,11 @@ class Behaviour(ABC):
             # write to disk
             ioutils.write_hdf5(output, df)
 
+            if hasattr(self, "backup"):
+                # copy to backup if backup setup
+                copyfile(output, self.backup / output.name)
+                logging.info(f"\n> Detected peaks copied to {self.backup}.")
+
         return None
 
 
@@ -854,6 +860,10 @@ class Behaviour(ABC):
                 output=output,
                 sa_dir=sa_dir,
             )
+            if hasattr(self, "backup"):
+                # copy to backup if backup setup
+                copyfile(output, self.backup / output.name)
+                logging.info(f"\n> Sorter ourput copied to {self.backup}.")
 
         return None
 

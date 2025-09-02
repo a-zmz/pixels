@@ -618,9 +618,9 @@ class Stream:
                 pixels_idx,
             )
 
+        synched_vr_file = self.behaviour_files["vr_synched"][self.stream_num]
         file_utils.write_hdf5(
-            self.processed /\
-                self.behaviour_files["vr_synched"][self.stream_num],
+            self.processed / synched_vr_file,
             synched_vr,
         )
 
@@ -639,6 +639,21 @@ class Stream:
             **labels_dict,
         )
         logging.info(f"\n> Action labels saved to: {action_labels_path}.")
+
+        if hasattr(self.session, "backup"):
+            # copy to backup if backup setup
+            copyfile(
+                self.processed / synched_vr_file,
+                self.session.backup / synched_vr_file,
+            )
+            copyfile(
+                action_labels_path,
+                self.session.backup / action_labels_path.name,
+            )
+            logging.info(
+                "\n> Syched vr and action labels copied to: "
+                f"{self.session.backup}."
+            )
 
         return None
 
