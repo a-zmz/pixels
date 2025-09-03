@@ -18,7 +18,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, copytree
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -559,6 +559,12 @@ class Behaviour(ABC):
                 compressor=wv_compressor,
             )
 
+            if hasattr(self, "backup"):
+                # copy to backup if backup setup
+                # zarr is a directory hence use copytree
+                copytree(output, self.backup / output.name)
+                logging.info(f"\n> Motion corrected copied to {self.backup}.")
+
         return None
 
 
@@ -862,7 +868,7 @@ class Behaviour(ABC):
             )
             if hasattr(self, "backup"):
                 # copy to backup if backup setup
-                copyfile(output, self.backup / output.name)
+                copytree(output, self.backup / output.name)
                 logging.info(f"\n> Sorter ourput copied to {self.backup}.")
 
         return None
