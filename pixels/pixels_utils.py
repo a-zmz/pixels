@@ -144,13 +144,14 @@ def CAR(rec, dtype=np.int16):
     return car
 
 def correct_ap_motion(rec, mc_method="dredge"):
+def correct_ap_motion(rec, mc_method="dredge_ap"):
     """
     Correct motion of recording.
 
     params
     ===
     mc_method: str, motion correction method.
-        Default: "dredge".
+        Default: "dredge_ap".
             (as of jan 2025, dredge performs better than ks motion correction.)
         "ks": let kilosort do motion correction.
 
@@ -161,9 +162,8 @@ def correct_ap_motion(rec, mc_method="dredge"):
     logging.info(f"\n> Correcting motion with {mc_method}.")
 
     # reduce spatial window size for four-shank
-    # TODO may 8 2025 "method":"dredge_ap" after it's implemented?
     estimate_motion_kwargs = {
-        "method": "decentralized",
+        "method": "dredge_ap",
         "win_step_um": 100,
         "win_margin_um": -150,
         "verbose": True,

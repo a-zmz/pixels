@@ -132,7 +132,7 @@ class Experiment:
                    .format(session.name, i + 1, len(self.sessions)))
             session.extract_ap()
 
-    def sort_spikes(self, mc_method="ks"):
+    def sort_spikes(self, mc_method="dredge_ap"):
         """ Extract the spikes from raw spike data for all sessions.  """
         for i, session in enumerate(self.sessions):
             logging.info(

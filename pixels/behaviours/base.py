@@ -511,7 +511,7 @@ class Behaviour(ABC):
         logging.info("\n> Done!")
 
 
-    def correct_ap_motion(self, mc_method="dredge"):
+    def correct_ap_motion(self, mc_method="dredge_ap"):
         """
         Correct motion of recording.
 
