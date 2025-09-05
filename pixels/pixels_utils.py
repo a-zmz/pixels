@@ -143,7 +143,11 @@ def CAR(rec, dtype=np.int16):
     )
     return car
 
-def correct_ap_motion(rec, mc_method="dredge"):
+
+def correct_lfp_motion(rec, mc_method="dredge_lfp"):
+    raise NotImplementedError("> Not implemented.")
+
+
 def correct_ap_motion(rec, mc_method="dredge_ap"):
     """
     Correct motion of recording.
