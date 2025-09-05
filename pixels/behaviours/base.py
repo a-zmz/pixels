@@ -221,7 +221,20 @@ class Behaviour(ABC):
         pathlib.Path : the full path to the desired file in the correct folder.
 
         """
+        backup = self.backup / name
         processed = self.processed / name
+        if hasattr(self, "backup") and backup.exists()\
+        and (not processed.exists()):
+            if copy:
+                logging.info(
+                    f"\n    {self.name}: Copying {name} to local processed"
+                )
+                try:
+                    copyfile(backup, processed)
+                except IsADirectoryError:
+                    copytree(backup, processed)
+            return processed
+
         if processed.exists():
             return processed
 
@@ -534,11 +547,13 @@ class Behaviour(ABC):
         streams = self.files["pixels"]
 
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
-            output = self.processed / stream_files["ap_motion_corrected"]
-            if output.exists():
+            output = self.find_file(stream_files["ap_motion_corrected"])
+            if output:
                 logging.info(f"\n> {stream_id} already motion corrected.")
                 stream_files["ap_motion_corrected"] = si.load(output)
                 continue
+            else:
+                output = self.processed / stream_files["ap_motion_corrected"]
 
             logging.info(
                 f"\n>>>>> Correcting motion for ap band from {stream_id} "
@@ -837,6 +852,9 @@ class Behaviour(ABC):
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             # check if already sorted and exported
+            sorter_output = self.find_file(
+                stream_files["sorting_analyser"].parent
+            )
             sa_dir = self.processed / stream_files["sorting_analyser"]
             if sa_dir.exists():
                 logging.info("\n> Already sorted and exported, next stream.")
