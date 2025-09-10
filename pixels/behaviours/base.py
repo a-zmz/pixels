@@ -89,8 +89,9 @@ class Behaviour(ABC):
         if processed_dir is None:
             self.processed = self.data_dir / 'processed' / self.name
         else:
-            self.processed =  Path(processed_dir).expanduser() / self.name
-            self.backup =  self.data_dir / 'processed' / self.name
+            self.processed = Path(processed_dir).expanduser() / self.name
+            self.backup = self.data_dir / 'processed' / self.name
+            self.backup.mkdir(parents=True, exist_ok=True)
 
         if hist_dir is None:
             self.histology = self.data_dir / 'histology'\
