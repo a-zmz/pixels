@@ -1413,7 +1413,11 @@ class Behaviour(ABC):
         if key in files:
             dirs = files[key]
             for f, file_dir in enumerate(dirs):
-                file_path = self.processed / file_dir
+                file_path = self.find_file(file_dir)
+                try:
+                    assert (file_path is not None)
+                except:
+                    file_path = self.processed / file_dir
                 if file_path.exists():
                     if re.search(r'\.np[yz]$', file_path.suffix):
                         saved[f] = np.load(file_path)
