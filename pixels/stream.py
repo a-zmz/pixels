@@ -620,10 +620,13 @@ class Stream:
             )
 
         synched_vr_file = self.behaviour_files["vr_synched"][self.stream_num]
-        file_utils.write_hdf5(
-            self.processed / synched_vr_file,
-            synched_vr,
-        )
+        try:
+            assert self.session.find_file(synched_vr_file)
+        except:
+            file_utils.write_hdf5(
+                self.processed / synched_vr_file,
+                synched_vr,
+            )
 
         # get action label dir
         action_labels_path = self.processed /\
