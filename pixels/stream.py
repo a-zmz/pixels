@@ -404,6 +404,9 @@ class Stream:
         trials_positions = {}
         for i, start in enumerate(selected_starts):
             assert 0
+            # TODO sep 16 2025:
+            # make sure it does not fail for event that happens more than once,
+            # e.g., licks
             # select spike times of event in current trial
             trial_bool = (rec_spikes >= scan_starts[i])\
                     & (rec_spikes <= scan_ends[i])
