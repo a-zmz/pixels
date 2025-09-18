@@ -50,6 +50,7 @@ def cacheable(method):
                 logging.info(f"\n> Cache loaded from {cache_path}.")
             except HDF5ExtError:
                 df = None
+                logging.info("\n> df is None, cache does not exist.")
             except (KeyError, ValueError):
                 # if key="df" is not found, then use HDFStore to list and read
                 # all dfs
