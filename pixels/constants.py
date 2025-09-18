@@ -18,3 +18,9 @@ BEHAVIOUR_HZ = 25000
 np.random.seed(BEHAVIOUR_HZ)
 
 REPEATS = 100
+
+# latency of luminance change evoked spike
+# NOTE: usually it should be between 40-60ms. now we use 500ms just to test
+V1_SPIKE_LATENCY = 500 # ms #60
+V1_LFP_LATENCY = 40 # ms
+LGN_SPIKE_LATENCY = 30 # ms

@@ -19,6 +19,7 @@ from vision_in_darkness.base import Outcomes, Worlds, Conditions
 from pixels import PixelsError
 from pixels.behaviours import Behaviour
 from pixels.configs import *
+from pixels.constants import SAMPLE_RATE, V1_SPIKE_LATENCY
 
 
 class TrialTypes(IntFlag):
@@ -124,6 +125,9 @@ class Events(IntFlag):
     licked = auto()
     #run_start = auto()
     #run_stop = auto()
+
+    # temporal events in dark only
+    dark_luminance_off = auto()# 500 ms
 
 
 class LabeledEvents(NamedTuple):
@@ -405,6 +409,12 @@ class VR(Behaviour):
         pre_dark_end_t = pd.concat([dark_on_t, light_pre_dark_end_t])
         masks[Events.pre_dark_end] = pre_dark_end_t
         # >>> distance travelled before dark onset per trial >>>
+
+        # >>> end of luminance change after dark onset >>>
+        n_frames = int(V1_SPIKE_LATENCY * SAMPLE_RATE / 1000)
+        dark_luminance_off_t = dark_on_t + n_frames
+        masks[Events.dark_luminance_off] = dark_luminance_off_t
+        # <<< end of luminance change after dark onset <<<
 
         # >>> landmark 0 black wall >>>
         black_off = session.landmarks[0]
