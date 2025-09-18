@@ -550,7 +550,7 @@ class Stream:
         # get action labels & synched vr path
         action_labels = self.session.get_action_labels()[self.stream_num]
         synched_vr_path = self.session.find_file(
-            self.behaviour_files['vr_synched'][self.stream_num],
+            self.behaviour_files["vr_synched"][self.stream_num],
         )
         if action_labels and synched_vr_path:
             logging.info(f"\n> {self.stream_id} from {self.session.name} is "
