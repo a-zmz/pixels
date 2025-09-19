@@ -1,6 +1,8 @@
 """
 This module provides utilities for pixels data.
 """
+# annotations not evaluated at runtime
+from __future__ import annotations
 import multiprocessing as mp
 import json
 

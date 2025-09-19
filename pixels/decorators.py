@@ -1,3 +1,5 @@
+# annotations not evaluated at runtime
+from __future__ import annotations
 import numpy as np
 import pandas as pd
 from tables import HDF5ExtError

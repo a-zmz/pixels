@@ -1593,9 +1593,8 @@ class Behaviour(ABC):
 
 
     def select_units(
-        self, group='good', min_depth=0, max_depth=None, min_spike_width=None,
-        unit_kwargs=None, max_spike_width=None, uncurated=False, name=None,
-        use_si=False,
+        self, min_depth=0, max_depth=None, min_spike_width=None,
+        unit_kwargs=None, max_spike_width=None, name=None,
     ):
         """
         Select units based on specified criteria. The output of this can be passed to
@@ -1603,10 +1602,6 @@ class Behaviour(ABC):
 
         Parameters
         ----------
-        group : str, optional
-            The group to which the units that are wanted are part of. One of: 'group',
-            'mua', 'noise' or None. Default is 'good'.
-
         min_depth : int, optional
             (Only used when getting spike data). The minimum depth that units must be at
             to be included. Default is 0 i.e. in the brain.
@@ -1623,9 +1618,6 @@ class Behaviour(ABC):
             (Only used when getting spike data). The maximum median spike width that
             units must have to be included. Default is None i.e. no maximum.
 
-        uncurated : bool, optional
-            Use uncurated units. Default: False.
-
         name : str, optional
             Give this selection of units a name. This allows the list of units to be
             represented as a string, which enables caching. Future calls to cacheable
@@ -1634,9 +1626,11 @@ class Behaviour(ABC):
             is the same between uses of the same name.
 
         """
-        if use_si:
-            # NOTE: only deal with one stream for now
-            stream_files = self.files["pixels"]["imec0.ap"]
+        selected_units = SelectedUnits(name=name) if name is not None\
+                                                  else SelectedUnits()
+
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             sa_dir = self.find_file(stream_files["sorting_analyser"])
             # load sorting analyser
             temp_sa = si.load(sa_dir)
@@ -1659,14 +1653,9 @@ class Behaviour(ABC):
             # get units
             unit_ids = sa.unit_ids
 
-            # init units class
-            selected_units = SelectedUnits()
-            if name is not None:
-                selected_units.name = name
-
             if name == "all":
-                selected_units.extend(unit_ids)
-                return selected_units
+                selected_units[stream_id] = unit_ids
+                continue
 
             # get shank id for units
             shank_ids = sa.sorting.get_property("group")
@@ -1687,7 +1676,7 @@ class Behaviour(ABC):
                         (shank_ids == shank_id)
                     ]
                     # add to list
-                    selected_units.extend(in_range)
+                    selected_units.extend(stream_id, in_range)
             else:
                 # if there is only one shank
                 # find units
@@ -1695,62 +1684,9 @@ class Behaviour(ABC):
                     (depths >= min_depth) & (depths < max_depth)
                 ]
                 # add to list
-                selected_units.extend(in_range)
+                selected_units.extend(stream_id, in_range)
 
-            return selected_units
-
-        else:
-            cluster_info = self.get_cluster_info()
-            selected_units = SelectedUnits()
-            if name is not None:
-                selected_units.name = name
-
-            if min_depth is not None or max_depth is not None:
-                probe_depths = self.get_probe_depth()
-
-            if min_spike_width == 0:
-                min_spike_width = None
-            if min_spike_width is not None or max_spike_width is not None:
-                widths = self.get_spike_widths()
-            else:
-                widths = None
-
-            for stream_num, info in enumerate(cluster_info):
-                # TODO jun 12 2024 skip stream 1 for now
-                if stream_num > 0:
-                    continue
-
-                id_key = 'id' if 'id' in info else 'cluster_id'
-                grouping = 'KSLabel' if uncurated else 'group'
-
-                for unit in info[id_key]:
-                    unit_info = info.loc[info[id_key] == unit].iloc[0].to_dict()
-
-                    # we only want units that are in the specified group
-                    if not group or unit_info[grouping] == group:
-
-                        # and that are within the specified depth range
-                        if min_depth is not None:
-                            if probe_depths[stream_num] - unit_info['depth'] <= min_depth:
-                                continue
-                        if max_depth is not None:
-                            if probe_depths[stream_num] - unit_info['depth'] > max_depth:
-                                continue
-
-                        # and that have the specified median spike widths
-                        if widths is not None:
-                            width = widths[widths['unit'] == unit]['median_ms']
-                            assert len(width.values) == 1
-                            if min_spike_width is not None:
-                                if width.values[0] < min_spike_width:
-                                    continue
-                            if max_spike_width is not None:
-                                if width.values[0] > max_spike_width:
-                                    continue
-
-                        selected_units.append(unit)
-
-            return selected_units
+        return selected_units
 
     def _get_neuro_raw(self, kind):
         raw = []

@@ -1,3 +1,6 @@
+# annotations not evaluated at runtime
+from __future__ import annotations
+
 import gc
 from shutil import copyfile
 
