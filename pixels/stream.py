@@ -1186,8 +1186,16 @@ class Stream:
         return psd_df
 
 
-    def get_spike_chance(self, units, label, event, sigma, end_event):
-        positions, paths = self._get_chance_args(
+    @cacheable(cache_format="zarr")
+    def get_spike_chance(self, units, label, event, sigma, end_event,
+        # reserved kwargs injected by decorator when cache_format='zarr'
+        _zarr_out: Path | str | None = None,
+    ):
+        # get positions
+        positions = self._get_vr_positions(label, event, end_event)
+
+        # get spikes
+        stacked_spikes, _ = self._get_vr_spikes(
             units,
             label,
             event,
@@ -1195,26 +1203,31 @@ class Stream:
             end_event,
         )
 
-        fr_chance, idx, cols = xut.get_spike_chance(
-            sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
-            positions=positions,
-            **paths,
+        logging.info(
+            f"\n> Getting {self.session.name} {self.stream_id} spike chance."
         )
-        
-        return positions, fr_chance, idx, cols
 
-
-    def _get_chance_args(self, units, label, event, sigma, end_event):
-        trials = self.align_trials(
-            units=units, # NOTE: ALWAYS the first arg
-            data="spike_trial", # NOTE: ALWAYS the second arg
-            label=label,
-            event=event,
+        xut.save_spike_chance_zarr(
+            zarr_path=_zarr_out,
+            spiked=stacked_spikes,
             sigma=sigma,
-            end_event=end_event, # NOTE: ALWAYS the last arg
+            sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+            repeats=2, #REPEATS,
+            positions=positions,
+            meta=dict(
+                label=str(label),
+                event=str(event),
+                end_event=str(end_event),
+                units_name=getattr(units, "name", None),
+            ),
         )
-        positions = trials["positions"]
+        del stacked_spikes, positions
+        gc.collect()
+        
+        return None
 
+
+    def _get_chance_args(self, label, event, sigma, end_event):
         probe_id = self.stream_id[:-3]
         name = self.session.name
         paths = {
