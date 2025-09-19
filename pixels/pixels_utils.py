@@ -3,6 +3,7 @@ This module provides utilities for pixels data.
 """
 # annotations not evaluated at runtime
 from __future__ import annotations
+
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import json

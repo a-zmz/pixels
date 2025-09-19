@@ -1,6 +1,7 @@
 import logging
 
 from wavpack_numcodecs import WavPack
+from numcodecs import Blosc
 import spikeinterface as si
 
 # Configure logging to include a timestamp with seconds
@@ -32,6 +33,13 @@ si.set_global_job_kwargs(**job_kwargs)
 wv_compressor = WavPack(
     level=3, # high compression
     bps=None, # lossless
+)
+
+# use blosc compressor for generic zarr
+compressor = Blosc(
+    cname="zstd",
+    clevel=5,
+    shuffle=Blosc.BITSHUFFLE,
 )
 
 # kilosort 4 singularity image names
