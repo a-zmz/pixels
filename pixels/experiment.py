@@ -606,3 +606,12 @@ class Experiment:
             session.sync_vr(vr_session)
 
         return None
+
+
+    def get_spike_chance(self, *args, **kwargs):
+        chance = {}
+        for i, session in enumerate(self.sessions):
+            name = session.name
+            chance[name] = session.get_spike_chance(*args, **kwargs)
+
+        return df
