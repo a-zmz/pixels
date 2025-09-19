@@ -816,6 +816,149 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
     return None
 
 
+def _worker_write_repeat(i, zarr_path, sigma, sample_rate):
+    # Child process re-opens the store to avoid pickling big arrays
+    store = zarr.DirectoryStore(str(zarr_path))
+    root = zarr.open_group(store=store, mode="a")
+
+    # read spiked data
+    spiked = _read_df_from_zarr(root, "spiked")
+
+    # get permuted data
+    c_spiked, c_fr = _permute_spikes_n_convolve_fr(spiked[:], sigma, sample_rate)
+
+    # Write the i-th slice along last axis
+    root["chance_spiked"][..., i] = c_spiked
+    root["chance_fr"][..., i] = c_fr
+
+    logging.info(f"\nRepeat {i} finished.")
+
+    return None
+
+
+def save_spike_chance_zarr(
+    zarr_path,
+    spiked: np.ndarray,
+    sigma: float,
+    sample_rate: float,
+    repeats: int = 100,
+    positions=None,
+    meta: dict | None = None,
+):
+    """
+    Create a Zarr store at `zarr_path` with datasets:
+      - spiked: base spiked array (read-only reference)
+      - chance_spiked: base_shape + (repeats,), int16
+      - chance_fr:     base_shape + (repeats,), float32
+      - positions:     optional small array (or vector), stored if provided
+    Then fill each repeat slice in parallel processes.
+
+    This function is idempotent: if the target datasets exist and match shape, it skips creation.
+    """
+    n_workers = 2 ** (mp.cpu_count().bit_length() - 2)
+
+    zarr_path = Path(zarr_path)
+    zarr_path.parent.mkdir(parents=True, exist_ok=True)
+
+    base_shape = spiked.shape
+    d_shape = base_shape + (repeats,)
+
+    chunks = tuple(min(s, 1024) for s in base_shape) + (1,)
+
+    store = zarr.DirectoryStore(str(zarr_path))
+    root = zarr.group(store=store, overwrite=not zarr_path.exists())
+
+    # Metadata
+    root.attrs["kind"] = "spike_chance"
+    root.attrs["sigma"] = float(sigma)
+    root.attrs["sample_rate"] = float(sample_rate)
+    root.attrs["repeats"] = int(repeats)
+    if meta:
+        for k, v in meta.items():
+            root.attrs[k] = v
+
+    logging.info(f"\n> Creating zarr dataset.")
+    # Base source so workers can read it without pickling
+    if "spiked" in root:
+        del root["spiked"]
+        if isinstance(spiked, pd.DataFrame):
+            _write_df_as_zarr(
+                root,
+                spiked,
+                group_name="spiked",
+                compressor=compressor,
+            )
+        else:
+            root.create_dataset(
+                "spiked",
+                data=spiked,
+                chunks=chunks[:-1],
+                compressor=compressor,
+            )
+
+    # Outputs
+    if "chance_spiked" in root\
+        and tuple(root["chance_spiked"].shape) != d_shape:
+        del root["chance_spiked"]
+    if "chance_fr" in root and tuple(root["chance_fr"].shape) != d_shape:
+        del root["chance_fr"]
+
+    if "chance_spiked" not in root:
+        root.create_dataset(
+            "chance_spiked",
+            shape=d_shape,
+            dtype="int16",
+            chunks=chunks,
+            compressor=compressor,
+        )
+    if "chance_fr" not in root:
+        root.create_dataset(
+            "chance_fr",
+            shape=d_shape,
+            dtype="float32",
+            chunks=chunks,
+            compressor=compressor,
+        )
+
+    # save positions
+    if positions is not None:
+        if "positions" in root:
+            del root["positions"]
+
+        if isinstance(positions, pd.DataFrame):
+            _write_df_as_zarr(
+                root,
+                positions,
+                group_name="positions",
+                compressor=compressor,
+            )
+        else:
+            root.create_dataset(
+                "positions",
+                data=positions,
+                chunks=True,
+                compressor=compressor,
+            )
+
+    logging.info(f"\n> Starting process pool.")
+    # Parallel fill: each worker writes a distinct final-axis slice
+    with ProcessPoolExecutor(max_workers=n_workers) as ex:
+        futures = [
+            ex.submit(
+                _worker_write_repeat,
+                i,
+                zarr_path,
+                sigma,
+                sample_rate,
+            ) for i in range(repeats)
+        ]
+        for f in as_completed(futures):
+            f.result()  # raise on error
+
+    # Done. The decorator will open and return the Zarr content.
+    return None
+
+
 def save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
                       fr_df_path, sigma, sample_rate, repeats=100, spiked=None,
                       spiked_shape=None, concat_spiked_path=None):
