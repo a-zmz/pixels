@@ -2576,6 +2576,53 @@ class Behaviour(ABC):
         return chance_psd
 
 
+    def get_spike_chance(self, label, event, sigma, end_event):
+        """
+        Get trials aligned to an event. This finds all instances of label in the action
+        labels - these are the start times of the trials. Then this finds the first
+        instance of event on or after these start times of each trial. Then it cuts out
+        a period around each of these events covering all units, rearranges this data
+        into a MultiIndex DataFrame and returns it.
+
+        Parameters
+        ----------
+        label : int
+            An action label value to specify which trial types are desired.
+
+        event : int
+            An event type value to specify which event to align the trials to.
+
+        units : list of lists of ints, optional
+            The output from self.select_units, used to only apply this method to a
+            selection of units.
+
+        end_event : int
+            For VR behaviour, when aligning to the whole trial, this param is
+            the end event to align to.
+        """
+        units = self.select_units(name="all")
+        streams = self.files["pixels"]
+        output = {}
+
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+            output[stream_id] = stream.get_spike_chance(
+                units=units,
+                label=label,
+                event=event,
+                sigma=sigma,
+                end_event=end_event,
+            )
+
+        assert 0
+        return output
+
+
     def save_spike_chance(self, spiked, sigma, sample_rate):
         # TODO apr 21 2025:
         # do we put this func here or in stream.py???
