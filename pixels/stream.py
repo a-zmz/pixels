@@ -384,6 +384,8 @@ class Stream:
 
         # get spike times
         spikes = self.get_spike_times(units)
+        # now get array unit ids
+        units = units[self.stream_id]
 
         # get action and event label file
         outcomes = action_labels["outcome"]
@@ -584,6 +586,8 @@ class Stream:
 
 
     def get_spike_times(self, units):
+        units = units[self.stream_id]
+
         # find sorting analyser path
         sa_path = self.session.find_file(self.files["sorting_analyser"])
         # load sorting analyser
