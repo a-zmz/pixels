@@ -1686,3 +1686,102 @@ def notch_freq(rec, freq, bw=4.0):
     )
 
     return notched
+
+
+def _write_df_as_zarr(
+    root,  # zarr.hierarchy.Group
+    df: pd.DataFrame,
+    group_name: str = "positions",
+    *,
+    compressor=None,
+):
+    # Remove any existing node (array or group) with this name
+    if group_name in root:
+        del root[group_name]
+
+    ds = xr.Dataset.from_dataframe(df)
+
+    # Find row dimension (the one matching len(df))
+    row_dims = [d for d, n in ds.sizes.items() if n == len(df)]
+    row_dim = row_dims[0] if row_dims else "index"
+
+    # Mark how to rebuild (Multi)Index on read
+    #ds.attrs["__via"] = "pandas_xarray_df"
+    #if isinstance(df.index, pd.MultiIndex):
+    #    ds = ds.reset_index(row_dim)
+    #    ds.attrs["__pd_mi_dim__"] = row_dim
+    #    ds.attrs["__pd_mi_levels__"] = [
+    #        n if n is not None else f"level_{i}" for i, n in enumerate(df.index.names)
+    #    ]
+    #else:
+    #    ds.attrs["__pd_index_dim__"] = row_dim
+    if isinstance(df.columns, pd.MultiIndex):
+        # Encode as a 3D DataArray: (row_dim, *df.columns.names)
+        s = df.stack(df.columns.names)         # Series with index (row_dim, level0, level1, ...)
+        da = xr.DataArray.from_series(s)       # dims are names from the Series index
+        da = da.rename("values")
+        ds = da.to_dataset()
+        # Mark for round-trip
+        ds.attrs["__via"] = "pd_df_mi_cols"
+        ds.attrs["__row_dim__"] = row_dim
+        ds.attrs["__col_levels__"] = list(df.columns.names)
+    else:
+        # Single-level columns: still avoid per-column variables by using a 2D DataArray (row_dim, col_name)
+        col_dim = df.columns.name or "columns"
+        s = df.stack(col_dim)                  # Series with index (row_dim, col_dim)
+        da = xr.DataArray.from_series(s).rename("values")
+        ds = da.to_dataset()
+        ds.attrs["__via"] = "pd_df_cols"
+        ds.attrs["__row_dim__"] = row_dim
+        ds.attrs["__col_levels__"] = [col_dim]
+
+    # chunking
+    chunks = 1024
+    ds = ds.chunk({row_dim: chunks})
+
+    # Encoding: compressor and variable-length UTF-8 for object columns
+    #encoding = {v: {"compressor": compressor} for v in ds.data_vars}
+    #for v, da in ds.data_vars.items():
+    #    if da.dtype == object and VLenUTF8 is not None:
+    #        encoding[v]["object_codec"] = VLenUTF8()
+    encoding = {"values": {"compressor": compressor}}
+    if ds["values"].dtype == object and VLenUTF8 is not None:
+        encoding["values"]["object_codec"] = VLenUTF8()
+
+    # Write into a subgroup under the same store
+    ds.to_zarr(
+        store=root.store,
+        group=group_name,
+        mode="w",
+        encoding=encoding,
+    )
+
+    logging.info(f"\n> DataFrame {group_name} written to zarr.")
+
+    return None
+
+
+def _read_df_from_zarr(root, group_name: str) -> pd.DataFrame:
+    ds = xr.open_zarr(
+        store=root.store,
+        group=group_name,
+        consolidated=False,
+        chunks="auto",
+    )
+    da = ds["values"]
+    row_dim = ds.attrs.get("__row_dim__", da.dims[0])
+    col_levels = ds.attrs.get("__col_levels__", list(da.dims[1:]))
+
+    # Series with MultiIndex index (row_dim, *col_levels)
+    s = da.to_series()
+
+    # If there are column dims, unstack them back to columns
+    if col_levels:
+        df = s.unstack(col_levels)
+    else:
+        # No column dims -> a single column DataFrame
+        df = s.to_frame(name="values")
+
+    df.index.name = row_dim
+
+    return df
