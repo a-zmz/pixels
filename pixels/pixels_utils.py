@@ -4,7 +4,13 @@ This module provides utilities for pixels data.
 # annotations not evaluated at runtime
 from __future__ import annotations
 import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
+from pathlib import Path
+import zarr
+
+import xarray as xr
+from numcodecs import Blosc, VLenUTF8
 
 import numpy as np
 import pandas as pd
@@ -979,7 +985,6 @@ def _save_spike_chance(spiked_memmap_path, fr_memmap_path, sigma, sample_rate,
     """
     Implementation of saving chance level spike data.
     """
-    import concurrent.futures
 
     # save spiked to memmap if not yet
     # TODO apr 9 2025: if i have temp_spiked, how to get its shape? do i need
@@ -1033,7 +1038,7 @@ def _save_spike_chance(spiked_memmap_path, fr_memmap_path, sigma, sample_rate,
         del chance_spiked, chance_fr
 
         # Set up the process pool to run the worker in parallel.
-        with concurrent.futures.ProcessPoolExecutor() as executor:
+        with ProcessPoolExecutor() as executor:
             # Submit jobs for each repeat.
             futures = []
             for i in range(repeats):
@@ -1627,7 +1632,6 @@ def save_chance_psd(sample_rate, positions, paths):#chance_data, idx, cols):
     Implementation of saving chance level spike data.
     """
     #import concurrent.futures
-    from concurrent.futures import ProcessPoolExecutor, as_completed
     from vision_in_darkness.constants import PRE_DARK_LEN, landmarks
 
     # Set up the process pool to run the worker in parallel.
