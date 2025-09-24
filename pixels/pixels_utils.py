@@ -891,7 +891,7 @@ def save_spike_chance_zarr(
     base_shape = spiked.shape
     d_shape = base_shape + (repeats,)
 
-    chunks = tuple(min(s, 1024) for s in base_shape) + (1,)
+    chunks = tuple(min(s, BIG_CHUNKS) for s in base_shape) + (1,)
 
     store = zarr.DirectoryStore(str(zarr_path))
     root = zarr.group(store=store, overwrite=not zarr_path.exists())
