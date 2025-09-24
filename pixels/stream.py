@@ -1212,7 +1212,7 @@ class Stream:
             spiked=stacked_spikes,
             sigma=sigma,
             sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
-            repeats=2, #REPEATS,
+            repeats=REPEATS,
             positions=positions,
             meta=dict(
                 label=str(label),
