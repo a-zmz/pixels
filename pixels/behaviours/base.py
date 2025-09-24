@@ -2619,7 +2619,6 @@ class Behaviour(ABC):
                 end_event=end_event,
             )
 
-        assert 0
         return output
 
 
