@@ -1752,54 +1752,61 @@ def _write_df_as_zarr(
     if group_name in root:
         del root[group_name]
 
-    ds = xr.Dataset.from_dataframe(df)
-
-    # Find row dimension (the one matching len(df))
-    row_dims = [d for d, n in ds.sizes.items() if n == len(df)]
-    row_dim = row_dims[0] if row_dims else "index"
-
-    # Mark how to rebuild (Multi)Index on read
-    #ds.attrs["__via"] = "pandas_xarray_df"
-    #if isinstance(df.index, pd.MultiIndex):
-    #    ds = ds.reset_index(row_dim)
-    #    ds.attrs["__pd_mi_dim__"] = row_dim
-    #    ds.attrs["__pd_mi_levels__"] = [
-    #        n if n is not None else f"level_{i}" for i, n in enumerate(df.index.names)
-    #    ]
-    #else:
-    #    ds.attrs["__pd_index_dim__"] = row_dim
-    if isinstance(df.columns, pd.MultiIndex):
-        # Encode as a 3D DataArray: (row_dim, *df.columns.names)
-        s = df.stack(df.columns.names)         # Series with index (row_dim, level0, level1, ...)
-        da = xr.DataArray.from_series(s)       # dims are names from the Series index
-        da = da.rename("values")
-        ds = da.to_dataset()
-        # Mark for round-trip
-        ds.attrs["__via"] = "pd_df_mi_cols"
-        ds.attrs["__row_dim__"] = row_dim
-        ds.attrs["__col_levels__"] = list(df.columns.names)
+    # Ensure all index/column level names are defined
+    if isinstance(df.index, pd.MultiIndex):
+        row_names = _default_names(list(df.index.names), row_prefix)
     else:
-        # Single-level columns: still avoid per-column variables by using a 2D DataArray (row_dim, col_name)
-        col_dim = df.columns.name or "columns"
-        s = df.stack(col_dim)                  # Series with index (row_dim, col_dim)
-        da = xr.DataArray.from_series(s).rename("values")
-        ds = da.to_dataset()
-        ds.attrs["__via"] = "pd_df_cols"
-        ds.attrs["__row_dim__"] = row_dim
-        ds.attrs["__col_levels__"] = [col_dim]
+        row_names = [df.index.name or f"{row_prefix}0"]
 
-    # chunking
-    chunks = 1024
-    ds = ds.chunk({row_dim: chunks})
+    if isinstance(df.columns, pd.MultiIndex):
+        col_names = _default_names(list(df.columns.names), col_prefix)
+    else:
+        col_names = [df.columns.name or f"{col_prefix}0"]
 
-    # Encoding: compressor and variable-length UTF-8 for object columns
-    #encoding = {v: {"compressor": compressor} for v in ds.data_vars}
-    #for v, da in ds.data_vars.items():
-    #    if da.dtype == object and VLenUTF8 is not None:
-    #        encoding[v]["object_codec"] = VLenUTF8()
-    encoding = {"values": {"compressor": compressor}}
+    # Stack ALL column levels to move them into the row index; result index levels = row_names + col_names
+    series = df.stack(col_names, future_stack=True)  # Series with MultiIndex index
+
+    # Build DataArray (dims are level names of the Series index, in order)
+    da = xr.DataArray.from_series(series).rename("values")
+    ds = da.to_dataset()
+
+    # Mark attrs for round-trip (which dims belong to rows vs columns)
+    ds.attrs["__via"] = "pd_df_any_mi"
+    ds.attrs["__row_dims__"] = row_names
+    ds.attrs["__col_dims__"] = col_names
+
+    # check size to determine chunking
+    chunking = {}
+    for name, size in ds.sizes.items():
+        if size > BIG_CHUNKS:
+            chunking[name] = BIG_CHUNKS
+        else:
+            chunking[name] = SMALL_CHUNKS
+
+    ds = ds.chunk(chunking)
+
+    # compressor & object codec
+    encoding = {
+        "values": {
+            "compressor": compressor,
+            "chunks": tuple(chunking.values()),
+        }
+    }
     if ds["values"].dtype == object and VLenUTF8 is not None:
         encoding["values"]["object_codec"] = VLenUTF8()
+
+    # Ensure coords are writable (handle object/string coords)
+    # If VLenUTF8 is available, set encoding for object coords; otherwise cast
+    # to str
+    for cname, coord in ds.coords.items():
+        if coord.dtype == object:
+            if VLenUTF8 is not None:
+                encoding[cname] = {
+                    "object_codec": VLenUTF8(),
+                    "compressor": compressor,
+                }
+            else:
+                ds = ds.assign_coords({cname: coord.astype(str)})
 
     # Write into a subgroup under the same store
     ds.to_zarr(
@@ -1822,19 +1829,31 @@ def _read_df_from_zarr(root, group_name: str) -> pd.DataFrame:
         chunks="auto",
     )
     da = ds["values"]
-    row_dim = ds.attrs.get("__row_dim__", da.dims[0])
-    col_levels = ds.attrs.get("__col_levels__", list(da.dims[1:]))
+    row_dim = list(ds.attrs.get("__row_dims__") or [])
+    col_dim = list(ds.attrs.get("__col_dims__") or [])
 
-    # Series with MultiIndex index (row_dim, *col_levels)
-    s = da.to_series()
+    # Series with MultiIndex index (row_dim, *col_dim)
+    series = da.to_series()
 
     # If there are column dims, unstack them back to columns
-    if col_levels:
-        df = s.unstack(col_levels)
+    if col_dim:
+        df = series.unstack(col_dim)
     else:
         # No column dims -> a single column DataFrame
-        df = s.to_frame(name="values")
+        df = series.to_frame(name="values")
 
-    df.index.name = row_dim
+    col_name = [df.columns.name]
+    if not (row_dim == df.index.names):
+        df.index.set_names(row_dim, inplace=True)
+    if not (col_dim == col_name):
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns.set_names(col_dim, inplace=True)
+        else:
+            df.columns.name = col_dim[0]
 
     return df
+
+
+def _default_names(names: list[str | None], prefix: str) -> list[str]:
+    # Replace None level names with defaults: f"{prefix}{i}"
+    return [n if n is not None else f"{prefix}{i}" for i, n in enumerate(names)]
