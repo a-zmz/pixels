@@ -909,20 +909,21 @@ def save_spike_chance_zarr(
     # Base source so workers can read it without pickling
     if "spiked" in root:
         del root["spiked"]
-        if isinstance(spiked, pd.DataFrame):
-            _write_df_as_zarr(
-                root,
-                spiked,
-                group_name="spiked",
-                compressor=compressor,
-            )
-        else:
-            root.create_dataset(
-                "spiked",
-                data=spiked,
-                chunks=chunks[:-1],
-                compressor=compressor,
-            )
+
+    if isinstance(spiked, pd.DataFrame):
+        _write_df_as_zarr(
+            root,
+            spiked,
+            group_name="spiked",
+            compressor=compressor,
+        )
+    else:
+        root.create_dataset(
+            "spiked",
+            data=spiked,
+            chunks=chunks[:-1],
+            compressor=compressor,
+        )
     del spiked
     gc.collect()
 
