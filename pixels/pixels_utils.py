@@ -1741,7 +1741,7 @@ def notch_freq(rec, freq, bw=4.0):
 def _write_df_as_zarr(
     root,  # zarr.hierarchy.Group
     df: pd.DataFrame,
-    group_name: str = "positions",
+    group_name: str,
     *,
     compressor=None,
 ):
