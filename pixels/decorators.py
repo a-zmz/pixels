@@ -62,54 +62,86 @@ def _df_to_zarr_via_xarray(
             "xarray/zarr not installed. pip install xarray zarr numcodecs"
         )
 
-    ds = xr.Dataset.from_dataframe(df)
+    row_prefix = "row"
+    col_prefix = "col"
 
-    # Find row dimension (the one matching len(df))
-    row_dims = [d for d, n in ds.sizes.items() if n == len(df)]
-    row_dim = row_dims[0] if row_dims else "index"
-
-    # Rename the row dimension if requested
-    if dim_name and row_dim != dim_name:
-        ds = ds.rename({row_dim: dim_name})
-        row_dim = dim_name
-
-    # Record how to reconstruct on read
-    ds.attrs["__via"] = "pandas_xarray_df"
+    # Ensure all index/column level names are defined
     if isinstance(df.index, pd.MultiIndex):
-        ds = ds.reset_index(row_dim)
-        ds.attrs["__pd_mi_dim__"] = row_dim
-        ds.attrs["__pd_mi_levels__"] = [
-            n if n is not None else f"level_{i}"\
-            for i, n in enumerate(df.index.names)
-        ]
+        row_names = _default_names(list(df.index.names), row_prefix)
     else:
-        ds.attrs["__pd_index_dim__"] = row_dim
+        row_names = [df.index.name or f"{row_prefix}0"]
 
-    # Chunking
-    if chunks is not None:
-        if isinstance(chunks, int):
-            ds = ds.chunk({row_dim: chunks})
-        elif isinstance(chunks, dict):
-            ds = ds.chunk(chunks)
+    if isinstance(df.columns, pd.MultiIndex):
+        col_names = _default_names(list(df.columns.names), col_prefix)
+    else:
+        col_names = [df.columns.name or f"{col_prefix}0"]
 
-    # Compression and string handling
+    # Stack ALL column levels to move them into the row index; result index levels = row_names + col_names
+    series = df.stack(col_names, future_stack=True)  # Series with MultiIndex index
+
+    # Build DataArray (dims are level names of the Series index, in order)
+    da = xr.DataArray.from_series(series).rename("values")
+    ds = da.to_dataset()
+
+    # Mark attrs for round-trip (which dims belong to rows vs columns)
+    ds.attrs["__via"] = "pd_df_any_mi"
+    ds.attrs["__row_dims__"] = row_names
+    ds.attrs["__col_dims__"] = col_names
+
+    # check size to determine chunking
+    chunking = {}
+    for name, size in ds.sizes.items():
+        if size > BIG_CHUNKS:
+            chunking[name] = BIG_CHUNKS
+        else:
+            chunking[name] = SMALL_CHUNKS
+
+    ds = ds.chunk(chunking)
+
     if compressor is None:
         compressor = _make_default_compressor()
-    encoding = {var: {"compressor": compressor} for var in ds.data_vars}
-    for var, da in ds.data_vars.items():
-        if da.dtype == object and VLenUTF8 is not None:
-            encoding[var]["object_codec"] = VLenUTF8()
+    # compressor & object codec
+    encoding = {
+        "values": {
+            "compressor": compressor,
+            "chunks": tuple(chunking.values()),
+        }
+    }
+    if ds["values"].dtype == object and VLenUTF8 is not None:
+        encoding["values"]["object_codec"] = VLenUTF8()
+
+    # Ensure coords are writable (handle object/string coords)
+    # If VLenUTF8 is available, set encoding for object coords; otherwise cast
+    # to str
+    for cname, coord in ds.coords.items():
+        if coord.dtype == object:
+            if VLenUTF8 is not None:
+                encoding[cname] = {
+                    "object_codec": VLenUTF8(),
+                    "compressor": compressor,
+                }
+            else:
+                ds = ds.assign_coords({cname: coord.astype(str)})
 
     # Write
     if path is not None:
-        ds.to_zarr(str(path), mode=mode, encoding=encoding)
+        ds.to_zarr(
+            str(path),
+            mode=mode,
+            encoding=encoding,
+        )
         try:
             zarr.consolidate_metadata(str(path))
         except Exception:
             pass
     else:
         assert store is not None
-        ds.to_zarr(store=store, group=group or "", mode=mode, encoding=encoding)
+        ds.to_zarr(
+            store=store,
+            group=group_name or "",
+            mode=mode,
+            encoding=encoding,
+        )
         # consolidate requires a path; skipping here since we're inside a shared
         # store
 
@@ -131,22 +163,42 @@ def _df_from_zarr_via_xarray(
         )
 
     if path is not None:
-        ds = xr.open_zarr(str(path), consolidated=True, chunks="auto")
+        ds = xr.open_zarr(
+            str(path),
+            consolidated=True,
+            chunks="auto",
+        )
     else:
         ds = xr.open_zarr(
             store=store,
-            group=group or "",
+            group=group_name or "",
             consolidated=False,
             chunks="auto",
         )
 
-    # Reconstruct MI if recorded
-    mi_dim = ds.attrs.get("__pd_mi_dim__")
-    mi_levels = ds.attrs.get("__pd_mi_levels__")
-    if mi_dim and mi_levels:
-        ds = ds.set_index({mi_dim: mi_levels})
+    da = ds["values"]
+    row_dim = list(ds.attrs.get("__row_dims__") or [])
+    col_dim = list(ds.attrs.get("__col_dims__") or [])
 
-    df = ds.to_dataframe()
+    # Series with MultiIndex index (row_dim, *col_dim)
+    series = da.to_series()
+
+    # If there are column dims, unstack them back to columns
+    if col_dim:
+        df = series.unstack(col_dim)
+    else:
+        # No column dims -> a single column DataFrame
+        df = series.to_frame(name="values")
+
+    col_name = [df.columns.name]
+    if not (row_dim == df.index.names):
+        df.index.set_names(row_dim, inplace=True)
+    if not (col_dim == col_name):
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns.set_names(col_dim, inplace=True)
+        else:
+            df.columns.name = col_dim[0]
+
     return df
 
 
@@ -479,8 +531,6 @@ def cacheable(
                     _df_to_zarr_via_xarray(
                         result,
                         path=zarr_path,
-                        dim_name=per_call_dim_name or result.index.name or "index",
-                        chunks=per_call_chunks,
                         compressor=compressor,
                         mode="w",
                     )
