@@ -32,6 +32,7 @@ from pixels.ioutils import write_hdf5, reindex_by_longest
 from pixels.error import PixelsError
 from pixels.configs import *
 from pixels.constants import *
+from pixels.decorators import _df_to_zarr_via_xarray, _df_from_zarr_via_xarray
 
 from common_utils import math_utils
 from common_utils.file_utils import init_memmap, read_hdf5
@@ -911,12 +912,19 @@ def save_spike_chance_zarr(
         del root["spiked"]
 
     if isinstance(spiked, pd.DataFrame):
-        _write_df_as_zarr(
-            root,
-            spiked,
+        _df_to_zarr_via_xarray(
+            df=spiked,
+            store=store,
             group_name="spiked",
             compressor=compressor,
+            mode="w",
         )
+        #_write_df_as_zarr(
+        #    root,
+        #    spiked,
+        #    group_name="spiked",
+        #    compressor=compressor,
+        #)
     else:
         root.create_dataset(
             "spiked",
@@ -957,12 +965,19 @@ def save_spike_chance_zarr(
             del root["positions"]
 
         if isinstance(positions, pd.DataFrame):
-            _write_df_as_zarr(
-                root,
-                positions,
+            _df_to_zarr_via_xarray(
+                df=positions,
+                store=store,
                 group_name="positions",
                 compressor=compressor,
+                mode="w",
             )
+            #_write_df_as_zarr(
+            #    root,
+            #    positions,
+            #    group_name="positions",
+            #    compressor=compressor,
+            #)
         else:
             root.create_dataset(
                 "positions",
