@@ -46,9 +46,7 @@ def _df_to_zarr_via_xarray(
     *,
     path: Path | None = None,
     store: "zarr.storage.Store" | None = None,
-    group: str | None = None,
-    dim_name: str | None = None,
-    chunks: int | dict | None = None,
+    group_name: str | None = None,
     compressor=None,
     mode: str = "w",
 ) -> None:
@@ -120,7 +118,7 @@ def _df_from_zarr_via_xarray(
     *,
     path: Path | None = None,
     store: "zarr.storage.Store" | None = None,
-    group: str | None = None,
+    group_name: str | None = None,
 ) -> pd.DataFrame:
     """
     Read a DataFrame written by _df_to_zarr_via_xarray and reconstruct
@@ -224,9 +222,7 @@ def _write_arrays_dicts_to_zarr(
             _df_to_zarr_via_xarray(
                 value,
                 store=store,
-                group=prefix or "",
-                dim_name=value.index.name or "index",
-                chunks=chunks,
+                group_name=prefix or "",
                 compressor=compressor,
                 mode="w",
             )
@@ -284,8 +280,8 @@ def _read_zarr_generic(root_path: Path) -> Any:
     root = zarr.open_group(store=store, mode="r")
 
     # If top-level was written via xarray as a DataFrame
-    if root.attrs.get("__via") == "pandas_xarray_df" and xr is not None:
-        return _df_from_zarr_via_xarray(store=store, group="")
+    if root.attrs.get("__via") == "pd_df_any_mi" and xr is not None:
+        return _df_from_zarr_via_xarray(store=store, group_name="")
 
     # If top-level is a single array written at root
     if "array" in root and isinstance(root["array"], zarr.Array):
@@ -294,8 +290,11 @@ def _read_zarr_generic(root_path: Path) -> Any:
     def read_from_group(prefix: str) -> Any:
         g = zarr.open_group(store=store, path=prefix, mode="r")
         # DataFrame group?
-        if g.attrs.get("__via") == "pandas_xarray_df" and xr is not None:
-            return _df_from_zarr_via_xarray(store=store, group=prefix or "")
+        if g.attrs.get("__via") == "pd_df_any_mi" and xr is not None:
+            return _df_from_zarr_via_xarray(
+                store=store,
+                group_name=prefix or "",
+            )
 
         out: dict[str, Any] = {}
         for name, node in g.items():
