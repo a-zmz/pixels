@@ -914,7 +914,7 @@ def save_spike_chance_zarr(
         root.create_dataset(
             "chance_spiked",
             shape=d_shape,
-            dtype="int16",
+            dtype="bool",
             chunks=chunks,
             compressor=compressor,
         )
