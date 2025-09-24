@@ -200,7 +200,7 @@ class Stream:
             # initiate binary spike times array for current trial
             # NOTE: dtype must be float otherwise would get all 0 when passing
             # gaussian kernel
-            times = np.zeros((scan_durations[i], len(units)), dtype=float)
+            times = np.zeros((scan_durations[i], len(units)), dtype=np.float32)
             # use pixels time as spike index
             idx = np.arange(scan_starts[i], scan_ends[i])
 
