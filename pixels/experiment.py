@@ -614,4 +614,4 @@ class Experiment:
             name = session.name
             chance[name] = session.get_spike_chance(*args, **kwargs)
 
-        return df
+        return chance
