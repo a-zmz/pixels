@@ -1745,6 +1745,9 @@ def _write_df_as_zarr(
     *,
     compressor=None,
 ):
+    row_prefix = "row"
+    col_prefix = "col"
+
     # Remove any existing node (array or group) with this name
     if group_name in root:
         del root[group_name]
