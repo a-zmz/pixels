@@ -5,6 +5,7 @@ This module provides utilities for pixels data.
 from __future__ import annotations
 
 import multiprocessing as mp
+from multiprocessing import shared_memory
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 from pathlib import Path
@@ -823,22 +824,35 @@ def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
     return None
 
 
-def _worker_write_repeat(i, zarr_path, sigma, sample_rate):
-    # Child process re-opens the store to avoid pickling big arrays
-    store = zarr.DirectoryStore(str(zarr_path))
-    root = zarr.open_group(store=store, mode="a")
+def _worker_write_repeat(
+    i, zarr_path, sigma, sample_rate, shm_name, shape, dtype_str,
+):
+    # attach to shared memory
+    shm = shared_memory.SharedMemory(name=shm_name)
+    try:
+        spiked = np.ndarray(
+            shape,
+            dtype=np.dtype(dtype_str),
+            buffer=shm.buf,
+        )
+        # avoid accidental in-place mutation
+        spiked.setflags(write=False)
+        # get permuted data
+        c_spiked, c_fr = _permute_spikes_n_convolve_fr(spiked, sigma, sample_rate)
 
-    # read spiked data
-    spiked = _read_df_from_zarr(root, "spiked")
+        # child process re-opens the store to avoid pickling big arrays
+        store = zarr.DirectoryStore(zarr_path)
+        root = zarr.open_group(store=store, mode="a")
 
-    # get permuted data
-    c_spiked, c_fr = _permute_spikes_n_convolve_fr(spiked[:], sigma, sample_rate)
+        # Write the i-th slice along last axis
+        root["chance_spiked"][..., i] = c_spiked
+        root["chance_fr"][..., i] = c_fr
+        del c_spiked, c_fr
+        gc.collect()
 
-    # Write the i-th slice along last axis
-    root["chance_spiked"][..., i] = c_spiked
-    root["chance_fr"][..., i] = c_fr
-
-    logging.info(f"\nRepeat {i} finished.")
+        logging.info(f"\nRepeat {i} finished.")
+    finally:
+        shm.close()
 
     return None
 
@@ -866,6 +880,12 @@ def save_spike_chance_zarr(
 
     zarr_path = Path(zarr_path)
     zarr_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Convert to array ONCE for shared memory
+    if isinstance(spiked, pd.DataFrame):
+        spike_arr = np.ascontiguousarray(spiked.to_numpy())
+    else:
+        spike_arr = np.ascontiguousarray(np.asarray(spiked))
 
     base_shape = spiked.shape
     d_shape = base_shape + (repeats,)
@@ -947,28 +967,53 @@ def save_spike_chance_zarr(
                 compressor=compressor,
             )
 
-    logging.info(f"\n> Starting process pool.")
-    # Parallel fill: each worker writes a distinct final-axis slice
-    with ProcessPoolExecutor(max_workers=n_workers) as ex:
-        futures = [
-            ex.submit(
-                _worker_write_repeat,
-                i,
-                zarr_path,
-                sigma,
-                sample_rate,
-            ) for i in range(repeats)
-        ]
-        for f in as_completed(futures):
-            f.result()  # raise on error
+    del positions
+    gc.collect()
 
-    # Done. The decorator will open and return the Zarr content.
+    # Create shared memory once
+    shm = shared_memory.SharedMemory(
+        create=True,
+        size=spike_arr.nbytes,
+    )
+    try:
+        shm_arr = np.ndarray(
+            base_shape,
+            dtype=spike_arr.dtype,
+            buffer=shm.buf,
+        )
+        shm_arr[...] = spike_arr
+
+        logging.info(f"\n> Starting process pool.")
+        # Pass only the metadata needed to reconstruct the view
+        dtype_str = spike_arr.dtype.str # portable dtype spec
+
+        # Parallel fill: each worker writes a distinct final-axis slice
+        with ProcessPoolExecutor(max_workers=n_workers) as ex:
+            futures = [
+                ex.submit(
+                    _worker_write_repeat,
+                    i,
+                    str(zarr_path),
+                    sigma,
+                    sample_rate,
+                    shm.name,
+                    base_shape,
+                    dtype_str,
+                ) for i in range(repeats)
+            ]
+            for f in as_completed(futures):
+                f.result()  # raise on error
+    finally:
+        shm.close()
+        shm.unlink()
+
     return None
 
 
 def save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
                       fr_df_path, sigma, sample_rate, repeats=100, spiked=None,
                       spiked_shape=None, concat_spiked_path=None):
+    assert 0
     if fr_df_path.exists():
         # save spike chance data if does not exists
         _save_spike_chance(
