@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 from pathlib import Path
 import zarr
+import gc
 
 import xarray as xr
 from numcodecs import Blosc, VLenUTF8
@@ -922,6 +923,8 @@ def save_spike_chance_zarr(
                 chunks=chunks[:-1],
                 compressor=compressor,
             )
+    del spiked
+    gc.collect()
 
     # Outputs
     if "chance_spiked" in root\
