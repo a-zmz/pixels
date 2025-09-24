@@ -301,6 +301,23 @@ def median_subtraction(data, axis=0):
     return data - np.median(data, axis=axis, keepdims=True)
 
 
+def _convolve_worker(shm_kernal, shm_times, sample_rate):
+    # TODO sep 22 2025:
+    # CONTINUE HERE!
+    # attach to shared memory
+    shm = shared_memory.SharedMemory(name=shm_kernal)
+
+    convolved = convolve1d(
+        input=times.values,
+        weights=n_kernel,
+        output=np.float32,
+        mode="nearest",
+        axis=0,
+    ) * sample_rate # rescale it to second
+
+    return None
+
+
 def convolve_spike_trains(times, sigma=100, size=10, sample_rate=1000):
     """
     Convolve spike times data with 1D gaussian kernel to get spike rate.
@@ -327,12 +344,14 @@ def convolve_spike_trains(times, sigma=100, size=10, sample_rate=1000):
     # normalise kernel to ensure that the total area under the Gaussian is 1
     n_kernel = kernel / np.sum(kernel)
 
+    # TODO sept 19 2025:
+    # implement multiprocessing?
     if isinstance(times, pd.DataFrame):
         # convolve with gaussian
         convolved = convolve1d(
             input=times.values,
             weights=n_kernel,
-            output=float,
+            output=np.float32,
             mode='nearest',
             axis=0,
         ) * sample_rate # rescale it to second
@@ -348,7 +367,7 @@ def convolve_spike_trains(times, sigma=100, size=10, sample_rate=1000):
         output = convolve1d(
             input=times,
             weights=n_kernel,
-            output=float,
+            output=np.float32,
             mode='nearest',
             axis=0,
         ) * sample_rate # rescale it to second
