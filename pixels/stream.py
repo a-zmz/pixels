@@ -15,6 +15,7 @@ import pixels.signal_utils as signal
 from pixels.configs import *
 from pixels.constants import *
 from pixels.decorators import cacheable
+from pixels.error import PixelsError
 
 from common_utils import file_utils
 
@@ -73,6 +74,7 @@ class Stream:
 
         # only take starts from selected trials
         selected_starts = trials[np.where(np.isin(trials, starts))[0]]
+            raise PixelsError("\n> Why would we have more ends than starts?")
         start_t = timestamps[selected_starts]
         # only take ends from selected trials
         selected_ends = trials[np.where(np.isin(trials, ends))[0]]
