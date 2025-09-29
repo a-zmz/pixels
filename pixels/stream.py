@@ -72,15 +72,24 @@ class Stream:
         # map starts by end event
         ends = np.where(np.bitwise_and(events, end_event))[0]
 
-        # only take starts from selected trials
-        selected_starts = trials[np.where(np.isin(trials, starts))[0]]
+        # only take starts and ends from selected trials
+        selected_starts = trials[np.isin(trials, starts)]
+        selected_ends = trials[np.isin(trials, ends)]
+
+        # make sure trials have both starts and ends
+        start_ids = synched_vr.iloc[selected_starts].trial_count.unique()
+        end_ids = synched_vr.iloc[selected_ends].trial_count.unique()
+        if len(start_ids) > len(end_ids):
+            selected_starts = selected_starts[np.isin(start_ids, end_ids)]
+        elif len(start_ids) < len(end_ids):
+            selected_ends = selected_ends[np.isin(end_ids, start_ids)]
             raise PixelsError("\n> Why would we have more ends than starts?")
+
+        # get timestamps
         start_t = timestamps[selected_starts]
-        # only take ends from selected trials
-        selected_ends = trials[np.where(np.isin(trials, ends))[0]]
         end_t = timestamps[selected_ends]
 
-        # use original trial id as trial index
+        # use original trial ids as trial index
         trial_ids = pd.Index(
             synched_vr.iloc[selected_starts].trial_count.unique()
         )
