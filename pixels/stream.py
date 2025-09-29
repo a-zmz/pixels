@@ -124,31 +124,36 @@ class Stream:
         all_pos_val = all_pos.to_numpy()
         all_pos_idx = all_pos.index.to_numpy()
 
+        # find start and end position index
+        trial_start_t = np.searchsorted(all_pos_idx, start_t, side="left")
+        trial_end_t = np.searchsorted(all_pos_idx, end_t, side="right")
+        trials_positions = [
+            pd.Series(all_pos_val[s:e])
+            for s, e in zip(trial_start_t, trial_end_t)
+        ]
+        positions = pd.concat(trials_positions, axis=1)
+
         # map actual starting locations
         if not "trial_start" in event.name:
             all_start_idx = np.flatnonzero(events & event.trial_start)
-            start_idx = trials[np.isin(trials, all_start_idx)]
+            trial_start_idx = trials[np.isin(trials, all_start_idx)]
+            # make sure to only get the included trials' starting positions,
+            # i.e., the one with start and end event, not all trials in the
+            # label by aligning trial ids
+            all_ids = synched_vr.trial_count.iloc[trial_start_idx].values
+            start_idx = trial_start_idx[np.isin(all_ids, trial_ids)]
         else:
             start_idx = selected_starts.copy()
 
         # get start positions
         start_pos = all_pos_val[start_idx].astype(int)
-
         # create multiindex with starts
         cols_with_starts = pd.MultiIndex.from_arrays(
             [start_pos, trial_ids],
             names=("start", "trial"),
         )
 
-        # find start and end position index
-        trial_start_t = np.searchsorted(all_pos_idx, start_t, side="left")
-        trial_end_t = np.searchsorted(all_pos_idx, end_t, side="right")
-
-        trials_positions = [
-            pd.Series(all_pos_val[s:e])
-            for s, e in zip(trial_start_t, trial_end_t)
-        ]
-        positions = pd.concat(trials_positions, axis=1)
+        # add level with start positions
         positions.columns = cols_with_starts
         positions = positions.sort_index(axis=1, ascending=[False, True])
         positions.index.name = "time"
