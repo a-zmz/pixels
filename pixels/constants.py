@@ -28,3 +28,5 @@ LGN_SPIKE_LATENCY = 30 # ms
 # chunking for zarr
 SMALL_CHUNKS = 64
 BIG_CHUNKS = 1024
+
+ALPHA = 0.05
