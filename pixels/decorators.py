@@ -446,7 +446,7 @@ def cacheable(
 
             # HDF5 backend
             if backend == "hdf5":
-                cache_path = base.with_suffix(".h5")
+                cache_path = base.with_name(base.name + ".h5")
                 if cache_path.exists() and inst._use_cache != "overwrite":
                     try:
                         df = ioutils.read_hdf5(cache_path)
@@ -497,7 +497,7 @@ def cacheable(
                     raise ImportError(
                         "cache_format='zarr' requires zarr. pip install zarr numcodecs xarray"
                     )
-                zarr_path = base.with_suffix(".zarr")
+                zarr_path = base.with_name(base.name + ".h5")
                 can_read = zarr_path.exists() and inst._use_cache != "overwrite"
 
                 if can_read:
