@@ -2719,3 +2719,33 @@ class Behaviour(ABC):
             )
 
         return output
+
+
+    def get_landmark_responsives(
+        self, label, event, end_event=None, sigma=None, units=None,
+        pos_bin=None,
+    ):
+        output = {}
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+
+            logging.info(
+                f"\n> Getting landmark responsive units from {units} in "
+                f"<{label.name}> trials."
+            )
+            output[stream_id] = stream.get_landmark_responsives(
+                units=units,
+                label=label,
+                event=event,
+                sigma=sigma,
+                end_event=end_event,
+                pos_bin=pos_bin,
+            )
+
+        return output

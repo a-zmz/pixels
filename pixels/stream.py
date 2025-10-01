@@ -1278,3 +1278,24 @@ class Stream:
         psds = xut.save_chance_psd(self.BEHAVIOUR_SAMPLE_RATE, positions, paths)
 
         return psds
+
+
+    @cacheable
+    def get_landmark_responsives(
+        self, units, label, event, sigma, end_event, pos_bin,
+    ):
+        pos_fr = self.get_positional_data(
+            units=units, # NOTE: ALWAYS the first arg
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event, # NOTE: ALWAYS the last arg
+        )["pos_fr"]
+
+        responsives = xut.get_landmark_responsives(
+            pos_fr=pos_fr,
+            units=units[self.stream_id],
+            pos_bin=pos_bin,
+        )
+
+        return responsives

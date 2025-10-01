@@ -18,6 +18,11 @@ from numcodecs import Blosc, VLenUTF8
 import numpy as np
 import pandas as pd
 
+from scipy import stats
+import statsmodels.formula.api as smf
+from statsmodels.stats.multitest import multipletests
+from patsy import build_design_matrices
+
 import spikeinterface as si
 import spikeinterface.extractors as se
 import spikeinterface.sorters as ss
@@ -1872,3 +1877,333 @@ def _read_df_from_zarr(root, group_name: str) -> pd.DataFrame:
 def _default_names(names: list[str | None], prefix: str) -> list[str]:
     # Replace None level names with defaults: f"{prefix}{i}"
     return [n if n is not None else f"{prefix}{i}" for i, n in enumerate(names)]
+
+
+# >>> landmark responsive helpers >>>
+def to_df(mean, std, zone):
+    out = pd.DataFrame({"mean": mean, "std": std}).reset_index()
+
+    # Keep only start and trial; unit is constant
+    out = out.rename(
+        columns={"level_0": "start", "level_1": "unit", "level_2": "trial"}
+    )
+    out["zone"] = zone
+
+    # map data type
+    out["start"] = out["start"].astype(str)
+    out["unit"] = out["unit"].astype(str)
+    out["trial"] = out["trial"].astype(str)
+
+    return out
+
+
+# Build linear contrasts for any model that uses patsy coding
+def compute_contrast(fit, newdf_a, newdf_b=None):
+    """
+    Returns estimate and SE for:
+      L'beta where L = X(newdf_a) - X(newdf_b) if newdf_b is provided,
+      else L = X(newdf_a)
+    fit: statsmodels results with fixed effects (OLS or MixedLM)
+    newdf_a/newdf_b: small DataFrames with columns used in the formula (start,
+    zone)
+    """
+    # For MixedLM, use fixed-effects params/cov
+    if hasattr(fit, "fe_params"):
+        fe_params = fit.fe_params
+        cov = fit.cov_params().loc[fe_params.index, fe_params.index]
+        cols = fe_params.index
+    else:
+        # OLS
+        fe_params = fit.params
+        cov = fit.cov_params()
+        cols = fit.params.index
+
+    di = fit.model.data.design_info
+
+    Xa = build_design_matrices([di], newdf_a)[0]
+    Xa = np.asarray(Xa)  # column order matches the fit
+    if Xa.shape[1] != len(cols):
+        # rare: ensure columns align if needed
+        raise ValueError(
+            "Design column mismatch; "
+            "ensure newdf has the same factors and levels as the fit."
+        )
+
+    if newdf_b is not None:
+        Xb = build_design_matrices([di], newdf_b)[0]
+        Xb = np.asarray(Xb)
+        L = (Xa - Xb).ravel()
+    else:
+        L = Xa.ravel()
+
+    est = float(L @ fe_params.values)
+    se = float(np.sqrt(L @ cov.values @ L))
+
+    return est, se
+
+
+# >>> single unit mixed model
+def fit_per_unit_ols(df, formula, unit_id):
+    """
+    Step 1
+    Fit mean fr of pre-wall, landmark, and post-wall from each trial, each unit
+    to GLM with cluster-robust SE.
+    """
+    d = df[df["unit"] == str(unit_id)].copy()
+    if d.empty:
+        raise ValueError(f"No data for unit {unit_id}")
+    # OLS with cluster-robust SE by trial
+    fit = smf.ols(formula, data=d).fit(
+        cov_type="cluster",
+        cov_kwds={"groups": d["trial"]},
+    )
+    return fit
+
+
+def test_diff_any(fit, starts, use_f=True):
+    """
+    Step 2
+    Use Wald test on linear contrasts to test if jointly, all these contrasts
+    are 0.
+    i.e., this test if there are any difference among the mean fr comparisons.
+    if wald p < alpha, then there is a significant difference, we do post-hoc to
+    see where the difference come from;
+    if wald p > alpha, the unit does not have different fr between landmark &
+    pre-wall, and landmark & post-wall, or pre-wall & post-wall.
+    """
+    Ls = []
+    for s in starts:
+        for ref in ["pre_wall", "post_wall"]:
+            row = _L_row(
+                fit=fit,
+                start_label=s,
+                a_zone="landmark",
+                b_zone=ref,
+            )
+            Ls.append(row)
+
+    R = np.vstack(Ls)
+    w = fit.wald_test(R, scalar=True, use_f=use_f)
+    results = {
+        "stat": float(w.statistic),
+        "p": float(w.pvalue),
+        "df_num": int(getattr(w, "df_num", R.shape[0])),
+        "df_denom": float(getattr(w, "df_denom", np.nan)),
+        "k": R.shape[0],
+    }
+
+    return results["p"]
+
+
+def _L_row(fit, start_label, a_zone, b_zone):
+    """
+    Build linear contrasts of zones for a given starting position.
+    """
+    di = fit.model.data.design_info
+    Xa = np.asarray(
+        build_design_matrices(
+            [di],
+            pd.DataFrame({"start":[start_label], "zone":[a_zone]}),
+        )[0]
+    ).ravel()
+    Xb = np.asarray(
+        build_design_matrices(
+            [di],
+            pd.DataFrame({"start":[start_label], "zone":[b_zone]})
+        )[0]
+    ).ravel()
+
+    return Xa - Xb
+
+
+def family_comparison(fit, starts, compare_to="pre_wall", use_f=True):
+    """
+    Step 3
+    Family level mean comparison, i.e., compare pre or post wall with landmark.
+    """
+    R = np.vstack(
+        [_L_row(fit, s, "landmark", compare_to) for s in starts]
+    )
+    w = fit.wald_test(R, scalar=True, use_f=use_f)
+
+    results = {
+        "family": f"LM-{ 'Pre' if compare_to=='pre_wall' else 'Post' }",
+        "stat": float(w.statistic),
+        "p": float(w.pvalue),
+        "df_num": int(getattr(w, "df_num", R.shape[0])),
+        "df_denom": float(getattr(w, "df_denom", np.nan)),
+        "n_starts": len(starts),
+        "R": R
+    }
+    return results["p"]
+
+
+def start_contrasts_ols(fit, starts, use_normal=True):
+    """
+    Step 4
+    Post-hoc test to see where the difference in contrast come from, i.e., get
+    the linear contrast for each starting positions.
+    """
+    params = fit.params if not hasattr(fit, "fe_params")\
+            else fit.fe_params
+    cov = fit.cov_params() if not hasattr(fit, "fe_params")\
+            else fit.cov_params().loc[params.index, params.index]
+
+    rows = []
+    for s in sorted(starts, key=str):
+        df_pre = pd.DataFrame({"start":[s], "zone":["pre_wall"]})
+        df_lm  = pd.DataFrame({"start":[s], "zone":["landmark"]})
+        df_post = pd.DataFrame({"start":[s], "zone":["post_wall"]})
+
+        for label, A, B in [("lm-pre", df_lm, df_pre),
+                            ("lm-post", df_lm, df_post)]:
+            est, se = compute_contrast(fit, A, B)
+            if not np.isfinite(se) or se <= 0:
+                stat = p = np.nan
+            else:
+                stat = est / se
+                p = float(
+                    2 * (stats.norm.sf(abs(stat)) if use_normal
+                   else stats.t.sf(abs(stat), df=fit.df_resid))
+                )
+            rows.append({
+                "start": s,
+                "contrast": label,
+                "coef": est,
+                "se": se,
+                "stat": stat,
+                "p": p,
+            })
+
+    out = pd.DataFrame(rows)
+    if not out.empty and out["p"].notna().any():
+        # get Holm-adjusted p value to correct for multiple comparison
+        out["p_holm"] = multipletests(
+            out["p"],
+            alpha=ALPHA,
+            method="holm",
+        )[1]
+
+    return out
+
+
+def test_start_x_zone_interaction_ols(fit):
+    # Wald test: all interaction terms = 0
+    ix = [i for i, zone in enumerate(fit.params.index) if ":" in zone]
+    if not ix:
+        return np.nan
+    R = np.zeros((len(ix), len(fit.params)))
+    for r, i in enumerate(ix):
+        R[r, i] = 1.0
+    w = fit.wald_test(R, scalar=True, use_f=False)
+    stat = w.statistic
+
+    return float(w.statistic), float(w.pvalue)
+# <<< single unit mixed model
+# <<< landmark responsive helpers <<<
+
+
+def get_landmark_responsives(pos_fr, units, pos_bin):
+    from vision_in_darkness.constants import landmarks
+
+    # get on & off of landmark and stack them
+    lms = landmarks[1:-2].reshape((-1, 2))
+
+    # get pre & post wall
+    wall_on = landmarks[:-1][::2] + pos_bin
+    wall_off = landmarks[:-1][1::2] - pos_bin
+    pre_walls = np.column_stack([wall_on[:-1], wall_off[:-1]])
+    post_walls = np.column_stack([wall_on[1:], wall_off[1:]])
+
+    # group pre wall, landmarks, and post wall together
+    chunks = np.stack([pre_walls, lms, post_walls], axis=1)
+
+    ons = chunks[..., 0]
+    offs = chunks[..., 1]
+
+    # get all positions
+    positions = pos_fr.index.to_numpy()
+    # build mask for all positions
+    mask = (positions[:, None, None] >= ons[None, :, :])\
+        & (positions[:, None, None] <= offs[None, :, :])
+
+    lm_responsive_bool = np.zeros(
+        (len(units), lms.shape[0])
+    ).astype(bool)
+    responsives = pd.DataFrame(
+        lm_responsive_bool,
+        index=units,
+        columns=np.arange(lms.shape[0]),
+    )
+    responsives.index.name = "unit"
+    responsives.columns.name = "landmark"
+
+    for l in range(lms.shape[0]):
+        # get all data within each chunk
+        chunk = pos_fr.loc[mask[:, l, :]].dropna(axis=1)
+
+        # build mask chunk positions
+        chunk_pos = chunk.index.values
+        chunk_mask = (
+            chunk_pos[:, None] >= ons[l, :]
+        ) & (chunk_pos[:, None] <= offs[l, :])
+
+        # get mean & std of walls and landmark
+        pre_wall = chunk.loc[chunk_mask[:, 0]].dropna(axis=1)
+        pre_wall_mean = pre_wall.mean(axis=0)
+        pre_wall_std = pre_wall.std(axis=0)
+
+        landmark = chunk.loc[chunk_mask[:, 1]].dropna(axis=1)
+        landmark_mean = landmark.mean(axis=0)
+        landmark_std = landmark.std(axis=0)
+
+        post_wall = chunk.loc[chunk_mask[:, 2]].dropna(axis=1)
+        post_wall_mean = post_wall.mean(axis=0)
+        post_wall_std = post_wall.std(axis=0)
+
+        # aggregate
+        agg = pd.concat([
+            to_df(pre_wall_mean, pre_wall_std, "pre_wall"),
+            to_df(landmark_mean, landmark_std, "landmark"),
+            to_df(post_wall_mean, post_wall_std, "post_wall"),
+            ],
+            ignore_index=True,
+        )
+        agg["zone"] = pd.Categorical(
+            agg["zone"],
+            categories=["pre_wall", "landmark", "post_wall"],
+            ordered=True,
+        )
+
+        # get all starting positions
+        starts = agg.start.unique()
+
+        # create model formula
+        min_start = min(starts)
+        simple_model = (
+            "mean ~ C(zone, Treatment(reference='pre_wall'))"
+        )
+        full_model = (
+            f"""mean
+            ~ C(start, Treatment(reference={min_start}))
+            * C(zone, Treatment(reference='pre_wall'))"""
+        )
+
+        for unit_id in units:
+            unit_fit = fit_per_unit_ols(
+                df=agg,
+                formula=full_model,
+                #formula=simple_model,
+                unit_id=unit_id,
+            )
+            #print(unit_fit.summary())
+            # step 4: check contrast at each start
+            unit_contrasts = start_contrasts_ols(
+                fit=unit_fit,
+                starts=starts,
+            )
+            if (unit_contrasts.coef > 0).all()\
+            and (unit_contrasts.p_holm < ALPHA).all():
+                responsives.loc[unit_id, l] = True
+
+    return responsives
