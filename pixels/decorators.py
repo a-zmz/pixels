@@ -12,11 +12,10 @@ import pandas as pd
 from tables import HDF5ExtError
 try:
     import zarr
-    from numcodecs import Blosc, VLenUTF8
+    from numcodecs import Blosc
 except Exception:
     zarr = None
     Blosc = None
-    VLenUTF8 = None
 
 try:
     import xarray as xr
@@ -105,28 +104,15 @@ def _df_to_zarr_via_xarray(
 
     if compressor is None:
         compressor = _make_default_compressor()
+
     # compressor & object codec
     encoding = {
-        "values": {
-            "compressor": compressor,
-            "chunks": tuple(chunking.values()),
-        }
+        "values": {"compressor": compressor}
     }
-    if ds["values"].dtype == object and VLenUTF8 is not None:
-        encoding["values"]["object_codec"] = VLenUTF8()
-
-    # Ensure coords are writable (handle object/string coords)
-    # If VLenUTF8 is available, set encoding for object coords; otherwise cast
-    # to str
+    # ensure coords are writable (handle object/string coords): cast to str
     for cname, coord in ds.coords.items():
         if coord.dtype == object:
-            if VLenUTF8 is not None:
-                encoding[cname] = {
-                    "object_codec": VLenUTF8(),
-                    "compressor": compressor,
-                }
-            else:
-                ds = ds.assign_coords({cname: coord.astype(str)})
+            ds = ds.assign_coords({cname: coord.astype(str)})
 
     # Write
     if path is not None:
@@ -147,8 +133,6 @@ def _df_to_zarr_via_xarray(
             mode=mode,
             encoding=encoding,
         )
-        # consolidate requires a path; skipping here since we're inside a shared
-        # store
 
 
 def _df_from_zarr_via_xarray(
