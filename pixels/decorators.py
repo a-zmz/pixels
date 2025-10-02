@@ -368,6 +368,25 @@ def _read_zarr_generic(root_path: Path) -> Any:
     return read_from_group("")
 
 
+def _filter_reserved_kwargs(fn, reserved: dict[str, Any]) -> dict[str, Any]:
+    """
+    Return subset of `reserved` that `fn` will accept (has a parameter by that
+    name, or has **kwargs).
+    """
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):
+        return {}
+    # if method has **kwargs, pass everything
+    if any(
+        p.kind == inspect.Parameter.VAR_KEYWORD
+        for p in sig.parameters.values()
+    ):
+        return reserved
+
+    # otherwise pass only the names it declares
+    return {k: v for k, v in reserved.items() if k in sig.parameters}
+
 # -----------------------
 # Decorator with Zarr
 # -----------------------
@@ -509,8 +528,9 @@ def cacheable(
                         logging.info(f"\n> Failed to read Zarr cache ({e}); recomputing.")
 
                 # inject reserved kwargs so the method can write directly to
-                # store
-                kwargs["_zarr_out"] = zarr_path
+                # store, if the method accepts
+                reserved = {"_zarr_out": zarr_path}
+                kwargs.update(_filter_reserved_kwargs(method, reserved))
 
                 # Compute fresh
                 result = method(*args, **kwargs)
