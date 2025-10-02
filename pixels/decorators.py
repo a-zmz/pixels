@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 from functools import wraps
 from typing import Any
+import inspect
 
 import numpy as np
 import pandas as pd
@@ -516,7 +517,7 @@ def cacheable(
                     raise ImportError(
                         "cache_format='zarr' requires zarr. pip install zarr numcodecs xarray"
                     )
-                zarr_path = base.with_name(base.name + ".h5")
+                zarr_path = base.with_name(base.name + ".zarr")
                 can_read = zarr_path.exists() and inst._use_cache != "overwrite"
 
                 if can_read:
