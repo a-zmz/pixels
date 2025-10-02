@@ -2104,6 +2104,12 @@ def test_start_x_zone_interaction_ols(fit):
 
 
 def get_landmark_responsives(pos_fr, units, pos_bin):
+    """
+    use int8 to encode responsiveness:
+    0: not responsive
+    1: positively responsive
+    -1: negatively responsive
+    """
     from vision_in_darkness.constants import landmarks
 
     # get on & off of landmark and stack them
@@ -2129,7 +2135,7 @@ def get_landmark_responsives(pos_fr, units, pos_bin):
 
     lm_responsive_bool = np.zeros(
         (len(units), lms.shape[0])
-    ).astype(bool)
+    ).astype(np.int8)
     responsives = pd.DataFrame(
         lm_responsive_bool,
         index=units,
@@ -2138,7 +2144,9 @@ def get_landmark_responsives(pos_fr, units, pos_bin):
     responsives.index.name = "unit"
     responsives.columns.name = "landmark"
 
+    all_contrasts = {}
     for l in range(lms.shape[0]):
+        lm_contrasts = {}
         # get all data within each chunk
         chunk = pos_fr.loc[mask[:, l, :]].dropna(axis=1)
 
@@ -2204,6 +2212,10 @@ def get_landmark_responsives(pos_fr, units, pos_bin):
             )
             if (unit_contrasts.coef > 0).all()\
             and (unit_contrasts.p_holm < ALPHA).all():
-                responsives.loc[unit_id, l] = True
+                responsives.loc[unit_id, l] = 1
+            # negative responsive
+            if (unit_contrasts.coef < 0).all()\
+            and (unit_contrasts.p_holm < ALPHA).all():
+                responsives.loc[unit_id, l] = -1
 
     return responsives
