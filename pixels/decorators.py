@@ -42,6 +42,10 @@ def _make_default_compressor() -> Any:
 # xarray <-> DataFrame helpers
 # ---------------------------
 
+def _default_names(names: list[str | None], prefix: str) -> list[str]:
+    # Replace None level names with defaults: f"{prefix}{i}"
+    return [n if n is not None else f"{prefix}{i}" for i, n in enumerate(names)]
+
 def _df_to_zarr_via_xarray(
     df: pd.DataFrame,
     *,
