@@ -2210,6 +2210,9 @@ def get_landmark_responsives(pos_fr, units, pos_bin):
                 fit=unit_fit,
                 starts=starts,
             )
+            lm_contrasts[unit_id] = unit_contrasts
+
+            # positive responsive
             if (unit_contrasts.coef > 0).all()\
             and (unit_contrasts.p_holm < ALPHA).all():
                 responsives.loc[unit_id, l] = 1
@@ -2218,4 +2221,21 @@ def get_landmark_responsives(pos_fr, units, pos_bin):
             and (unit_contrasts.p_holm < ALPHA).all():
                 responsives.loc[unit_id, l] = -1
 
-    return responsives
+        df = pd.concat(
+            lm_contrasts,
+            axis=0,
+            names=["unit", "index"],
+        )
+        all_contrasts[l] = df.droplevel("index")
+
+    contrasts = pd.concat(
+        all_contrasts,
+        axis=0,
+        names=["landmark", "unit"],
+    )
+    contrasts.columns.name = "stat"
+    contrasts.start = contrasts.start.astype(int) 
+    # so that row index is unique
+    contrasts = contrasts.set_index(["start", "contrast"], append=True)
+
+    return {"contrasts": contrasts, "responsives": responsives}
