@@ -74,15 +74,21 @@ def _df_to_zarr_via_xarray(
     if isinstance(df.index, pd.MultiIndex):
         row_names = _default_names(list(df.index.names), row_prefix)
     else:
-        row_names = [df.index.name or f"{row_prefix}0"]
+        if not df.index.name:
+            df.index.name = f"{row_prefix}0"
+        row_names = [df.index.name]
 
     if isinstance(df.columns, pd.MultiIndex):
         col_names = _default_names(list(df.columns.names), col_prefix)
     else:
-        col_names = [df.columns.name or f"{col_prefix}0"]
+        if not df.columns.name:
+            df.columns.name = f"{col_prefix}0"
+        col_names = [df.columns.name]
 
-    # Stack ALL column levels to move them into the row index; result index levels = row_names + col_names
-    series = df.stack(col_names, future_stack=True)  # Series with MultiIndex index
+    # stack ALL column levels to move them into the row index; result index
+    # levels = row_names + col_names
+    # Series with MultiIndex index
+    series = df.stack(col_names, future_stack=True)
 
     # Build DataArray (dims are level names of the Series index, in order)
     da = xr.DataArray.from_series(series).rename("values")
