@@ -2066,14 +2066,10 @@ def start_contrasts_ols(fit, starts, use_normal=True):
                     2 * (stats.norm.sf(abs(stat)) if use_normal
                    else stats.t.sf(abs(stat), df=fit.df_resid))
                 )
-            rows.append({
-                "start": s,
-                "contrast": label,
-                "coef": est,
-                "se": se,
-                "stat": stat,
-                "p": p,
-            })
+            col_names = ["start", "contrast", "coef", "SE", "stat", "p"]
+            rows.append(
+                dict(zip(col_names, [s, label, est, se, stat, p]))
+            )
 
     out = pd.DataFrame(rows)
     if not out.empty and out["p"].notna().any():
@@ -2083,6 +2079,10 @@ def start_contrasts_ols(fit, starts, use_normal=True):
             alpha=ALPHA,
             method="holm",
         )[1]
+
+    # rename 'stat' to 'z' or 't'
+    stat_label = "z" if use_normal else "t"
+    out = out.rename(columns={"stat": stat_label})
 
     return out
 
