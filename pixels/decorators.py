@@ -23,6 +23,7 @@ except Exception:
     xr = None
 
 from pixels.configs import *
+from pixels.constants import *
 from pixels import ioutils
 from pixels.error import PixelsError
 from pixels.units import SelectedUnits
