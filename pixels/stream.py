@@ -66,11 +66,11 @@ class Stream:
         timestamps = action_labels["timestamps"]
 
         # select frames of wanted trial type
-        trials = np.where(np.bitwise_and(outcomes, label))[0]
+        trials = np.flatnonzero(outcomes & label)
         # map starts by event
-        starts = np.where(np.bitwise_and(events, event))[0]
+        starts = np.flatnonzero(events & event)
         # map starts by end event
-        ends = np.where(np.bitwise_and(events, end_event))[0]
+        ends = np.flatnonzero(events & end_event)
 
         # only take starts and ends from selected trials
         selected_starts = trials[np.isin(trials, starts)]
