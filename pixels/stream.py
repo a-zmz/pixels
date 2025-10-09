@@ -47,8 +47,8 @@ class Stream:
         return f"<Stream id = {self.stream_id}>"
 
 
-    def load_raw_ap(self):
-        paths = [self.session.find_file(path, copy=True) for path in self.files["ap_raw"]]
+    def load_raw_ap(self, copy=False):
+        paths = [self.session.find_file(path, copy=copy) for path in self.files["ap_raw"]]
         self.files["si_rec"] = xut.load_raw(paths, self.stream_id)
 
         return self.files["si_rec"]
@@ -987,7 +987,7 @@ class Stream:
 
     def preprocess_raw(self):
         # load raw ap
-        raw_rec = self.load_raw_ap()
+        raw_rec = self.load_raw_ap(copy=True)
 
         # load brain surface depths
         depth_info = file_utils.load_yaml(
@@ -1015,7 +1015,7 @@ class Stream:
             self.preprocess_raw()
             rec = self.files["preprocessed"]
         else:
-            rec = self.load_raw_ap()
+            rec = self.load_raw_ap(copy=True)
 
         if freqs == None:
             bands = freq_bands
