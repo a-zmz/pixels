@@ -85,23 +85,21 @@ class Stream:
         selected_starts = trials[np.isin(trials, starts)]
         selected_ends = trials[np.isin(trials, ends)]
 
-        # make sure trials have both starts and ends
+        # make sure trials have both starts and ends, some trials ended before
+        # the end_event, and some dark trials are not in dark at start event 
         start_ids = synched_vr.iloc[selected_starts].trial_count.unique()
         end_ids = synched_vr.iloc[selected_ends].trial_count.unique()
-        if len(start_ids) > len(end_ids):
-            selected_starts = selected_starts[np.isin(start_ids, end_ids)]
-        elif len(start_ids) < len(end_ids):
-            selected_ends = selected_ends[np.isin(end_ids, start_ids)]
-            raise PixelsError("\n> Why would we have more ends than starts?")
+        common_ids = np.intersect1d(start_ids, end_ids)
+        if len(start_ids) != len(end_ids):
+            selected_starts = selected_starts[np.isin(start_ids, common_ids)]
+            selected_ends = selected_ends[np.isin(end_ids, common_ids)]
 
         # get timestamps
         start_t = timestamps[selected_starts]
         end_t = timestamps[selected_ends]
 
         # use original trial ids as trial index
-        trial_ids = pd.Index(
-            synched_vr.iloc[selected_starts].trial_count.unique()
-        )
+        trial_ids = pd.Index(common_ids)
 
         return trials, events, selected_starts, start_t, end_t, trial_ids
 
