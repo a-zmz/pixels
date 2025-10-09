@@ -1288,19 +1288,65 @@ class Stream:
 
 
     @cacheable(cache_format="zarr")
-        pos_fr = self.get_positional_data(
-            units=units, # NOTE: ALWAYS the first arg
-            label=label,
-            event=event,
-            sigma=sigma,
-            end_event=end_event, # NOTE: ALWAYS the last arg
-        )["pos_fr"]
     def get_landmark_responsives(self, units, label, sigma, pos_bin):
 
-        output = xut.get_landmark_responsives(
-            pos_fr=pos_fr,
-            units=units[self.stream_id],
-            pos_bin=pos_bin,
-        )
+        from vision_in_darkness.constants import landmarks
+        from pixels.behaviours.virtual_reality import Events
+        # get landmark events
+        landmark_events = [
+            value for key, value in Events.__dict__.items()
+            if not (key.startswith("__") or key.startswith("_")
+                or callable(value)
+                or isinstance(value, (classmethod, staticmethod)))
+                and "landmark" in key
+        ]
+        # exclude the black wall and the last landmark
+        NUM_LANDMARKS = len(landmark_events[2:-2]) // 2
+        # get start and end events
+        end_events = landmark_events[1:-1][3::2]
 
-        return output
+        # get on & off of landmark and stack them
+        lms = landmarks[1:-2].reshape((-1, 2))
+
+        # get pre & post wall
+        wall_on = landmarks[:-1][::2] + pos_bin
+        wall_off = landmarks[:-1][1::2] - pos_bin
+        pre_walls = np.column_stack([wall_on[:-1], wall_off[:-1]])
+        post_walls = np.column_stack([wall_on[1:], wall_off[1:]])
+
+        # group pre wall, landmarks, and post wall together
+        chunks = np.stack([pre_walls, lms, post_walls], axis=1)
+
+        ons = chunks[..., 0]
+        offs = chunks[..., 1]
+
+        all_contrasts = {}
+        resps = {}
+        for l, _ in enumerate(lms):
+            pos_fr = self.get_positional_data(
+                units=units, # NOTE: ALWAYS the first arg
+                label=label,
+                sigma=sigma,
+                end_event=end_events[l], # NOTE: ALWAYS the last arg
+            )["pos_fr"]
+
+            all_contrasts[l], resps[l] = xut.get_landmark_responsives(
+                pos_fr=pos_fr,
+                units=units,
+                ons=ons[l, :],
+                offs=offs[l, :],
+            )
+
+        responsives = pd.concat(resps, axis=1, names="landmark")
+
+        contrasts = pd.concat(
+            all_contrasts,
+            axis=0,
+            names=["landmark", "unit"],
+        )
+        contrasts.columns.name = "metrics"
+        contrasts.start = contrasts.start.astype(int) 
+        # so that row index is unique
+        contrasts = contrasts.set_index(["start", "contrast"], append=True)
+
+        return {"contrasts": contrasts, "responsives": responsives}

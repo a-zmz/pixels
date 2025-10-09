@@ -2103,139 +2103,113 @@ def test_start_x_zone_interaction_ols(fit):
 # <<< landmark responsive helpers <<<
 
 
-def get_landmark_responsives(pos_fr, units, pos_bin):
+def get_landmark_responsives(pos_fr, units, ons, offs):
     """
     use int8 to encode responsiveness:
     0: not responsive
     1: positively responsive
     -1: negatively responsive
     """
-    from vision_in_darkness.constants import landmarks
-
-    # get on & off of landmark and stack them
-    lms = landmarks[1:-2].reshape((-1, 2))
-
-    # get pre & post wall
-    wall_on = landmarks[:-1][::2] + pos_bin
-    wall_off = landmarks[:-1][1::2] - pos_bin
-    pre_walls = np.column_stack([wall_on[:-1], wall_off[:-1]])
-    post_walls = np.column_stack([wall_on[1:], wall_off[1:]])
-
-    # group pre wall, landmarks, and post wall together
-    chunks = np.stack([pre_walls, lms, post_walls], axis=1)
-
-    ons = chunks[..., 0]
-    offs = chunks[..., 1]
+    units = units.flat()
 
     # get all positions
     positions = pos_fr.index.to_numpy()
     # build mask for all positions
-    mask = (positions[:, None, None] >= ons[None, :, :])\
-        & (positions[:, None, None] <= offs[None, :, :])
+    position_mask = (positions[:, None] >= ons)\
+        & (positions[:, None] <= offs)
 
-    lm_responsive_bool = np.zeros(
-        (len(units), lms.shape[0])
-    ).astype(np.int8)
-    responsives = pd.DataFrame(
+    # get pre wall and trial mask
+    pre_wall = pos_fr.loc[
+        position_mask[:, 0], :
+    ].dropna(axis=1, how="any")
+    trials_pre_wall = pre_wall.columns.get_level_values(
+        "trial"
+    ).unique()
+    trial_mask = pos_fr.columns.get_level_values(
+        "trial"
+    ).isin(trials_pre_wall)
+
+    # get mean & std of walls and landmark
+    landmark = pos_fr.loc[
+        position_mask[:, 1], trial_mask
+    ].dropna(axis=1, how="any")
+    post_wall = pos_fr.loc[
+        position_mask[:, 2], trial_mask
+    ].dropna(axis=1, how="any")
+
+    pre_wall_mean = pre_wall.mean(axis=0)
+    pre_wall_std = pre_wall.std(axis=0)
+
+    landmark_mean = landmark.mean(axis=0)
+    landmark_std = landmark.std(axis=0)
+
+    post_wall_mean = post_wall.mean(axis=0)
+    post_wall_std = post_wall.std(axis=0)
+
+    # aggregate
+    agg = pd.concat([
+        to_df(pre_wall_mean, pre_wall_std, "pre_wall"),
+        to_df(landmark_mean, landmark_std, "landmark"),
+        to_df(post_wall_mean, post_wall_std, "post_wall"),
+        ],
+        ignore_index=True,
+    )
+    agg["zone"] = pd.Categorical(
+        agg["zone"],
+        categories=["pre_wall", "landmark", "post_wall"],
+        ordered=True,
+    )
+
+    # get all starting positions
+    starts = agg.start.unique()
+
+    # create model formula
+    min_start = min(starts)
+    simple_model = (
+        "mean ~ C(zone, Treatment(reference='pre_wall'))"
+    )
+    full_model = (
+        f"""mean
+        ~ C(start, Treatment(reference={min_start!r}))
+        * C(zone, Treatment(reference='pre_wall'))"""
+    )
+
+    lm_responsive_bool = np.zeros(len(units)).astype(np.int8)
+    responsives = pd.Series(
         lm_responsive_bool,
         index=units,
-        columns=np.arange(lms.shape[0]),
     )
     responsives.index.name = "unit"
-    responsives.columns.name = "landmark"
 
-    all_contrasts = {}
-    for l in range(lms.shape[0]):
-        lm_contrasts = {}
-        # get all data within each chunk
-        chunk = pos_fr.loc[mask[:, l, :]].dropna(axis=1)
-
-        # build mask chunk positions
-        chunk_pos = chunk.index.values
-        chunk_mask = (
-            chunk_pos[:, None] >= ons[l, :]
-        ) & (chunk_pos[:, None] <= offs[l, :])
-
-        # get mean & std of walls and landmark
-        pre_wall = chunk.loc[chunk_mask[:, 0]].dropna(axis=1)
-        pre_wall_mean = pre_wall.mean(axis=0)
-        pre_wall_std = pre_wall.std(axis=0)
-
-        landmark = chunk.loc[chunk_mask[:, 1]].dropna(axis=1)
-        landmark_mean = landmark.mean(axis=0)
-        landmark_std = landmark.std(axis=0)
-
-        post_wall = chunk.loc[chunk_mask[:, 2]].dropna(axis=1)
-        post_wall_mean = post_wall.mean(axis=0)
-        post_wall_std = post_wall.std(axis=0)
-
-        # aggregate
-        agg = pd.concat([
-            to_df(pre_wall_mean, pre_wall_std, "pre_wall"),
-            to_df(landmark_mean, landmark_std, "landmark"),
-            to_df(post_wall_mean, post_wall_std, "post_wall"),
-            ],
-            ignore_index=True,
+    lm_contrasts = {}
+    for unit_id in units:
+        unit_fit = fit_per_unit_ols(
+            df=agg,
+            formula=full_model,
+            #formula=simple_model,
+            unit_id=unit_id,
         )
-        agg["zone"] = pd.Categorical(
-            agg["zone"],
-            categories=["pre_wall", "landmark", "post_wall"],
-            ordered=True,
+        #print(unit_fit.summary())
+        # step 4: check contrast at each start
+        unit_contrasts = start_contrasts_ols(
+            fit=unit_fit,
+            starts=starts,
         )
+        lm_contrasts[unit_id] = unit_contrasts
 
-        # get all starting positions
-        starts = agg.start.unique()
-
-        # create model formula
-        min_start = min(starts)
-        simple_model = (
-            "mean ~ C(zone, Treatment(reference='pre_wall'))"
-        )
-        full_model = (
-            f"""mean
-            ~ C(start, Treatment(reference={min_start}))
-            * C(zone, Treatment(reference='pre_wall'))"""
-        )
-
-        for unit_id in units:
-            unit_fit = fit_per_unit_ols(
-                df=agg,
-                formula=full_model,
-                #formula=simple_model,
-                unit_id=unit_id,
-            )
-            #print(unit_fit.summary())
-            # step 4: check contrast at each start
-            unit_contrasts = start_contrasts_ols(
-                fit=unit_fit,
-                starts=starts,
-            )
-            lm_contrasts[unit_id] = unit_contrasts
-
-            # positive responsive
-            if (unit_contrasts.coef > 0).all()\
-            and (unit_contrasts.p_holm < ALPHA).all():
-                responsives.loc[unit_id, l] = 1
-            # negative responsive
-            if (unit_contrasts.coef < 0).all()\
-            and (unit_contrasts.p_holm < ALPHA).all():
-                responsives.loc[unit_id, l] = -1
-
-        df = pd.concat(
-            lm_contrasts,
-            axis=0,
-            names=["unit", "index"],
-        )
-        all_contrasts[l] = df.droplevel("index")
+        # positive responsive
+        if (unit_contrasts.coef > 0).all()\
+        and (unit_contrasts.p_holm < ALPHA).all():
+            responsives.loc[unit_id] = 1
+        # negative responsive
+        if (unit_contrasts.coef < 0).all()\
+        and (unit_contrasts.p_holm < ALPHA).all():
+            responsives.loc[unit_id] = -1
 
     contrasts = pd.concat(
-        all_contrasts,
+        lm_contrasts,
         axis=0,
-        names=["landmark", "unit"],
-    )
-    contrasts.columns.name = "stat"
-    contrasts.start = contrasts.start.astype(int) 
-    # so that row index is unique
-    contrasts = contrasts.set_index(["start", "contrast"], append=True)
+        names=["unit", "index"],
+    ).droplevel("index")
 
-    return {"contrasts": contrasts, "responsives": responsives}
+    return contrasts, responsives
