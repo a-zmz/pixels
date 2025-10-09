@@ -1303,6 +1303,7 @@ class Stream:
         # exclude the black wall and the last landmark
         NUM_LANDMARKS = len(landmark_events[2:-2]) // 2
         # get start and end events
+        start_events = landmark_events[1:-1][0::2][:-1]
         end_events = landmark_events[1:-1][3::2]
 
         # get on & off of landmark and stack them
@@ -1326,6 +1327,7 @@ class Stream:
             pos_fr = self.get_positional_data(
                 units=units, # NOTE: ALWAYS the first arg
                 label=label,
+                event=start_events[l],
                 sigma=sigma,
                 end_event=end_events[l], # NOTE: ALWAYS the last arg
             )["pos_fr"]
