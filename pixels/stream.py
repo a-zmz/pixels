@@ -72,6 +72,15 @@ class Stream:
         # map starts by end event
         ends = np.flatnonzero(events & end_event)
 
+        if ("dark" in label.name) and ("landmark" in event.name):
+            # get dark onset and offset edges
+            dark_on = ((events & event.dark_on) != 0).astype(np.int8)
+            dark_off = ((events & event.dark_off) != 0).astype(np.int8)
+            # make in dark boolean
+            in_dark = np.cumsum(dark_on - dark_off) > 0
+            # get starts only when also in dark
+            starts = np.flatnonzero(((events & event) != 0) & in_dark)
+
         # only take starts and ends from selected trials
         selected_starts = trials[np.isin(trials, starts)]
         selected_ends = trials[np.isin(trials, ends)]
