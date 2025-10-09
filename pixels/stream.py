@@ -164,6 +164,8 @@ class Stream:
         positions.columns = cols_with_starts
         positions = positions.sort_index(axis=1, ascending=[False, True])
         positions.index.name = "time"
+        # drop trials with all nan
+        positions = positions.dropna(axis=1, how="all")
 
         return positions
 
