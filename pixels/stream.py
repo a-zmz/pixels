@@ -1281,9 +1281,6 @@ class Stream:
 
 
     @cacheable(cache_format="zarr")
-    def get_landmark_responsives(
-        self, units, label, event, sigma, end_event, pos_bin,
-    ):
         pos_fr = self.get_positional_data(
             units=units, # NOTE: ALWAYS the first arg
             label=label,
@@ -1291,6 +1288,7 @@ class Stream:
             sigma=sigma,
             end_event=end_event, # NOTE: ALWAYS the last arg
         )["pos_fr"]
+    def get_landmark_responsives(self, units, label, sigma, pos_bin):
 
         output = xut.get_landmark_responsives(
             pos_fr=pos_fr,

@@ -2722,8 +2722,7 @@ class Behaviour(ABC):
 
 
     def get_landmark_responsives(
-        self, label, event, end_event=None, sigma=None, units=None,
-        pos_bin=None,
+        self, label, sigma=None, units=None, pos_bin=None,
     ):
         output = {}
         streams = self.files["pixels"]
@@ -2742,9 +2741,7 @@ class Behaviour(ABC):
             output[stream_id] = stream.get_landmark_responsives(
                 units=units,
                 label=label,
-                event=event,
                 sigma=sigma,
-                end_event=end_event,
                 pos_bin=pos_bin,
             )
 
