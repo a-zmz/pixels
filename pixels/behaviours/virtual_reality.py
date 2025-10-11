@@ -93,25 +93,37 @@ class Events(IntFlag):
     # positional events
     pre_dark_end = auto()# 50 cm
 
-    # TODO jun 4 2025:
-    # how to mark wall?
-    wall = auto()# in between landmarks
-
     # black wall
     landmark0_on = auto()# wherever trial starts, before 60cm
     landmark0_off = auto()# 60 cm
 
+    # NOTE: wall between landmarks always remove 10cm adjacent
+    wall1_on = auto()# 70cm
+    wall1_off = auto()# 100cm
+
     landmark1_on = auto()# 110 cm
     landmark1_off = auto()# 130 cm
+
+    wall2_on = auto()# 140cm
+    wall2_off = auto()# 180cm
 
     landmark2_on = auto()# 190 cm
     landmark2_off = auto()# 210 cm
 
+    wall3_on = auto()# 220cm
+    wall3_off = auto()# 260cm
+
     landmark3_on = auto()# 270 cm
     landmark3_off = auto()# 290 cm
 
+    wall4_on = auto()# 300cm
+    wall4_off = auto()# 340cm
+
     landmark4_on = auto()# 350 cm
     landmark4_off = auto()# 370 cm
+
+    wall5_on = auto()# 380cm
+    wall5_off = auto()# 420cm
 
     landmark5_on = auto()# 430 cm
     landmark5_off = auto()# 450 cm
@@ -438,8 +450,10 @@ class VR(Behaviour):
         masks[Events.landmark0_off] = landmark0_off
         # <<< landmark 0 black wall <<<
 
-        # >>> landmarks 1 to 5 >>>
+        # >>> landmarks and wall 1 to 5 >>>
         landmarks = session.landmarks[1:]
+        # get walls, excluding adjacent 10cm to landmark
+        walls = session.mid_walls
 
         for l, landmark in enumerate(landmarks):
             if l % 2 != 0:

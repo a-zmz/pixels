@@ -1290,7 +1290,7 @@ class Stream:
 
 
     @cacheable(cache_format="zarr")
-    def get_landmark_responsives(self, units, label, sigma, pos_bin):
+    def get_landmark_responsives(self, units, label, sigma):
 
         from vision_in_darkness.constants import landmarks
         from pixels.behaviours.virtual_reality import Events
@@ -1312,8 +1312,6 @@ class Stream:
         lms = landmarks[1:-2].reshape((-1, 2))
 
         # get pre & post wall
-        wall_on = landmarks[:-1][::2] + pos_bin
-        wall_off = landmarks[:-1][1::2] - pos_bin
         pre_walls = np.column_stack([wall_on[:-1], wall_off[:-1]])
         post_walls = np.column_stack([wall_on[1:], wall_off[1:]])
 
