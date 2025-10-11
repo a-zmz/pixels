@@ -1295,28 +1295,27 @@ class Stream:
     @cacheable(cache_format="zarr")
     def get_landmark_responsives(self, units, label, sigma):
 
-        from vision_in_darkness.constants import landmarks
+        from vision_in_darkness.constants import landmarks, mid_walls
         from pixels.behaviours.virtual_reality import Events
-        # get landmark events
-        landmark_events = [
+
+        wall_events = np.array([
             value for key, value in Events.__dict__.items()
             if not (key.startswith("__") or key.startswith("_")
                 or callable(value)
                 or isinstance(value, (classmethod, staticmethod)))
-                and "landmark" in key
-        ]
-        # exclude the black wall and the last landmark
-        NUM_LANDMARKS = len(landmark_events[2:-2]) // 2
-        # get start and end events
-        start_events = landmark_events[1:-1][0::2][:-1]
-        end_events = landmark_events[1:-1][3::2]
+                and "wall" in key],
+            dtype=object,
+        ).reshape(-1, 2)
 
-        # get on & off of landmark and stack them
+        # get start and end events, excluding the last landmark
+        start_events = wall_events[:, 0][:-1]
+        end_events = wall_events[:, 1][1:]
+
+        # get on & off of landmark and walls and stack them
         lms = landmarks[1:-2].reshape((-1, 2))
-
-        # get pre & post wall
-        pre_walls = np.column_stack([wall_on[:-1], wall_off[:-1]])
-        post_walls = np.column_stack([wall_on[1:], wall_off[1:]])
+        walls = mid_walls.reshape((-1, 2))
+        pre_walls = walls[:-1, :]
+        post_walls = walls[1:, :]
 
         # group pre wall, landmarks, and post wall together
         chunks = np.stack([pre_walls, lms, post_walls], axis=1)
