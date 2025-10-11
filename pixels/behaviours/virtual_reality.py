@@ -465,40 +465,75 @@ class VR(Behaviour):
 
             landmark_idx = l // 2 + 1
 
+            # NOTE: both landmark and wall boolean use < not <= because
+            # in our vr data we only get the exact value (e.g., 140.0) at
+            # starting position.
             # even idx on, odd idx off
             on_landmark = landmark
-            off_landmark = landmarks[l + 1]
-
-            in_landmark = (
+            on_landmarks = (
                 (df.position_in_tunnel >= on_landmark) &
-                (df.position_in_tunnel <= off_landmark)
+                (df.position_in_tunnel < on_landmark + 1)
             )
-
-            landmark_on = df[in_landmark].groupby("trial_count").apply(
+            landmark_on = df[on_landmarks].groupby("trial_count").apply(
                 self._first_index
             )
-            landmark_off = df[in_landmark].groupby("trial_count").apply(
+
+            off_landmark = landmarks[l + 1]
+            off_landmarks = (
+                (df.position_in_tunnel > off_landmark - 1) &
+                (df.position_in_tunnel < off_landmark)
+            )
+            landmark_off = df[off_landmarks].groupby("trial_count").apply(
+                self._last_index
+            )
+            masks[getattr(Events, f"landmark{landmark_idx}_on")] = landmark_on
+            masks[getattr(Events, f"landmark{landmark_idx}_off")] = landmark_off
+
+            # even idx on, odd idx off
+            on_wall = walls[l]
+            on_walls = (
+                (df.position_in_tunnel >= on_wall) &
+                (df.position_in_tunnel < on_wall + 1)
+            )
+            wall_on = df[on_walls].groupby("trial_count").apply(
+                self._first_index
+            )
+
+            off_wall = walls[l + 1]
+            off_walls = (
+                (df.position_in_tunnel > off_wall - 1) &
+                (df.position_in_tunnel < off_wall)
+            )
+            wall_off = df[off_walls].groupby("trial_count").apply(
                 self._last_index
             )
 
-            masks[getattr(Events, f"landmark{landmark_idx}_on")] = landmark_on
-            masks[getattr(Events, f"landmark{landmark_idx}_off")] = landmark_off
-        # <<< landmarks 1 to 5 <<<
+            masks[getattr(Events, f"wall{landmark_idx}_on")] = wall_on
+            masks[getattr(Events, f"wall{landmark_idx}_off")] = wall_off
+        # <<< landmarks and wall 1 to 5 <<<
 
         # >>> reward zone >>>
-        in_zone = (
+        zone_ons = (
             df.position_in_tunnel >= session.reward_zone_start
         ) & (
-            df.position_in_tunnel <= session.reward_zone_end
+            df.position_in_tunnel < session.reward_zone_start + 1
         )
-        in_zone_trials = df[in_zone].groupby("trial_count")
-
         # first frame in reward zone
-        zone_on_t = in_zone_trials.apply(self._first_index)
-        masks[Events.reward_zone_on] = zone_on_t
+        zone_on_t = df[zone_ons].groupby("trial_count").apply(
+            self._first_index
+        )
 
+        zone_offs = (
+            df.position_in_tunnel > session.reward_zone_end - 1
+        ) & (
+            df.position_in_tunnel < session.reward_zone_end
+        )
         # last frame in reward zone
-        zone_off_t = in_zone_trials.apply(self._last_index)
+        zone_off_t = df[zone_offs].groupby("trial_count").apply(
+            self._last_index
+        )
+
+        masks[Events.reward_zone_on] = zone_on_t
         masks[Events.reward_zone_off] = zone_off_t
         # <<< reward zone <<<
 
