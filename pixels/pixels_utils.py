@@ -2119,23 +2119,16 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
         & (positions[:, None] <= offs)
 
     # get pre wall and trial mask
-    pre_wall = pos_fr.loc[
-        position_mask[:, 0], :
-    ].dropna(axis=1, how="any")
+    pre_wall = pos_fr.loc[position_mask[:, 0], :]
     trials_pre_wall = pre_wall.columns.get_level_values(
         "trial"
     ).unique()
-    trial_mask = pos_fr.columns.get_level_values(
-        "trial"
-    ).isin(trials_pre_wall)
 
     # get mean & std of walls and landmark
-    landmark = pos_fr.loc[
-        position_mask[:, 1], trial_mask
-    ].dropna(axis=1, how="any")
-    post_wall = pos_fr.loc[
-        position_mask[:, 2], trial_mask
-    ].dropna(axis=1, how="any")
+    landmark = pos_fr.loc[position_mask[:, 1], :]
+    assert (landmark.columns.get_level_values("trial").unique() ==\
+        trials_pre_wall).all()
+    post_wall = pos_fr.loc[position_mask[:, 2], :]
 
     pre_wall_mean = pre_wall.mean(axis=0)
     pre_wall_std = pre_wall.std(axis=0)
