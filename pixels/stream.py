@@ -48,7 +48,10 @@ class Stream:
 
 
     def load_raw_ap(self, copy=False):
-        paths = [self.session.find_file(path, copy=copy) for path in self.files["ap_raw"]]
+        paths = [
+            self.session.find_file(path, copy=copy)
+            for path in self.files["ap_raw"]
+        ]
         self.files["si_rec"] = xut.load_raw(paths, self.stream_id)
 
         return self.files["si_rec"]
