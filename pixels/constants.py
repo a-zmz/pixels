@@ -30,3 +30,7 @@ SMALL_CHUNKS = 64
 BIG_CHUNKS = 1024
 
 ALPHA = 0.05
+
+# position bin sizes
+POSITION_BIN = 1 # cm
+BIG_POSITION_BIN = 10 # cm
