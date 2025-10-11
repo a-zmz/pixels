@@ -2116,7 +2116,7 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
     positions = pos_fr.index.to_numpy()
     # build mask for all positions
     position_mask = (positions[:, None] >= ons)\
-        & (positions[:, None] <= offs)
+        & (positions[:, None] < offs)
 
     # get pre wall and trial mask
     pre_wall = pos_fr.loc[position_mask[:, 0], :]
