@@ -1312,6 +1312,7 @@ class Stream:
         end_events = wall_events[:, 1][1:]
 
         # get on & off of landmark and walls and stack them
+        landmark_names = np.arange(1, len(start_events)+1)
         lms = landmarks[1:-2].reshape((-1, 2))
         walls = mid_walls.reshape((-1, 2))
         pre_walls = walls[:-1, :]
@@ -1334,7 +1335,8 @@ class Stream:
                 end_event=end_events[l], # NOTE: ALWAYS the last arg
             )["pos_fr"]
 
-            all_contrasts[l], resps[l] = xut.get_landmark_responsives(
+            lm = landmark_names[l]
+            all_contrasts[lm], resps[lm] = xut.get_landmark_responsives(
                 pos_fr=pos_fr,
                 units=units,
                 ons=ons[l, :],
