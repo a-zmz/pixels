@@ -213,7 +213,7 @@ class VR(Behaviour):
         world_index_based_events = self._world_event_indices(data)
         for event, idx in world_index_based_events.items():
             mask = self._get_index(data, idx.to_numpy())
-            self._stamp_mask(events_arr, mask, event)
+            self._stamp_mask(events_arr, mask, np.uint64(event.value))
 
         # get dark onset times for pre_dark_len labels
         dark_on_t = world_index_based_events[Events.dark_on]
@@ -226,10 +226,14 @@ class VR(Behaviour):
         )
         for event, idx in pos_based_events.items():
             mask = self._get_index(data, idx.to_numpy())
-            self._stamp_mask(events_arr, mask, event)
+            self._stamp_mask(events_arr, mask, np.uint64(event.value))
 
         # sensors: lick rising‐edge
-        self._stamp_rising(events_arr, data.lick_detect.values, Events.licked)
+        self._stamp_rising(
+            events_arr,
+            data.lick_detect.values,
+            np.uint64(Events.licked),
+        )
 
         # map trial outcomes
         outcome_map = self._build_outcome_map()
@@ -249,7 +253,7 @@ class VR(Behaviour):
             if len(valve_events) > 0:
                 for v_event, v_idx in valve_events.items():
                     valve_mask = self._get_index(data, v_idx)
-                    self._stamp_mask(events_arr, valve_mask, v_event)
+                    self._stamp_mask(events_arr, valve_mask, np.uint64(v_event))
 
         # return typed arrays
         return LabeledEvents(
