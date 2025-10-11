@@ -661,16 +661,11 @@ class Stream:
         else:
             self._sync_vr(vr_session)
 
+        """
         return None
 
 
     def _sync_vr(self, vr_session):
-        # get spike data
-        spike_data = self.session.find_file(
-            name=self.files["ap_raw"][self.stream_num],
-            copy=True,
-        )
-
         # get synchronised vr path
         synched_vr_path = vr_session.cache_dir + "synched/" +\
                     vr_session.name + "_vr_synched.h5"
@@ -679,6 +674,12 @@ class Stream:
             synched_vr = file_utils.read_hdf5(synched_vr_path)
             logging.info("\n> synchronised vr loaded")
         except:
+            # get spike data
+            spike_data = self.session.find_file(
+                name=self.files["ap_raw"][self.stream_num],
+                copy=True,
+            )
+
             # get sync pulses
             sync_map = ioutils.read_bin(spike_data, 385, 384)
             syncs = signal.binarise(sync_map)
