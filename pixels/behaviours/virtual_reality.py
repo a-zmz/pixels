@@ -145,8 +145,8 @@ class Events(IntFlag):
 class LabeledEvents(NamedTuple):
     """Return type: timestamps + bitfields for outcome & events."""
     timestamps: np.ndarray # shape (N,)
-    outcome: np.ndarray # shape (N,) dtype uint32
-    events: np.ndarray # shape (N,) dtype uint32
+    outcome: np.ndarray # shape (N,) dtype uint64
+    events: np.ndarray # shape (N,) dtype uint64
 
 
 class WorldMasks(NamedTuple):
@@ -206,8 +206,8 @@ class VR(Behaviour):
            at i
         """
         N = len(data)
-        events_arr = np.zeros(N, dtype=np.uint32)
-        outcomes_arr = np.zeros(N, dtype=np.uint32)
+        events_arr = np.zeros(N, dtype=np.uint64)
+        outcomes_arr = np.zeros(N, dtype=np.uint64)
 
         # world index based events
         world_index_based_events = self._world_event_indices(data)
