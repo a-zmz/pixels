@@ -659,7 +659,6 @@ class Stream:
         else:
             self._sync_vr(vr_session)
 
-        """
         return None
 
 
