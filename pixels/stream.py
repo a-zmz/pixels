@@ -75,7 +75,8 @@ class Stream:
         # map starts by end event
         ends = np.flatnonzero(events & end_event)
 
-        if ("dark" in label.name) and ("landmark" in event.name):
+        if ("dark" in label.name) and\
+            any(name in event.name for name in ["landmark" or "wall"]):
             # get dark onset and offset edges
             dark_on = ((events & event.dark_on) != 0).astype(np.int8)
             dark_off = ((events & event.dark_off) != 0).astype(np.int8)
