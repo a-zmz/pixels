@@ -176,6 +176,10 @@ def get_data_files(data_dir, session_name):
         pixels[stream_id]["noisy_units"] = base_name.with_name(
                 f"{session_name}_{probe_id}_noisy_units.yaml"
         )
+        # mergeable units in curated units
+        pixels[stream_id]["mergeable_units"] = base_name.with_name(
+                f"{session_name}_{probe_id}_mergeable_units.yaml"
+        )
 
         # old catgt data
         pixels[stream_id]["CatGT_ap_data"].append(
