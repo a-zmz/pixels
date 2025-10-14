@@ -18,9 +18,9 @@ logging.basicConfig(
 
 # set si job_kwargs
 job_kwargs = dict(
-    #pool_engine="thread", # instead of default "process"
-    pool_engine="process",
-    mp_context="fork", # linux, but does not work still on 2025 aug 12
+    pool_engine="thread", # instead of default "process"
+    #pool_engine="process",# does not work on 2025 oct 14
+    mp_context="fork", # linux
     #mp_context="spawn", # mac & win
     progress_bar=True,
     n_jobs=0.8,
