@@ -2182,8 +2182,7 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
             #formula=simple_model,
             unit_id=unit_id,
         )
-        #print(unit_fit.summary())
-        # step 4: check contrast at each start
+        # check contrast at each start
         unit_contrasts = start_contrasts_ols(
             fit=unit_fit,
             starts=starts,
