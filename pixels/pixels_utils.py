@@ -2189,14 +2189,20 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
         )
         lm_contrasts[unit_id] = unit_contrasts
 
-        # positive responsive
-        if (unit_contrasts.coef > 0).all()\
-        and (unit_contrasts.p_holm < ALPHA).all():
-            responsives.loc[unit_id] = 1
-        # negative responsive
-        if (unit_contrasts.coef < 0).all()\
-        and (unit_contrasts.p_holm < ALPHA).all():
-            responsives.loc[unit_id] = -1
+        if len(starts) < 2:
+            logging.info(
+                f"\n> Skip testing this landmark cuz only start {starts[0]} "
+                "covers it."
+            )
+        else:
+            # positive responsive
+            if (unit_contrasts.coef > 0).all()\
+            and (unit_contrasts.p_holm < ALPHA).all():
+                responsives.loc[unit_id] = 1
+            # negative responsive
+            if (unit_contrasts.coef < 0).all()\
+            and (unit_contrasts.p_holm < ALPHA).all():
+                responsives.loc[unit_id] = -1
 
     contrasts = pd.concat(
         lm_contrasts,
