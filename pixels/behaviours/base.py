@@ -1507,9 +1507,17 @@ class Behaviour(ABC):
 
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
-            sa_dir = self.find_file(stream_files["sorting_analyser"])
+            # find sorting analyser, use merged if there is one
+            merged_sa_dir = self.find_file(
+                stream_files["merged_sorting_analyser"]
+            )
+            if merged_sa_dir:
+                sa_dir = merged_sa_dir
+            else:
+                sa_dir = self.find_file(stream_files["sorting_analyser"])
             # load sorting analyser
             temp_sa = si.load_sorting_analyzer(sa_dir)
+
             # select units
             sorting = temp_sa.sorting.select_units(units)
             sa = temp_sa.select_units(units)
@@ -1631,15 +1639,16 @@ class Behaviour(ABC):
 
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
-            sa_dir = self.find_file(stream_files["sorting_analyser"])
-            # load sorting analyser, load merged if there is one
-            merged_dir = sa_dir.parent / "merged"
-            if merged_dir.exists():
-                sa_dir = merged_dir / "merged_sa.zarr"
-                temp_sa = si.load(sa_dir)
+            # find sorting analyser, use merged if there is one
+            merged_sa_dir = self.find_file(
+                stream_files["merged_sorting_analyser"]
+            )
+            if merged_sa_dir:
+                sa_dir = merged_sa_dir
             else:
-                temp_sa = si.load(sa_dir)
-
+                sa_dir = self.find_file(stream_files["sorting_analyser"])
+            # load sorting analyser
+            temp_sa = si.load_sorting_analyzer(sa_dir)
             # NOTE: si.load gives warning when using temp_wh.dat to build
             # sorting analyser, and to load sa it will be loading binary
             # recording obj, and that checks version
