@@ -366,39 +366,6 @@ class Stream:
         )
         output["positions"] = positions
 
-        if units.name == "all" and (label.name == "light" or "dark"):
-            self.get_spike_chance(
-                #stream_files=stream_files,
-                spiked=stacked_spiked,
-                sigma=sigma,
-            )
-        #else:
-        #    # access chance data if we only need part of the units
-        #    self.get_spike_chance(
-        #        sample_rate=self.SAMPLE_RATE,
-        #        positions=all_pos,
-        #        sigma=sigma,
-        #    )
-        #    assert 0
-
-        # get trials horizontally stacked spiked
-        #spiked = ioutils.reindex_by_longest(
-        #    dfs=stacked_spiked,
-        #    level="trial",
-        #    return_format="dataframe",
-        #)
-        #fr = ioutils.reindex_by_longest(
-        #    dfs=trials_fr,
-        #    level="trial",
-        #    idx_names=["trial", "time"],
-        #    col_names=["unit"],
-        #    return_format="dataframe",
-        #)
-
-        #output["spiked"] = spiked
-        #output["fr"] = fr
-        #output["positions"] = positions
-
         return output
 
 
@@ -557,24 +524,6 @@ class Stream:
         )
         stacked_spiked.index.names = ["trial", "time"]
         stacked_spiked.columns.names = ["unit"]
-
-        # TODO apr 21 2025:
-        # save spike chance only if all units are selected, else
-        # only index into the big chance array and save into zarr
-        #if units.name == "all" and (label == 725 or 1322):
-        #    self.save_spike_chance(
-        #        stream_files=stream_files,
-        #        spiked=stacked_spiked,
-        #        sigma=sigma,
-        #    )
-        #else:
-        #    # access chance data if we only need part of the units
-        #    self.get_spike_chance(
-        #        sample_rate=self.SAMPLE_RATE,
-        #        positions=all_pos,
-        #        sigma=sigma,
-        #    )
-        #    assert 0
 
         # get trials horizontally stacked spiked
         spiked = ioutils.reindex_by_longest(
