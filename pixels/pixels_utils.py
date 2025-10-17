@@ -664,9 +664,17 @@ def _curate_sorting(sorting, recording, output):
     qms_rule = "snr > 1.1 & rp_contamination < 0.2 & amplitude_median <= -40\
             & presence_ratio > 0.9"
     good_qms = qms.query(qms_rule)
+    logging.info(
+        "> quality metrics check removed "
+        f"{np.setdiff1d(sa.unit_ids, good_qms.index.values)}."
+    )
     # TODO nov 26 2024
     # wait till noise cutoff implemented and include that.
     # also see why sliding rp violation gives loads nan.
+    logging.info(
+        "> Template metrics check removed "
+        f"{np.setdiff1d(sa.unit_ids, good_tms.index.values)}."
+    )
     # get unit ids
     curated_unit_ids = list(good_qms.index)
     # select curated
