@@ -370,6 +370,17 @@ class Stream:
 
 
     def _get_aligned_events(self, label, event, units=None, sigma=None):
+        # TODO oct 17 2025:
+        # use _get_vr_spikes??
+        # get spikes and firing rate
+        _, output = self._get_vr_spikes(
+            units,
+            label,
+            event,
+            sigma,
+            end_event,
+        )
+
         # get synched pixels stream with vr and action labels
         synched_vr, action_labels = self.get_synched_vr()
 
