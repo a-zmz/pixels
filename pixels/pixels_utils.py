@@ -671,12 +671,41 @@ def _curate_sorting(sorting, recording, output):
     # TODO nov 26 2024
     # wait till noise cutoff implemented and include that.
     # also see why sliding rp violation gives loads nan.
+
+    # calculate template metrics
+    tms = spost.compute_template_metrics(
+        sa,
+        include_multi_channel_metrics=True,
+    )
+    # remove noise based on waveform
+    tms_rule = "num_positive_peaks <= 2 & num_negative_peaks == 1 &\
+    exp_decay > 0.01 & exp_decay < 0.1" # bombcell
+    #peak_to_valley > 0.00018 &\
+    good_tms = tms.query(tms_rule)
     logging.info(
         "> Template metrics check removed "
         f"{np.setdiff1d(sa.unit_ids, good_tms.index.values)}."
     )
+
+    # get good units that passed quality metrics & template metrics
+    good_units = np.intersect1d(good_qms.index.values, good_tms.index.values)
+    good_unit_mask = np.isin(sa.unit_ids, good_units)
+
+    # get template of each unit on its max channel
+    templates = sa.load_extension("templates").get_data()
+    unit_idx = sa.sorting.ids_to_indices(good_units)
+    max_chan_templates = templates[unit_idx, :, max_chan_idx[good_unit_mask]]
+
+    # filter non somatic units by waveform analysis
+    soma_mask = filter_non_somatics(
+        sa.unit_ids,
+        max_chan_templates,
+        sa.sampling_frequency,
+    )
+    soma_units = good_units[soma_mask] 
+
     # get unit ids
-    curated_unit_ids = list(good_qms.index)
+    curated_unit_ids = np.intersect1d(good_units, soma_units)
     # select curated
     curated_sorting = sa.sorting.select_units(curated_unit_ids)
     curated_sa = sa.select_units(curated_unit_ids)
