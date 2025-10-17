@@ -616,13 +616,13 @@ class Stream:
         units = units[self.stream_id]
 
         # find sorting analyser, use merged if there is one
-        merged_sa_dir = self.find_file(
-            stream_files["merged_sorting_analyser"]
+        merged_sa_path = self.session.find_file(
+            self.files["merged_sorting_analyser"]
         )
-        if merged_sa_dir:
-            sa_dir = merged_sa_dir
+        if merged_sa_path:
+            sa_path = merged_sa_path
         else:
-            sa_dir = self.find_file(stream_files["sorting_analyser"])
+            sa_path = self.session.find_file(self.files["sorting_analyser"])
         # load sorting analyser
         temp_sa = si.load_sorting_analyzer(sa_path)
         # select units
