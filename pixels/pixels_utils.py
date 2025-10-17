@@ -2249,3 +2249,103 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
     ).droplevel("index")
 
     return contrasts, responsives
+
+
+def filter_non_somatics(unit_ids, templates, sampling_freq):
+    # NOTE: no need to worry about multi-positive-peak templates, cuz we already
+    # threw them out
+    from scipy.signal import find_peaks
+
+    # True means yes somatic, False mean non somatic
+    mask = np.zeros(len(templates), dtype=bool)
+
+    # bombcell non somatic criteria
+    max_repo_peak_to_trough_ratio = 0.8
+
+    # height ratio to trough
+    heigh_ratio_to_trough = 0.15 #0.2
+    # minimum width of the peak for detection
+    min_width = 0
+
+    ## minimum width of depo peak for filtering
+    #peak_width_ms = 0.1 # 0.07
+    #min_depo_peak_width = int(peak_width_ms / 1000 * sampling_freq)
+
+    # NOTE: since our data is high-pass filtered, the very transient peak before
+    # could be caused by that, its width does not tell us whether it is a
+    # somatic unit or not. DO NOT RELY ON PRE TROUGH PEAK TO DECIDE SOMATIC!
+    # so there are two ways to do this:
+    # 1. set the detection minimum to min_depo_peak_width like in
+    # spikeinterface, so that we just ignore those transient peaks and consider
+    # it as high-pass-filter artefact, has no weight in somatic decision;
+    # 2. using a very low threshold during detection like what we do here, and
+    # check the height ratio of the peak, if it exceeds our maximum, still
+    # consider it as non somatic, even if it is very transient.
+
+    # maximum depo peak to repo peak ratio
+    max_depo_peak_to_repo_peak_ratio = 1.5
+    # maximum depo peak to trough ratio
+    max_depo_peak_to_trough_ratio = 0.5
+
+    for t, template in enumerate(templates):
+        # get absolute maximum
+        template_max = np.max(np.abs(template))
+        # minimum prominence of the peak
+        prominence = heigh_ratio_to_trough * template_max
+        # get trough index
+        trough_idx = np.argmin(template)
+        trough_height = np.abs(template)[trough_idx]
+
+        # get positive peaks
+        peak_idx, peak_properties = find_peaks(
+            x=template,
+            prominence=prominence,
+            width=min_width,
+        )
+
+        assert len(peak_idx) <= 2, "why are there more than 2 peaks?"
+
+        if not len(peak_idx) == 0:
+            # maximum positive peak is not larger than 80% of trough
+            if not np.abs(template[peak_idx][-1])\
+                    / trough_height < max_repo_peak_to_trough_ratio:
+                print(
+                    f"> {unit_ids[t]} has positive peak larger than 80% trough"
+                )
+                continue
+
+        if len(peak_idx) > 1:
+            # if both peaks before or after trough, consider non somatic
+            if (peak_idx > trough_idx).all()\
+                or (peak_idx < trough_idx).all():
+                print(f"> {unit_ids[t]} both peaks on one side")
+                continue
+
+            # check compare bases 
+            # if pre depolarisation peak
+            assert peak_properties["right_bases"][0] == trough_idx
+            # if post repolarisation peak
+            assert peak_properties["left_bases"][1] == trough_idx
+
+            peak_heights = template[peak_idx]
+
+            # check depo peak height is 
+            if not peak_heights[0] / trough_height\
+                    < max_depo_peak_to_trough_ratio:
+                print(f"> {unit_ids[t]} depo peak is half the size of trough")
+                continue
+
+            # check height ratio of peaks, make sure the depolarisation peak is
+            # NOT much bigger than repolarisation peak
+            if not peak_heights[0] / peak_heights[1]\
+                    < max_depo_peak_to_repo_peak_ratio:
+                print(
+                    f"> {unit_ids[t]} depo peak is 1.5 times larger than "
+                    "the repo"
+                )
+                continue
+
+        # yes somatic if no positive peaks or pass all checks
+        mask[t] = True
+
+    return mask
