@@ -1647,6 +1647,7 @@ class Behaviour(ABC):
                 sa_dir = merged_sa_dir
             else:
                 sa_dir = self.find_file(stream_files["sorting_analyser"])
+
             # load sorting analyser
             temp_sa = si.load_sorting_analyzer(sa_dir)
             # NOTE: si.load gives warning when using temp_wh.dat to build
@@ -1827,6 +1828,16 @@ class Behaviour(ABC):
                 sigma=sigma,
                 end_event=end_event,
             )
+
+            if units.name == "all" and event.name == "trial_start"\
+                and end_event.name == "trial_end":
+                stream.get_spike_chance(
+                    units=units,
+                    label=label,
+                    event=event,
+                    sigma=sigma,
+                    end_event=end_event,
+                )
 
         return output
 
