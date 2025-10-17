@@ -647,7 +647,8 @@ def _curate_sorting(sorting, recording, output):
     coords = sa.get_channel_locations()
     # get coordinates of max channel of each unit on probe, column 0 is
     # x-axis, column 1 is y-axis/depth, 0 at bottom-left channel.
-    max_chan_coords = coords[sa.channel_ids_to_indices(max_chan)]
+    max_chan_idx = sa.channel_ids_to_indices(max_chan)
+    max_chan_coords = coords[max_chan_idx]
     # set coordinates of max channel of each unit as a property of sorting
     sa.sorting.set_property(
         key="max_chan_coords",
