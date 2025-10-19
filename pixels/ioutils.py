@@ -474,7 +474,7 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None):
     sessions = {}
     raw_dir = data_dir / "raw"
 
-    for mouse in mouse_ids:
+    for m, mouse in enumerate(mouse_ids):
         mouse_sessions = sorted(list(raw_dir.glob(f"*{mouse}")))
 
         if not mouse_sessions:
@@ -490,6 +490,8 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None):
         if of_date is not None:
             if isinstance(of_date, str):
                 date_list = [of_date]
+            elif is_nested_list(of_date):
+                date_list = of_date[m]
             else:
                 date_list = of_date
 
@@ -845,6 +847,13 @@ def is_nested_dict(d):
     Returns True if at least one value in dictionary d is a dict.
     """
     return any(isinstance(v, dict) for v in d.values())
+
+
+def is_nested_list(ls):
+    """
+    Returns True if at least one value in list d is a list.
+    """
+    return any(isinstance(item, list) for item in ls)
 
 
 def save_index_to_frame(df, path):
