@@ -2580,6 +2580,48 @@ class Behaviour(ABC):
         return binned
 
 
+    def get_binned_chance(
+        self, label, event, sigma, end_event, time_bin, pos_bin,
+    ):
+        """
+        This function saves binned data in the format that Andrew wants:
+        trials * units * temporal bins (ms)
+
+        time_bin: str | None
+            For VR behaviour, size of temporal bin for spike rate data.
+
+        pos_bin: int | None
+            For VR behaviour, size of positional bin for position data.
+        """
+        units = self.select_units(name="all")
+
+        binned = {}
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+
+            logging.info(
+                f"\n> Getting binned <{label.name}> chance from {stream_id}."
+            )
+            binned[stream_id] = stream.get_binned_chance(
+                units=units,
+                label=label,
+                event=event,
+                sigma=sigma,
+                end_event=end_event,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+            )
+
+        return binned
+
+
+
     def get_chance_positional_psd(self, units, label, event, sigma, end_event):
         streams = self.files["pixels"]
         chance_psd = {}

@@ -1220,6 +1220,35 @@ class Stream:
         return None
 
 
+    @cacheable(cache_format="zarr")
+    def get_binned_chance(
+        self, units, label, event, sigma, end_event, time_bin, pos_bin,
+    ):
+        # get array name and path 
+        name_parts = [self.session.name, self.probe_id, label.name, units.name,
+        "shuffled", time_bin, f"{pos_bin}cm.npz"]
+        file_name = "_".join(p for p in name_parts)
+        arr_path = self.processed / file_name
+
+        # get chance data
+        chance_data = self.get_spike_chance(
+            units,
+            label,
+            event,
+            sigma,
+            end_event,
+        )
+        # bin chance data
+        binned_chance = xut.bin_chance_spikes(
+            chance_data,
+            time_bin,
+            pos_bin,
+            arr_path,
+        )
+
+        return binned_chance
+
+
     def _get_chance_args(self, label, event, sigma, end_event):
         probe_id = self.stream_id[:-3]
         name = self.session.name

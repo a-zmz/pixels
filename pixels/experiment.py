@@ -615,3 +615,16 @@ class Experiment:
             chance[name] = session.get_spike_chance(*args, **kwargs)
 
         return chance
+
+
+    def get_binned_chance(self, *args, **kwargs):
+        """
+        Get binned chance firing rate and spike count for aligned vr trials.
+        Check behaviours.base.Behaviour.get_binned_chance for usage information.
+        """
+        binned = {}
+        for i, session in enumerate(self.sessions):
+            name = session.name
+            binned[name] = session.get_binned_chance(*args, **kwargs)
+
+        return binned
