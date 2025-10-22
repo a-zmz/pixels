@@ -161,11 +161,11 @@ def CAR(rec, dtype=np.int16):
     return car
 
 
-def correct_lfp_motion(rec, mc_method="dredge_lfp"):
+def correct_lfp_motion(rec, em_method="dredge_lfp"):
     raise NotImplementedError("> Not implemented.")
 
 
-def correct_ap_motion(rec, mc_method="dredge_ap"):
+def correct_ap_motion(rec, em_method="dredge_ap"):
     """
     Correct motion of recording.
 
@@ -180,11 +180,13 @@ def correct_ap_motion(rec, mc_method="dredge_ap"):
     ===
     None
     """
-    logging.info(f"\n> Correcting motion with {mc_method}.")
+    logging.info(f"\n> Correcting motion with {em_method}.")
+
+    mc_method = em_method.split("_")[0]
 
     # reduce spatial window size for four-shank
     estimate_motion_kwargs = {
-        "method": "dredge_ap",
+        "method": f"{em_method}",
         "win_step_um": 100,
         "win_margin_um": -150,
         "verbose": True,
