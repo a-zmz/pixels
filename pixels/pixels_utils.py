@@ -138,7 +138,10 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
     # remove channels outside by using identified brain surface depths
     outside_chan_ids = chan_ids[chan_depths > surface_depth]
     rec_clean = rec_removed.remove_channels(outside_chan_ids)
-    print(f"\t\t> Removed {outside_chan_ids.size} outside channels.")
+    print(
+        f"\t\t> Removed {outside_chan_ids.size} outside channels
+        above {surface_depth}um."
+    )
 
     return rec_clean
 
