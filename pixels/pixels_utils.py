@@ -40,7 +40,6 @@ from pixels.constants import *
 from pixels.decorators import _df_to_zarr_via_xarray, _df_from_zarr_via_xarray
 
 from common_utils import math_utils
-from common_utils.file_utils import init_memmap, read_hdf5
 
 def load_raw(paths, stream_id):
     """
@@ -819,72 +818,6 @@ def _permute_spikes_n_convolve_fr(array, sigma, sample_rate):
     return random_spiked, random_fr
 
 
-def _chance_worker(i, sigma, sample_rate, spiked_shape, chance_data_shape,
-                  spiked_memmap_path, fr_memmap_path, concat_spiked_path):
-    """
-    Worker that computes one set of spiked and fr values.
-
-    params
-    ===
-    i: index of current repeat.
-
-    sigma: int/float, time in millisecond of sigma of gaussian kernel for firing
-    rate convolution.
-
-    sample_rate: float/int, sampling rate of signal.
-
-    spiked_shape: tuple, shape of spike boolean to initiate memmap.
-
-    chance_data_shape: tuple, shape of chance data.
-
-    spiked_memmap_path: 
-
-    fr_memmap_path: 
-
-    return
-    ===
-    """
-    logging.info(f"\nProcessing repeat {i}...")
-    # open readonly memmap
-    spiked = init_memmap(
-        path=concat_spiked_path,
-        shape=spiked_shape,
-        dtype=np.int16,
-        overwrite=False,
-        readonly=True,
-    )
-
-    # init appendable memmap
-    chance_spiked = init_memmap(
-        path=spiked_memmap_path,
-        shape=chance_data_shape,
-        dtype=np.int16,
-        overwrite=False,
-        readonly=False,
-    )
-    # init chance firing rate memmap
-    chance_fr = init_memmap(
-        path=fr_memmap_path,
-        shape=chance_data_shape,
-        dtype=np.float32,
-        overwrite=False,
-        readonly=False,
-    )
-
-    # get permuted data
-    c_spiked, c_fr = _permute_spikes_n_convolve_fr(spiked, sigma, sample_rate)
-
-    chance_spiked[..., i] = c_spiked
-    chance_fr[..., i] = c_fr
-    # write to disk
-    chance_spiked.flush()
-    chance_fr.flush()
-
-    logging.info(f"\nRepeat {i} finished.")
-
-    return None
-
-
 def _worker_write_repeat(
     i, zarr_path, sigma, sample_rate, shm_name, shape, dtype_str,
 ):
@@ -1088,261 +1021,17 @@ def save_spike_chance_zarr(
     return None
 
 
-def save_spike_chance(spiked_memmap_path, fr_memmap_path, spiked_df_path,
-                      fr_df_path, sigma, sample_rate, repeats=100, spiked=None,
-                      spiked_shape=None, concat_spiked_path=None):
-    assert 0
-    if fr_df_path.exists():
-        # save spike chance data if does not exists
-        _save_spike_chance(
-            spiked_memmap_path, fr_memmap_path, spiked_df_path, fr_df_path, sigma,
-            sample_rate, repeats, spiked, spiked_shape,
-            concat_spiked_path)
-    else:
-        logging.info(f"\n> Spike chance already saved at {fr_df_path}, continue.")
-
-    return None
-
-
-def _save_spike_chance(spiked_memmap_path, fr_memmap_path, sigma, sample_rate,
-                       repeats, spiked, spiked_shape, concat_spiked_path):
-    """
-    Implementation of saving chance level spike data.
-    """
-
-    # save spiked to memmap if not yet
-    # TODO apr 9 2025: if i have temp_spiked, how to get its shape? do i need
-    # another input arg??? this is to run it again without get the concat spiked
-    # again...
-    if spiked is None:
-        assert concat_spiked_path.exists()
-        assert spiked_shape is not None
-    else:
-        concat_spiked_path = spiked_memmap_path.parent/"temp_spiked.bin"
-        spiked_memmap = init_memmap(
-            path=concat_spiked_path,
-            shape=spiked.shape,
-            dtype=np.int16,
-            overwrite=True,
-            readonly=False,
-        )
-        spiked_memmap[:] = spiked.values
-        spiked_memmap.flush()
-        del spiked_memmap
-
-        # get spiked data shape
-        spiked_shape = spiked.shape
-
-    # get export data shape
-    d_shape = spiked_shape + (repeats,)
-    # TODO apr 9 2025 save dshape to json
-    #with open(shape_json, "w") as f:
-        #json.dump(shape, f, indent=4)
-
-    if not fr_memmap_path.exists():
-        # init chance spiked memmap
-        chance_spiked = init_memmap(
-            path=spiked_memmap_path,
-            shape=d_shape,
-            dtype=np.int16,
-            overwrite=True,
-            readonly=False,
-        )
-        # init chance firing rate memmap
-        chance_fr = init_memmap(
-            path=fr_memmap_path,
-            shape=d_shape,
-            dtype=np.float32,
-            overwrite=True,
-            readonly=False,
-        )
-        # write to disk
-        chance_spiked.flush()
-        chance_fr.flush()
-        del chance_spiked, chance_fr
-
-        # Set up the process pool to run the worker in parallel.
-        with ProcessPoolExecutor() as executor:
-            # Submit jobs for each repeat.
-            futures = []
-            for i in range(repeats):
-                future = executor.submit(
-                    _chance_worker,
-                    i=i,
-                    sigma=sigma,
-                    sample_rate=sample_rate,
-                    spiked_shape=spiked_shape,
-                    chance_data_shape=d_shape,
-                    spiked_memmap_path=spiked_memmap_path,
-                    fr_memmap_path=fr_memmap_path,
-                    concat_spiked_path=concat_spiked_path,
-                )
-                futures.append(future)
-
-            # As each future completes, assign the results into the memmap.
-            for future in concurrent.futures.as_completed(futures):
-                future.result()
-    else:
-        logging.info(
-            "\n> Memmaps already created, only need to convert into "
-            "dataframes and save."
         )
 
-    # convert it to dataframe and save it
-    #save_chance(
-    #    orig_idx=spiked.index,
-    #    orig_col=spiked.columns,
-    #    spiked_memmap_path=spiked_memmap_path,
-    #    fr_memmap_path=fr_memmap_path,
-    #    spiked_df_path=spiked_df_path,
-    #    fr_df_path=fr_df_path,
-    #    d_shape=d_shape,
-    #)
-    #logging.info(f"\n> Chance data saved to {fr_df_path}.")
 
-    return None
+                positions=trial_pos,
+
+        )
+        )
 
 
-def _convert_to_df(orig_idx, orig_col, memmap_path, df_path, d_shape, d_type,
-                   name):
-    """
-    Convert 
-
-    orig_idx,
-    orig_col,
-    memmap_path
-    df_path,
-    d_shape
-    d_type
-    name
-    """
-    # NOTE: shape of memmap is `concatenated trials frames * units * repeats`,
-    # saved df has outer most level being `repeat`, then `unit`, and all trials
-    # are stacked vertically. 
-    # to later use it for analysis, go into each repeat, and do
-    # `repeat_df.unstack(level='trial', sort=False)` to get the same structure as
-    # data.
-
-    # init readonly chance memmap
-    chance_memmap = init_memmap(
-        path=memmap_path,
-        shape=d_shape,
-        dtype=d_type,
-        overwrite=False,
-        readonly=True,
+    # save np array, for andrew
     )
-
-    # copy to cpu
-    c_spiked = chance_memmap.copy()
-    # reshape to 2D
-    c_spiked_reshaped = c_spiked.reshape(d_shape[0], d_shape[1] * d_shape[2])
-    del c_spiked
-
-    # create hierarchical index
-    col_idx = pd.MultiIndex.from_product(
-        [np.arange(d_shape[2]), orig_col],
-        names=["repeat", "unit"],
-    )
-
-    # create df
-    df = pd.DataFrame(c_spiked_reshaped, columns=col_idx)
-    # use the original index
-    df.index = orig_idx
-
-    # write h5 to disk
-    write_hdf5(
-        path=df_path,
-        df=df,
-        key=name,
-        mode="w",
-    )
-    del df
-
-    return None
-
-
-def save_chance(orig_idx, orig_col, spiked_memmap_path, fr_memmap_path,
-                spiked_df_path, fr_df_path, d_shape):
-    """
-    Saving chance data to dataframe.
-
-    params
-    ===
-    orig_idx: pandas 
-    """
-    logging.info(f"\n> Saving chance data...")
-
-    # get chance spiked df
-    _convert_to_df(
-        orig_idx=orig_idx,
-        orig_col=orig_col,
-        memmap_path=spiked_memmap_path,
-        df_path=spiked_df_path,
-        d_shape=d_shape,
-        d_type=np.int16,
-        name="spiked",
-    )
-    # get chance fr df
-    _convert_to_df(
-        orig_idx=orig_idx,
-        orig_col=orig_col,
-        memmap_path=fr_memmap_path,
-        df_path=fr_df_path,
-        d_shape=d_shape,
-        d_type=np.float32,
-        name="fr",
-    )
-
-    return None
-
-
-def get_spike_chance(sample_rate, positions, spiked_memmap_path, fr_memmap_path,
-                     memmap_shape_path, idx_path, col_path):
-    if not fr_memmap_path.exists():
-        raise PixelsError("\nHave you saved spike chance data yet?")
-    else:
-        fr_chance, idx, cols = _get_spike_chance(
-            sample_rate, positions, spiked_memmap_path, fr_memmap_path,
-            memmap_shape_path, idx_path, col_path)
-        return fr_chance, idx, cols
-
-    return None
-
-
-def _get_spike_chance(sample_rate, positions, spiked_memmap_path,
-                      fr_memmap_path, memmap_shape_path, idx_path, col_path):
-
-    # TODO apr 9 2025:
-    # i do not need to save shape to file, all i need is unit count, repeat,
-    # so i load memmap without defining shape, then directly np.reshape(memmap,
-    # (-1, count, repeat))!
-
-    with open(memmap_shape_path, "r") as f:
-        shape_data = json.load(f)
-    shape_list = shape_data.get("dshape", [])
-    d_shape = tuple(shape_list)
-
-    spiked_chance = init_memmap(
-        path=spiked_memmap_path,
-        shape=d_shape,
-        dtype=np.int16,
-        overwrite=False,
-        readonly=True,
-    )
-
-    idx_df = read_hdf5(idx_path, key="multiindex")
-    idx = pd.MultiIndex.from_frame(idx_df)
-    trials = idx_df["trial"].unique()
-    col_df = read_hdf5(col_path, key="cols")
-    cols = pd.Index(col_df["unit"])
-
-    return fr_chance, idx, cols
-    assert 0
-
-    # TODO jun 16 2025:
-    # have a separate func for binning chance data
-    binned_shuffle = {}
-    temp = {}
     # TODO apr 3 2025: implement multiprocessing here!
     # get each repeat and create df
     for r in range(d_shape[-1]):
@@ -1364,10 +1053,6 @@ def _get_spike_chance(sample_rate, positions, spiked_memmap_path,
         binned_shuffle[r] = reindex_by_longest(
             dfs=temp[r],
             return_format="array",
-        ) 
-    # concat 
-    binned_shuffle_counts = np.stack(
-        list(binned_shuffle.values()),
         axis=-1,
     )
     shuffled_counts = {
@@ -1388,10 +1073,6 @@ def _get_spike_chance(sample_rate, positions, spiked_memmap_path,
     #        readonly=True,
     #    )
 
-    # TODO apr 2 2025:
-    # for fr chance, use memmap, go to each repeat, unstack, bin, then save it
-    # to .npz for andrew
-    pass
 
 
 def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
