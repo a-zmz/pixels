@@ -161,18 +161,24 @@ def CAR(rec, dtype=np.int16):
     return car
 
 
-def correct_lfp_motion(rec, em_method="dredge_lfp"):
+def correct_lfp_motion(rec, mc_method="dredge"):
+    if mc_method == "dredge":
+        em_method = mc_method+"_lfp"
+    else:
+        em_method = spre.motion.motion_options_preset[mc_method][
+            "estimate_motion_kwargs"
+        ]["method"]
     raise NotImplementedError("> Not implemented.")
 
 
-def correct_ap_motion(rec, em_method="dredge_ap"):
+def correct_ap_motion(rec, mc_method="dredge"):
     """
     Correct motion of recording.
 
     params
     ===
     mc_method: str, motion correction method.
-        Default: "dredge_ap".
+        Default: "dredge".
             (as of jan 2025, dredge performs better than ks motion correction.)
         "ks": let kilosort do motion correction.
 
@@ -180,9 +186,14 @@ def correct_ap_motion(rec, em_method="dredge_ap"):
     ===
     None
     """
-    logging.info(f"\n> Correcting motion with {em_method}.")
+    logging.info(f"\n> Correcting motion with {mc_method}.")
 
-    mc_method = em_method.split("_")[0]
+    if mc_method == "dredge":
+        em_method = mc_method+"_ap"
+    else:
+        em_method = spre.motion.motion_options_preset[mc_method][
+            "estimate_motion_kwargs"
+        ]["method"]
 
     # reduce spatial window size for four-shank
     estimate_motion_kwargs = {
