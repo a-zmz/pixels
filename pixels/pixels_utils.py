@@ -1021,58 +1021,116 @@ def save_spike_chance_zarr(
     return None
 
 
+def bin_chance_spikes(chance_data, time_bin, pos_bin, arr_path):
+    # extract data from chance
+    chance_spiked = chance_data["chance_spiked"]
+    chance_fr = chance_data["chance_fr"]
+    REPEATS = chance_spiked.shape[-1]
+
+    # get index and columns to reconstruct df
+    spiked = chance_data["spiked"].dropna(axis=0, how="all")
+    idx = spiked.index
+    cols = spiked.columns
+    trial_ids = spiked.index.get_level_values("trial").unique()
+    # get positions
+    positions = chance_data["positions"].dropna(axis=1, how="all")
+
+    count_arrs = {}
+    fr_arrs = {}
+    count_dfs = {}
+    fr_dfs = {}
+    temp_spiked = {}
+    temp_fr = {}
+    for repeat in range(REPEATS):
+        r_fr = pd.DataFrame(
+            chance_fr[:, :, repeat],
+            index=idx,
+            columns=cols,
+        )
+        r_spiked = pd.DataFrame(
+            chance_spiked[:, :, repeat],
+            index=idx,
+            columns=cols,
         )
 
+        temp_spiked[repeat] = {}
+        temp_fr[repeat] = {}
+        for trial in trial_ids:
+            trial_pos = positions.xs(trial, level="trial", axis=1).dropna()
+            counts = r_spiked.xs(trial, level="trial", axis=0)
+            fr = r_fr.xs(trial, level="trial", axis=0)
 
+            # bin fr
+            temp_fr[repeat][trial] = bin_vr_trial(
+                data=fr,
                 positions=trial_pos,
+                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+                bin_method="mean", # fr
+            )
+            # bin spiked
+            temp_spiked[repeat][trial] = bin_vr_trial(
+                data=counts,
+                positions=trial_pos,
+                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+                bin_method="sum", # spike count
+            )
 
+        fr_dfs[repeat] = pd.concat(
+            temp_fr[repeat],
+            axis=0,
         )
+        count_dfs[repeat] = pd.concat(
+            temp_spiked[repeat],
+            axis=0,
         )
 
+        # np array for andrew
+        fr_arrs[repeat] = reindex_by_longest(
+            dfs=temp_fr[repeat],
+            return_format="array",
+        )
+        count_arrs[repeat] = reindex_by_longest(
+            dfs=temp_spiked[repeat],
+            return_format="array",
+        )
 
     # save np array, for andrew
-    )
-    # TODO apr 3 2025: implement multiprocessing here!
-    # get each repeat and create df
-    for r in range(d_shape[-1]):
-        shuffled = spiked_chance[:, :, r]
-        # create df
-        df = pd.DataFrame(shuffled, index=idx, columns=cols)
-        temp[r] = {}
-        for t in trials:
-            counts = df.xs(t, level="trial", axis=0)
-            trial_pos = positions.loc[:, t].dropna()
-            temp[r][t] = bin_vr_trial(
-                counts,
-                trial_pos,
-                sample_rate,
-                time_bin,
-                pos_bin,
-                bin_method="sum",
-            )
-        binned_shuffle[r] = reindex_by_longest(
-            dfs=temp[r],
-            return_format="array",
+    arr_count_output = np.stack(
+        list(count_arrs.values()),
         axis=-1,
+        dtype=np.float32,
     )
-    shuffled_counts = {
-        "count": binned_shuffle_counts[:, :-2, ...],
-        "pos": binned_shuffle_counts[:, -2:, ...],
+    arr_fr_output = np.stack(
+        list(fr_arrs.values()),
+        axis=-1,
+        dtype=np.float32,
+    )
+    arrs = {
+        "count": arr_fr_output[:, :-2, ...],
+        "fr": arr_count_output[:, :-2, ...],
+        "pos": arr_fr_output[:, -2:, ...],
     }
-    #count_path='/home/amz/running_data/npx/interim/20240812_az_VDCN09/20240812_az_VDCN09_imec0_light_all_spike_counts_shuffled_200ms_10cm.npz'
-    count_path='/home/amz/running_data/npx/interim/20240812_az_VDCN09/20240812_az_VDCN09_imec0_dark_all_spike_counts_shuffled_200ms_10cm.npz'
+    np.savez_compressed(arr_path, **arrs)
 
-    np.savez_compressed(count_path, **shuffled_counts)
-    assert 0
+    # output df
+    df_fr = pd.concat(
+        fr_dfs,
+        axis=0,
+        names=["repeat", "trial", "bin_time"],
+    ).iloc[:, :-2]
+    temp = pd.concat(
+        count_dfs,
+        axis=0,
+        names=["repeat", "trial", "bin_time"],
+    )
+    df_spiked = temp.iloc[:, :-2]
+    df_pos = temp.iloc[:, -2:]
 
-    #    fr_chance = _get_spike_chance(
-    #        path=fr_memmap_path,
-    #        shape=d_shape,
-    #        dtype=np.float32,
-    #        overwrite=False,
-    #        readonly=True,
-    #    )
-
+    return {"spiked": df_spiked, "fr": df_fr, "positions": df_pos}
 
 
 def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
