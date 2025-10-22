@@ -37,7 +37,7 @@ from pixels.ioutils import write_hdf5, reindex_by_longest
 from pixels.error import PixelsError
 from pixels.configs import *
 from pixels.constants import *
-from pixels.decorators import _df_to_zarr_via_xarray, _df_from_zarr_via_xarray
+from pixels.decorators import _df_to_zarr_via_xarray
 
 from common_utils import math_utils
 
@@ -911,12 +911,6 @@ def save_spike_chance_zarr(
             compressor=compressor,
             mode="w",
         )
-        #_write_df_as_zarr(
-        #    root,
-        #    spiked,
-        #    group_name="spiked",
-        #    compressor=compressor,
-        #)
     else:
         root.create_dataset(
             "spiked",
@@ -964,12 +958,6 @@ def save_spike_chance_zarr(
                 compressor=compressor,
                 mode="w",
             )
-            #_write_df_as_zarr(
-            #    root,
-            #    positions,
-            #    group_name="positions",
-            #    compressor=compressor,
-            #)
         else:
             root.create_dataset(
                 "positions",
@@ -1549,127 +1537,6 @@ def notch_freq(rec, freq, bw=4.0):
     )
 
     return notched
-
-
-def _write_df_as_zarr(
-    root,  # zarr.hierarchy.Group
-    df: pd.DataFrame,
-    group_name: str,
-    *,
-    compressor=None,
-):
-    row_prefix = "row"
-    col_prefix = "col"
-
-    # Remove any existing node (array or group) with this name
-    if group_name in root:
-        del root[group_name]
-
-    # Ensure all index/column level names are defined
-    if isinstance(df.index, pd.MultiIndex):
-        row_names = _default_names(list(df.index.names), row_prefix)
-    else:
-        row_names = [df.index.name or f"{row_prefix}0"]
-
-    if isinstance(df.columns, pd.MultiIndex):
-        col_names = _default_names(list(df.columns.names), col_prefix)
-    else:
-        col_names = [df.columns.name or f"{col_prefix}0"]
-
-    # Stack ALL column levels to move them into the row index; result index levels = row_names + col_names
-    series = df.stack(col_names, future_stack=True)  # Series with MultiIndex index
-
-    # Build DataArray (dims are level names of the Series index, in order)
-    da = xr.DataArray.from_series(series).rename("values")
-    ds = da.to_dataset()
-
-    # Mark attrs for round-trip (which dims belong to rows vs columns)
-    ds.attrs["__via"] = "pd_df_any_mi"
-    ds.attrs["__row_dims__"] = row_names
-    ds.attrs["__col_dims__"] = col_names
-
-    # check size to determine chunking
-    chunking = {}
-    for name, size in ds.sizes.items():
-        if size > BIG_CHUNKS:
-            chunking[name] = BIG_CHUNKS
-        else:
-            chunking[name] = SMALL_CHUNKS
-
-    ds = ds.chunk(chunking)
-
-    # compressor & object codec
-    encoding = {
-        "values": {
-            "compressor": compressor,
-            "chunks": tuple(chunking.values()),
-        }
-    }
-    if ds["values"].dtype == object and VLenUTF8 is not None:
-        encoding["values"]["object_codec"] = VLenUTF8()
-
-    # Ensure coords are writable (handle object/string coords)
-    # If VLenUTF8 is available, set encoding for object coords; otherwise cast
-    # to str
-    for cname, coord in ds.coords.items():
-        if coord.dtype == object:
-            if VLenUTF8 is not None:
-                encoding[cname] = {
-                    "object_codec": VLenUTF8(),
-                    "compressor": compressor,
-                }
-            else:
-                ds = ds.assign_coords({cname: coord.astype(str)})
-
-    # Write into a subgroup under the same store
-    ds.to_zarr(
-        store=root.store,
-        group=group_name,
-        mode="w",
-        encoding=encoding,
-    )
-
-    logging.info(f"\n> DataFrame {group_name} written to zarr.")
-
-    return None
-
-
-def _read_df_from_zarr(root, group_name: str) -> pd.DataFrame:
-    ds = xr.open_zarr(
-        store=root.store,
-        group=group_name,
-        consolidated=False,
-        chunks="auto",
-    )
-    da = ds["values"]
-    row_dim = list(ds.attrs.get("__row_dims__") or [])
-    col_dim = list(ds.attrs.get("__col_dims__") or [])
-
-    # Series with MultiIndex index (row_dim, *col_dim)
-    series = da.to_series()
-
-    # If there are column dims, unstack them back to columns
-    if col_dim:
-        df = series.unstack(col_dim)
-    else:
-        # No column dims -> a single column DataFrame
-        df = series.to_frame(name="values")
-
-    col_name = [df.columns.name]
-    if not (row_dim == df.index.names):
-        df.index.set_names(row_dim, inplace=True)
-    if not (col_dim == col_name):
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns.set_names(col_dim, inplace=True)
-        else:
-            df.columns.name = col_dim[0]
-
-    return df
-
-
-def _default_names(names: list[str | None], prefix: str) -> list[str]:
-    # Replace None level names with defaults: f"{prefix}{i}"
-    return [n if n is not None else f"{prefix}{i}" for i, n in enumerate(names)]
 
 
 # >>> landmark responsive helpers >>>
