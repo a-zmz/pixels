@@ -1239,8 +1239,9 @@ class Stream:
             end_event,
         )
         # bin chance data
-        binned_chance = xut.bin_chance_spikes(
+        binned_chance = xut.bin_spike_chance(
             chance_data,
+            self.BEHAVIOUR_SAMPLE_RATE,
             time_bin,
             pos_bin,
             arr_path,

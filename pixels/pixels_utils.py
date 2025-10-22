@@ -1009,7 +1009,7 @@ def save_spike_chance_zarr(
     return None
 
 
-def bin_chance_spikes(chance_data, time_bin, pos_bin, arr_path):
+def bin_spike_chance(chance_data, sample_rate, time_bin, pos_bin, arr_path):
     # extract data from chance
     chance_spiked = chance_data["chance_spiked"]
     chance_fr = chance_data["chance_fr"]
@@ -1052,7 +1052,7 @@ def bin_chance_spikes(chance_data, time_bin, pos_bin, arr_path):
             temp_fr[repeat][trial] = bin_vr_trial(
                 data=fr,
                 positions=trial_pos,
-                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                sample_rate=sample_rate,
                 time_bin=time_bin,
                 pos_bin=pos_bin,
                 bin_method="mean", # fr
@@ -1061,7 +1061,7 @@ def bin_chance_spikes(chance_data, time_bin, pos_bin, arr_path):
             temp_spiked[repeat][trial] = bin_vr_trial(
                 data=counts,
                 positions=trial_pos,
-                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                sample_rate=sample_rate,
                 time_bin=time_bin,
                 pos_bin=pos_bin,
                 bin_method="sum", # spike count
