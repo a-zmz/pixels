@@ -1426,7 +1426,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
 def get_spatial_psd(pos_fr):
     def _compute_psd(col):
         x = col.dropna().values.squeeze()
-        f, psd = math_utils.estimate_power_spectrum(x, use_welch=True)
+        f, psd = math_utils.estimate_power_spectrum(x, use_welch=False)
         # remove 0 to avoid infinity
         f = f[1:]
         psd = psd[1:]
