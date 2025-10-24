@@ -680,8 +680,9 @@ def _curate_sorting(sorting, recording, output):
             & presence_ratio > 0.9"
     good_qms = qms.query(qms_rule)
     logging.info(
-        "> quality metrics check removed "
-        f"{np.setdiff1d(sa.unit_ids, good_qms.index.values)}."
+        "\n> quality metrics check removed "
+        f"{np.setdiff1d(sa.unit_ids, good_qms.index.values)}, "
+        f"{len(np.setdiff1d(sa.unit_ids, good_qms.index.values))} in total."
     )
     # TODO nov 26 2024
     # wait till noise cutoff implemented and include that.
@@ -698,8 +699,9 @@ def _curate_sorting(sorting, recording, output):
     #peak_to_valley > 0.00018 &\
     good_tms = tms.query(tms_rule)
     logging.info(
-        "> Template metrics check removed "
-        f"{np.setdiff1d(sa.unit_ids, good_tms.index.values)}."
+        "\n> Template metrics check removed "
+        f"{np.setdiff1d(sa.unit_ids, good_tms.index.values)}, "
+        f"{len(np.setdiff1d(sa.unit_ids, good_tms.index.values))} in total."
     )
 
     # get good units that passed quality metrics & template metrics
