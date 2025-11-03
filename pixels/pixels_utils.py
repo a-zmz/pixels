@@ -1971,3 +1971,137 @@ def filter_non_somatics(unit_ids, templates, sampling_freq):
         mask[t] = True
 
     return mask
+
+
+def save_chance_positional_fr(chance_data, sample_rate, units, trial_ids):
+    """
+    Implementation of saving chance level spike data.
+    """
+    # get index and columns to reconstruct df
+    spiked = chance_data["spiked"].dropna(axis=0, how="all")
+    idx = spiked.index
+    cols = spiked.columns
+    cols_meta, cols_shms = ioutils.export_index_to_shm(cols)
+    idx_meta, idx_shms = ioutils.export_multiindex_to_shm(idx)
+    # get positions
+    positions = chance_data["positions"].dropna(axis=1, how="all").loc[
+        :, pd.IndexSlice[:, trial_ids] # only keep selected trials
+    ]
+    positions_meta, positions_shms = ioutils.export_df_to_shm(positions)
+
+    # get fr zarr
+    fr_zarr = chance_data["chance_fr"]
+    # get number of repeats
+    repeats = fr_zarr.shape[-1]
+
+    del spiked, positions, chance_data
+    gc.collect()
+
+    # get unit ids
+    unit_ids = np.array(units.flat(), dtype=np.int16)
+
+    # Set up the process pool to run the worker in parallel.
+    # Submit jobs for each repeat.
+    n_workers = 2 ** (mp.cpu_count().bit_length() - 2)
+    futures = []
+    with ProcessPoolExecutor(max_workers=n_workers) as ex:
+        futures = [
+            ex.submit(
+                _positional_fr_chance_worker,
+                fr_zarr,
+                r,
+                sample_rate,
+                positions_meta,
+                idx_meta,
+                cols_meta,
+                unit_ids,
+                trial_ids,
+            ) for r in range(repeats)
+        ]
+        # collect and concat
+        results = [f.result() for f in as_completed(futures)]
+
+    for shm in idx_shms + cols_shms + positions_shms:
+        shm.close()
+        shm.unlink()
+
+    # concat results
+    fr = pd.concat(
+        results,
+        axis=1,
+        keys=range(repeats),
+        names=["repeat", "start", "unit", "trial"],
+    )
+
+    trials = {}
+    # group by trials
+    trial_groups = fr.T.groupby("trial")
+    for (trial, group) in trial_groups:
+        # group by unit, and get mean across repeats
+        mean_fr = group.groupby("unit").mean().T
+        start = group.index.get_level_values("start")[:mean_fr.shape[-1]]
+        # add start level
+        new_cols = pd.MultiIndex.from_arrays(
+            [start, mean_fr.columns],
+            names=["start", "unit"],
+        )
+        mean_fr.columns = new_cols
+        trials[trial] = mean_fr
+
+    output = pd.concat(
+        trials,
+        axis=1,
+        names=["trial", "start", "unit"],
+    )
+    # keep the same structure as data
+    output = (
+        output
+        .reorder_levels(["unit", "start", "trial"], axis=1)
+        .sort_index(
+            axis=1,
+            level=["unit", "start", "trial"],
+            ascending=[True, False, True],
+        )
+    )
+
+    return output
+
+
+def _positional_fr_chance_worker(
+    fr_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta,
+    unit_ids, trial_ids,
+):
+    """
+    Worker that computes positional fr.
+
+    params
+    ===
+    i: index of current repeat.
+
+    return
+    ===
+    """
+    # attach to shared memory and rebuild the indices
+    idx, idx_shms = ioutils.import_multiindex_to_shm(idx_meta)
+    cols, cols_shms = ioutils.import_index_to_shm(cols_meta)
+    positions, positions_shms = ioutils.import_df_to_shm(positions_meta)
+
+    try:
+        pos_fr,_ = _get_vr_positional_neural_data(
+            positions=positions,
+            data_type="spike_rate",
+            data=pd.DataFrame(
+                fr_zarr[..., r],
+                index=idx,
+                columns=cols,
+            ).loc[trial_ids, unit_ids],
+        )
+        del positions, idx, cols
+        gc.collect()
+
+        logging.info(f"\nRepeat {r} finished.")
+    finally:
+        for shm in idx_shms + cols_shms + positions_shms:
+            shm.close()
+
+    return pos_fr

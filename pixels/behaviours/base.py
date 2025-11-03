@@ -2811,3 +2811,27 @@ class Behaviour(ABC):
             )
 
         return output
+
+
+    def get_chance_positional_fr(self, units, label, event, sigma, end_event):
+        streams = self.files["pixels"]
+        output = {}
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+
+            output[stream_id] = stream.get_chance_positional_fr(
+                units=units, # NOTE: ALWAYS the first arg
+                label=label,
+                event=event,
+                sigma=sigma,
+                end_event=end_event, # NOTE: ALWAYS the last arg
+            )
+
+        return output
+
+

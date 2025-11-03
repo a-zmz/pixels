@@ -1351,3 +1351,36 @@ class Stream:
         contrasts = contrasts.set_index(["start", "contrast"], append=True)
 
         return {"contrasts": contrasts, "responsives": responsives}
+
+
+    @cacheable
+    def get_chance_positional_fr(
+        self, units, label, event, sigma, end_event, #normalised,
+    ):
+        # NOTE: we only use completed trials for this analysis
+        label_name = label.name.split("_")[-1]
+
+        # get trial ids
+        _, _, _, _, _, trial_ids = self._map_trials(
+            label,
+            event,
+            end_event,
+        )
+
+        # get chance data
+        chance_data = self.get_spike_chance(
+            "all",
+            getattr(label, label_name),
+            event.trial_start,
+            sigma,
+            end_event.trial_end,
+        )
+
+        fr = xut.save_chance_positional_fr(
+            chance_data,
+            self.BEHAVIOUR_SAMPLE_RATE,
+            units,
+            trial_ids,
+        )
+
+        return fr

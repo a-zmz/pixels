@@ -1,8 +1,6 @@
 """
 This module contains helper functions for reading and writing files.
 """
-
-
 import datetime
 import glob
 import json
@@ -15,6 +13,8 @@ import ffmpeg
 import numpy as np
 import pandas as pd
 from nptdms import TdmsFile
+
+from multiprocessing import shared_memory
 
 from pixels.error import PixelsError
 from pixels.configs import *
@@ -920,3 +920,124 @@ def get_aligned_data_across_sessions(trials, key, level_names):
     output = df.swaplevel("session", "stream", axis=1)
 
     return output
+
+# ---- low-level array SHM ----
+def _to_shm(arr):
+    arr = np.asarray(arr, order="C")
+    shm = shared_memory.SharedMemory(create=True, size=arr.nbytes)
+    view = np.ndarray(arr.shape, dtype=arr.dtype, buffer=shm.buf)
+    view[:] = arr
+    view.setflags(write=False)
+    return shm, {"name": shm.name, "dtype": arr.dtype.str, "shape": arr.shape}
+
+def _from_shm(meta):
+    shm = shared_memory.SharedMemory(name=meta["name"])
+    arr = np.ndarray(meta["shape"], dtype=np.dtype(meta["dtype"]), buffer=shm.buf)
+    arr.setflags(write=False)
+    return shm, arr
+
+# ---- Index/MultiIndex SHM ----
+def export_index_to_shm(idx: pd.Index):
+    if isinstance(idx, pd.RangeIndex):
+        return {
+            "kind": "range",
+            "start": idx.start,
+            "stop": idx.stop,
+            "step": idx.step,
+        }, []
+    # numeric/temporal fixed-width types only
+    arr = idx.to_numpy(copy=False)
+    shm, meta = _to_shm(arr)
+    return {"kind": "simple", "name": idx.name, "data": meta}, [shm]
+
+def import_index_to_shm(meta):
+    if meta["kind"] == "range":
+        return pd.RangeIndex(meta["start"], meta["stop"], meta["step"]), []
+    shm, arr = _from_shm(meta["data"])
+    idx = pd.Index(arr, name=meta.get("name"), copy=False)
+    return idx, [shm]
+
+def export_multiindex_to_shm(mi: pd.MultiIndex):
+    level_metas, level_shms = [], []
+    for lev in mi.levels:
+        lev_arr = lev.to_numpy(copy=False)
+        shm, meta = _to_shm(lev_arr)
+        level_metas.append(meta)
+        level_shms.append(shm)
+    code_metas, code_shms = [], []
+    for codes in mi.codes:
+        codes_arr = np.asarray(codes, dtype=np.intp, order="C")
+        shm, meta = _to_shm(codes_arr)
+        code_metas.append(meta)
+        code_shms.append(shm)
+    meta = {
+        "kind": "multi",
+        "names": mi.names,
+        "levels": level_metas,
+        "codes": code_metas,
+    }
+    return meta, level_shms + code_shms
+
+def import_multiindex_to_shm(meta):
+    level_shms, level_idxs = [], []
+    for lev_meta in meta["levels"]:
+        shm, lev_arr = _from_shm(lev_meta)
+        level_shms.append(shm)
+        level_idxs.append(pd.Index(lev_arr, copy=False))
+    code_shms, code_arrs = [], []
+    for code_meta in meta["codes"]:
+        shm, code_arr = _from_shm(code_meta)
+        code_shms.append(shm)
+        code_arrs.append(code_arr)
+    mi = pd.MultiIndex(
+        levels=level_idxs,
+        codes=code_arrs,
+        names=meta["names"],
+        verify_integrity=False,
+    )
+    return mi, level_shms + code_shms
+
+# ---- DataFrame SHM ----
+def export_df_to_shm(df: pd.DataFrame):
+    # values: must be single fixed-width dtype (float32/float64/etc.)
+    values = df.to_numpy(copy=False)
+    if values.dtype == object:
+        raise TypeError(
+            "Object dtype is not supported for zero-copy SHM DataFrame."
+        )
+    data_shm, data_meta = _to_shm(values)
+
+    # index
+    if isinstance(df.index, pd.MultiIndex):
+        idx_meta, idx_shms = export_multiindex_to_shm(df.index)
+    else:
+        idx_meta, idx_shms = export_index_to_shm(df.index)
+
+    # columns
+    if isinstance(df.columns, pd.MultiIndex):
+        col_meta, col_shms = export_multiindex_to_shm(df.columns)
+    else:
+        col_meta, col_shms = export_index_to_shm(df.columns)
+
+    meta = {"data": data_meta, "index": idx_meta, "columns": col_meta}
+    shms = [data_shm] + idx_shms + col_shms
+    return meta, shms
+
+def import_df_to_shm(meta):
+    data_shm, data_arr = _from_shm(meta["data"])
+
+    # index
+    if meta["index"]["kind"] == "multi":
+        idx, idx_shms = import_multiindex_to_shm(meta["index"])
+    else:
+        idx, idx_shms = import_index_to_shm(meta["index"])
+
+    # columns
+    if meta["columns"]["kind"] == "multi":
+        cols, col_shms = import_multiindex_to_shm(meta["columns"])
+    else:
+        cols, col_shms = import_index_to_shm(meta["columns"])
+
+    df = pd.DataFrame(data_arr, index=idx, columns=cols, copy=False)
+    shms = [data_shm] + idx_shms + col_shms
+    return df, shms
