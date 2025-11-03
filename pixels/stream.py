@@ -103,7 +103,7 @@ class Stream:
         end_t = timestamps[selected_ends]
 
         # use original trial ids as trial index
-        trial_ids = pd.Index(common_ids)
+        trial_ids = pd.Index(common_ids, dtype=np.int16)
 
         return trials, events, selected_starts, start_t, end_t, trial_ids
 
