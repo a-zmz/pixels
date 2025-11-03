@@ -1453,45 +1453,48 @@ def _psd_chance_worker(
     return
     ===
     """
-    logging.info(f"\nProcessing repeat {r}...")
-    chance_data, idx, cols = get_spike_chance(
-        sample_rate=sample_rate,
-        positions=positions,
-        **paths,
-    )
     # attach to shared memory and rebuild the indices
     idx, idx_shms = ioutils.import_multiindex_to_shm(idx_meta)
     cols, cols_shms = ioutils.import_index_to_shm(cols_meta)
     positions, positions_shms = ioutils.import_df_to_shm(positions_meta)
 
-    pos_fr, _ = _get_vr_positional_neural_data(
-        positions=positions,
-        data_type="spike_rate",
-        data=pd.DataFrame(chance_data[..., r], index=idx, columns=cols),
-    )
-    del chance_data, positions
+    try:
+        pos_fr, _ = _get_vr_positional_neural_data(
+            positions=positions,
+            data_type="spike_rate",
+            data=pd.DataFrame(
+                fr_zarr[..., r],
+                index=idx,
+                columns=cols,
+            ).loc[trial_ids, unit_ids],
+        )
+        del positions, idx, cols
+        gc.collect()
 
-    psd = {}
-    starts = pos_fr.columns.get_level_values("start").unique()
+        psd = {}
+        starts = pos_fr.columns.get_level_values("start").unique()
 
-    for start in starts:
-        start_df = pos_fr.xs(
-            start,
-            level="start",
-            axis=1,
-        ).dropna(how="all")
+        for start in starts:
+            start_df = pos_fr.xs(
+                start,
+                level="start",
+                axis=1,
+            ).dropna(how="all")
 
-        cropped = start_df.loc[start+cut_start:cut_end, :]
-        psd[start] = get_spatial_psd(cropped)
+            cropped = start_df.loc[start+cut_start:cut_end, :]
+            psd[start] = get_psd(cropped)
 
-        del cropped, start_df
+            del cropped, start_df
+            gc.collect()
 
-    psd_df = pd.concat(
-        psd,
-        names=["start", "frequency"],
-    )
+        del pos_fr, starts
+        gc.collect()
 
-    logging.info(f"\nRepeat {r} finished.")
+        psd_df = pd.concat(
+            psd,
+            names=["start", "frequency"],
+        )
+        logging.info(f"\nRepeat {r} finished.")
     finally:
         for shm in idx_shms + cols_shms + positions_shms:
             shm.close()
