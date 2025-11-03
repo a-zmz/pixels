@@ -33,7 +33,7 @@ import spikeinterface.postprocessing as spost
 import spikeinterface.qualitymetrics as sqm
 
 import pixels.signal_utils as signal
-from pixels.ioutils import write_hdf5, reindex_by_longest
+from pixels import ioutils
 from pixels.error import PixelsError
 from pixels.configs import *
 from pixels.constants import *
@@ -1077,11 +1077,11 @@ def bin_spike_chance(chance_data, sample_rate, time_bin, pos_bin, arr_path):
         )
 
         # np array for andrew
-        fr_arrs[repeat] = reindex_by_longest(
+        fr_arrs[repeat] = ioutils.reindex_by_longest(
             dfs=temp_fr[repeat],
             return_format="array",
         )
-        count_arrs[repeat] = reindex_by_longest(
+        count_arrs[repeat] = ioutils.reindex_by_longest(
             dfs=temp_spiked[repeat],
             return_format="array",
         )
