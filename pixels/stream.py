@@ -1272,17 +1272,32 @@ class Stream:
 
     @cacheable
     def get_chance_positional_psd(self, units, label, event, sigma, end_event):
-        from vision_in_darkness.constants import PRE_DARK_LEN, landmarks
-        positions, paths = self._get_chance_args(
-            units,
+        # NOTE: we only use completed trials for this analysis
+        label_name = label.name.split("_")[-1]
+
+        # get trial ids
+        _, _, _, _, _, trial_ids = self._map_trials(
             label,
             event,
-            sigma,
             end_event,
         )
 
-        logging.info("> getting chance psd")
-        psds = xut.save_chance_psd(self.BEHAVIOUR_SAMPLE_RATE, positions, paths)
+        # get chance data
+        chance_data = self.get_spike_chance(
+            "all",
+            getattr(label, label_name),
+            event.trial_start,
+            sigma,
+            end_event.trial_end,
+        )
+
+        logging.info("\n> getting chance psd")
+        psds = xut.save_chance_psd(
+            chance_data,
+            self.BEHAVIOUR_SAMPLE_RATE,
+            units,
+            trial_ids,
+        )
 
         return psds
 
