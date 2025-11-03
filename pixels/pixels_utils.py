@@ -1439,7 +1439,10 @@ def get_psd(df):
     return psd
 
 
-def _psd_chance_worker(r, sample_rate, positions, paths, cut_start, cut_end):
+def _psd_chance_worker(
+    fr_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta, unit_ids,
+    trial_ids, cut_start, cut_end,
+):
     """
     Worker that computes one set of psd.
 
@@ -1456,6 +1459,10 @@ def _psd_chance_worker(r, sample_rate, positions, paths, cut_start, cut_end):
         positions=positions,
         **paths,
     )
+    # attach to shared memory and rebuild the indices
+    idx, idx_shms = ioutils.import_multiindex_to_shm(idx_meta)
+    cols, cols_shms = ioutils.import_index_to_shm(cols_meta)
+    positions, positions_shms = ioutils.import_df_to_shm(positions_meta)
 
     pos_fr, _ = _get_vr_positional_neural_data(
         positions=positions,
@@ -1485,6 +1492,9 @@ def _psd_chance_worker(r, sample_rate, positions, paths, cut_start, cut_end):
     )
 
     logging.info(f"\nRepeat {r} finished.")
+    finally:
+        for shm in idx_shms + cols_shms + positions_shms:
+            shm.close()
 
     return psd_df
 
@@ -1496,6 +1506,9 @@ def save_chance_psd(sample_rate, positions, paths):#chance_data, idx, cols):
     #import concurrent.futures
     from vision_in_darkness.constants import PRE_DARK_LEN, landmarks
 
+    cols_meta, cols_shms = ioutils.export_index_to_shm(cols)
+    idx_meta, idx_shms = ioutils.export_multiindex_to_shm(idx)
+    positions_meta, positions_shms = ioutils.export_df_to_shm(positions)
     # Set up the process pool to run the worker in parallel.
     # Submit jobs for each repeat.
     futures = []
@@ -1520,6 +1533,10 @@ def save_chance_psd(sample_rate, positions, paths):#chance_data, idx, cols):
         keys=range(REPEATS),
         names=["repeat", "unit", "trial"],
     )
+
+    for shm in idx_shms + cols_shms + positions_shms:
+        shm.close()
+        shm.unlink()
 
     return psds
 
