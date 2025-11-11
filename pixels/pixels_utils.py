@@ -656,13 +656,13 @@ def _curate_sorting(sorting, recording, output):
         extension_params=ext_params,
     )
 
+    # get max peak channel for each unit
+    max_chan = si.get_template_extremum_channel(sa).values()
 
     # make sure to have group id for each unit
     if not "group" in sa.sorting.get_property_keys():
         # get shank id, i.e., group
         group = sa.recording.get_channel_groups()
-        # get max peak channel for each unit
-        max_chan = si.get_template_extremum_channel(sa).values()
         # get group id for each unit
         try:
             unit_group = group[list(max_chan)]
@@ -673,10 +673,6 @@ def _curate_sorting(sorting, recording, output):
             key="group",
             values=unit_group,
         )
-    else:
-        # get max peak channel for each unit
-        max_chan = si.get_template_extremum_channel(sa).values()
-
 
     # >>> get depth of units on each shank >>>
     # get probe geometry coordinates
