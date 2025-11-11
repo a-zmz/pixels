@@ -1526,6 +1526,9 @@ def save_chance_psd(chance_data, sample_rate, units, trial_ids):
     """
     Implementation of saving chance level spike data.
     """
+    # TODO nov 4 2025:
+    # do not get pre_dark_len and landmarks, simply align to pre_dark_end to
+    # landmark5_off for chance?
     #import concurrent.futures
     from vision_in_darkness.constants import PRE_DARK_LEN, landmarks
 
