@@ -769,10 +769,10 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
     """
     logging.info("\n> Exporting sorting results.")
 
-    # export pre curation report
-    sexp.export_report(
-        sorting_analyzer=sa,
-        output_folder=output/"report",
+    # save sa to disk
+    curated_sa.save_as(
+        format="zarr",
+        folder=curated_sa_dir,
     )
 
     # export curated report
@@ -781,10 +781,10 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
         output_folder=output/"curated_report",
     )
 
-    # save sa to disk
-    curated_sa.save_as(
-        format="zarr",
-        folder=curated_sa_dir,
+    # export pre curation report
+    sexp.export_report(
+        sorting_analyzer=sa,
+        output_folder=outout/"report",
     )
 
     if to_phy:
