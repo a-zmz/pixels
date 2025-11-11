@@ -882,7 +882,10 @@ class Behaviour(ABC):
             )
             if hasattr(self, "backup"):
                 # copy to backup if backup setup
-                copytree(output, self.backup / output.name)
+                copytree(
+                    sa_dir,
+                    self.backup / sa_dir.parent.name / sa_dir.name,
+               )
                 logging.info(f"\n> Sorter ourput copied to {self.backup}.")
 
         return None
