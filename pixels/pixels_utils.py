@@ -173,12 +173,14 @@ def correct_lfp_motion(rec, mc_method="dredge"):
     raise NotImplementedError("> Not implemented.")
 
 
-def correct_ap_motion(rec, mc_method="dredge"):
+def correct_ap_motion(rec, output, mc_method="dredge"):
     """
     Correct motion of recording.
 
     params
     ===
+    output: str or path, output path.
+
     mc_method: str, motion correction method.
         Default: "dredge".
             (as of jan 2025, dredge performs better than ks motion correction.)
@@ -221,7 +223,15 @@ def correct_ap_motion(rec, mc_method="dredge"):
     if not mcd.dtype == np.dtype("int16"):
         mcd = spre.astype(mcd, dtype=np.int16)
 
-    return mcd
+    # save here and load later so that the recording object is an si extractor
+    mcd.save(
+        format="zarr",
+        folder=output,
+        compressor=wv_compressor,
+        #n_jobs=1, #?
+    )
+
+    return None
 
 
 def detect_n_localise_peaks(rec, loc_method="monopolar_triangulation"):

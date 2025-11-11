@@ -1020,13 +1020,16 @@ class Stream:
         return None
 
 
-    def correct_ap_motion(self):
+    def correct_ap_motion(self, output, mc_method):
         # get ap band
         self.extract_bands("ap")
         ap_rec = self.files["ap_extracted"]
 
         # correct ap motion
-        self.files["ap_motion_corrected"] = xut.correct_ap_motion(ap_rec)
+        xut.correct_ap_motion(ap_rec, output, mc_method)
+        # load motion corrected ap cuz otherwise it is not an si extractor and
+        # it will not pass json serialisation test
+        self.files["ap_motion_corrected"] = si.load(output)
 
         return None
 

@@ -567,13 +567,7 @@ class Behaviour(ABC):
                 files=stream_files,
                 session=self,
             )
-            stream.correct_ap_motion()
-
-            stream_files["ap_motion_corrected"].save(
-                format="zarr",
-                folder=output,
-                compressor=wv_compressor,
-            )
+            stream.correct_ap_motion(output, mc_method)
 
             if hasattr(self, "backup"):
                 # copy to backup if backup setup
@@ -842,6 +836,9 @@ class Behaviour(ABC):
             # XXX: no whitening
             #self.whiten_ap()
 
+        # NOTE nov 11 2025: keep in mind that these ks4 params r passed to
+        # singularity image, but si global kwargs we set here r not, hence we
+        # see job kwargs in the spikeinterface_params.json r not the same
         # set ks4 parameters
         ks4_params = {
             "do_CAR": False, # do not common average reference
