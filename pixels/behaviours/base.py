@@ -850,9 +850,7 @@ class Behaviour(ABC):
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
             # check if already sorted and exported
-            sorter_output = self.find_file(
-                stream_files["sorting_analyser"].parent
-            )
+            self.find_file(stream_files["sorting_analyser"].parent)
             sa_dir = self.processed / stream_files["sorting_analyser"]
             if sa_dir.exists():
                 logging.info("\n> Already sorted and exported, next stream.")
