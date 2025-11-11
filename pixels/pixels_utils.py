@@ -1569,7 +1569,7 @@ def save_chance_psd(chance_data, sample_rate, units, trial_ids):
                 unit_ids,
                 trial_ids,
                 PRE_DARK_LEN,
-                landmarks[-1] - 1
+                landmarks[-1] - 1,
             ) for r in range(repeats)
         ]
         # collect and concat
