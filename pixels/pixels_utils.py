@@ -641,6 +641,8 @@ def _curate_sorting(sorting, recording, output):
         "spike_amplitudes",
         "correlograms",
         "principal_components", # for phy
+        "quality_metrics",
+        "template_metrics",
     ]
     sa.compute(required_extensions, save=True)
 
@@ -664,8 +666,6 @@ def _curate_sorting(sorting, recording, output):
         # get max peak channel for each unit
         max_chan = si.get_template_extremum_channel(sa).values()
 
-    # calculate quality metrics
-    qms = sqm.compute_quality_metrics(sa)
 
     # >>> get depth of units on each shank >>>
     # get probe geometry coordinates
@@ -680,6 +680,9 @@ def _curate_sorting(sorting, recording, output):
         values=max_chan_coords,
     )
     # <<< get depth of units on each shank <<<
+
+    # get quality metrics
+    qms = sa.get_extension("quality_metrics").get_data()
 
     # remove bad units
     #rule = "sliding_rp_violation <= 0.1 & amplitude_median <= -40\
@@ -698,11 +701,9 @@ def _curate_sorting(sorting, recording, output):
     # wait till noise cutoff implemented and include that.
     # also see why sliding rp violation gives loads nan.
 
-    # calculate template metrics
-    tms = spost.compute_template_metrics(
-        sa,
-        include_multi_channel_metrics=True,
-    )
+    # get template metrics
+    tms = sa.get_extension("template_metrics").get_data()
+
     # remove noise based on waveform
     tms_rule = "num_positive_peaks <= 2 & num_negative_peaks == 1 &\
     exp_decay > 0.01 & exp_decay < 0.1" # bombcell
