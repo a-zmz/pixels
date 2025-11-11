@@ -1961,7 +1961,7 @@ def filter_non_somatics(unit_ids, templates, sampling_freq):
     max_repo_peak_to_trough_ratio = 0.8
 
     # height ratio to trough
-    heigh_ratio_to_trough = 0.15 #0.2
+    height_ratio_to_trough = 0.15 #0.2
     # minimum width of the peak for detection
     min_width = 0
 
@@ -1989,7 +1989,7 @@ def filter_non_somatics(unit_ids, templates, sampling_freq):
         # get absolute maximum
         template_max = np.max(np.abs(template))
         # minimum prominence of the peak
-        prominence = heigh_ratio_to_trough * template_max
+        prominence = height_ratio_to_trough * template_max
         # get trough index
         trough_idx = np.argmin(template)
         trough_height = np.abs(template)[trough_idx]
