@@ -1235,11 +1235,11 @@ class Stream:
 
         # get chance data
         chance_data = self.get_spike_chance(
-            units,
-            label,
-            event,
-            sigma,
-            end_event,
+            units=units,
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event,
         )
         # bin chance data
         binned_chance = xut.bin_spike_chance(
@@ -1287,11 +1287,11 @@ class Stream:
 
         # get chance data
         chance_data = self.get_spike_chance(
-            "all",
-            getattr(label, label_name),
-            event.trial_start,
-            sigma,
-            end_event.trial_end,
+            units=self.session.select_units(name="all"),
+            label=getattr(label, label_name),
+            event=event.trial_start,
+            sigma=sigma,
+            end_event=end_event.trial_end,
         )
 
         logging.info("\n> getting chance psd")
@@ -1387,11 +1387,11 @@ class Stream:
 
         # get chance data
         chance_data = self.get_spike_chance(
-            "all",
-            getattr(label, label_name),
-            event.trial_start,
-            sigma,
-            end_event.trial_end,
+            units=self.session.select_units(name="all"),
+            label=getattr(label, label_name),
+            event=event.trial_start,
+            sigma=sigma,
+            end_event=end_event.trial_end,
         )
 
         fr = xut.save_chance_positional_fr(
