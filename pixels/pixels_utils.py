@@ -644,7 +644,18 @@ def _curate_sorting(sorting, recording, output):
         "quality_metrics",
         "template_metrics",
     ]
-    sa.compute(required_extensions, save=True)
+    ext_params = {
+        "template_metrics": {
+            "include_multi_channel_metrics": True,
+        },
+    }
+
+    sa.compute(
+        required_extensions,
+        save=True,
+        extension_params=ext_params,
+    )
+
 
     # make sure to have group id for each unit
     if not "group" in sa.sorting.get_property_keys():
