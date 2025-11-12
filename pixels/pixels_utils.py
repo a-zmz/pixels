@@ -420,14 +420,15 @@ def sort_spikes(rec, sa_rec, output, curated_sa_dir, ks_image_path, ks4_params,
         )
 
     # curate sorting
-    sa, curated_sa = _curate_sorting(
+    sa = curate_sorting(
         sorting,
         recording,
         output,
     )
+    sa, curated_sa = curate_sorting_analyser(sa)
 
     # export sorting analyser
-    _export_sorting_analyser(
+    export_sorting_analyser(
         sa,
         curated_sa,
         output,
@@ -581,7 +582,7 @@ def _sort_spikes(rec, sa_rec, output, ks_image_path, ks4_params):
     return sorting, recording
 
 
-def _curate_sorting(sorting, recording, output):
+def curate_sorting(sorting, recording, output):
     """
     Curate spike sorting results, and export to disk.
     
@@ -628,9 +629,11 @@ def _curate_sorting(sorting, recording, output):
         overwrite=True,
     )
 
+    return sa
+
+
+def curate_sorting_analyser(sa):
     # calculate all extensions BEFORE further steps
-    # list required extensions for redundant units removal and quality
-    # metrics
     required_extensions = [
         "random_spikes",
         "waveforms",
@@ -750,7 +753,7 @@ def _curate_sorting(sorting, recording, output):
     return sa, curated_sa
 
 
-def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
+def export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
                              to_phy=False):
     """
     Export sorting analyser to disk.
@@ -784,7 +787,7 @@ def _export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
     # export pre curation report
     sexp.export_report(
         sorting_analyzer=sa,
-        output_folder=outout/"report",
+        output_folder=output/"report",
     )
 
     if to_phy:
