@@ -2689,39 +2689,6 @@ class Behaviour(ABC):
         return output
 
 
-    def save_spike_chance(self, spiked, sigma, sample_rate):
-        # TODO apr 21 2025:
-        # do we put this func here or in stream.py???
-
-        # save index and columns to reconstruct df for shuffled data
-        ioutils.save_index_to_frame(
-            df=spiked, 
-            path=self.interim / stream_files["shuffled_index"],
-        )
-        ioutils.save_cols_to_frame(
-            df=spiked,
-            path=self.interim / stream_files["shuffled_columns"],
-        )
-
-        # get chance data paths
-        paths = {
-            "spiked_memmap_path": self.interim /\
-                stream_files["spiked_shuffled_memmap"],
-            "fr_memmap_path": self.interim /\
-                stream_files["fr_shuffled_memmap"],
-        }
-
-        # save chance data
-        xut.save_spike_chance(
-            **paths,
-            sigma=sigma,
-            sample_rate=self.SAMPLE_RATE,
-            spiked=spiked,
-        )
-
-        return None
-
-
     def sync_vr(self, vr_session):
         """
         Synchronise each pixels stream with virtual reality data.

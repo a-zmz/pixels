@@ -1090,38 +1090,6 @@ class Stream:
         return None
 
 
-    def save_spike_chance(self, spiked, sigma):
-        # TODO apr 21 2025:
-        # do we put this func here or in stream.py??
-        # save index and columns to reconstruct df for shuffled data
-        assert 0
-        ioutils.save_index_to_frame(
-            df=spiked,
-            path=shuffled_idx_path,
-        )
-        ioutils.save_cols_to_frame(
-            df=spiked,
-            path=shuffled_col_path,
-        )
-
-        # get chance data paths
-        paths = {
-            "spiked_memmap_path": self.interim /\
-                stream_files["spiked_shuffled_memmap"],
-             "fr_memmap_path": self.interim / stream_files["fr_shuffled_memmap"],
-        }
-
-        # save chance data
-        xut.save_spike_chance(
-            **paths,
-            sigma=sigma,
-            sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
-            spiked=spiked,
-        )
-
-        return None
-
-
     def get_spatial_psd(
         self, label, event, end_event=None, sigma=None, units=None,
         crop_from=None, use_binned=False, time_bin=None, pos_bin=None,
@@ -1251,26 +1219,6 @@ class Stream:
         )
 
         return binned_chance
-
-
-    def _get_chance_args(self, label, event, sigma, end_event):
-        probe_id = self.stream_id[:-3]
-        name = self.session.name
-        paths = {
-            "spiked_memmap_path": self.interim/\
-                f"{name}_{probe_id}_{label.name}_spiked_shuffled.bin",
-            "fr_memmap_path": self.interim/\
-                f"{name}_{probe_id}_{label.name}_fr_shuffled.bin",
-            "memmap_shape_path": self.interim/\
-                f"{name}_{probe_id}_{label.name}_shuffled_shape.json",
-            "idx_path": self.interim/\
-                f"{name}_{probe_id}_{label.name}_shuffled_index.h5",
-                # NOTE: if all units, all conditions share the same columns
-            "col_path": self.interim/\
-                self.files["shuffled_columns"],
-        }
-
-        return positions, paths
 
 
     @cacheable
