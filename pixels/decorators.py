@@ -162,14 +162,14 @@ def _df_from_zarr_via_xarray(
         ds = xr.open_zarr(
             str(path),
             consolidated=True,
-            chunks="auto",
+            chunks=None,
         )
     else:
         ds = xr.open_zarr(
             store=store,
             group=group_name or "",
             consolidated=False,
-            chunks="auto",
+            chunks=None,
         )
 
     da = ds["values"]
