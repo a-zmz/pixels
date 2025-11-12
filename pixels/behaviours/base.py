@@ -75,6 +75,7 @@ class Behaviour(ABC):
     def __init__(self, name, data_dir, metadata=None, processed_dir=None,
                  interim_dir=None, hist_dir=None):
         self.name = name
+        self.date = name.split("_")[0]
         self.mouse_id = name.split("_")[-1]
         self.data_dir = data_dir
         self.metadata = metadata
