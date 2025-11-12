@@ -176,24 +176,53 @@ def _df_from_zarr_via_xarray(
     row_dim = list(ds.attrs.get("__row_dims__") or [])
     col_dim = list(ds.attrs.get("__col_dims__") or [])
 
-    # Series with MultiIndex index (row_dim, *col_dim)
-    series = da.to_series()
-
-    # If there are column dims, unstack them back to columns
-    if col_dim:
-        df = series.unstack(col_dim)
-    else:
-        # No column dims -> a single column DataFrame
-        df = series.to_frame(name="values")
-
-    col_name = [df.columns.name]
-    if not (row_dim == df.index.names):
-        df.index.set_names(row_dim, inplace=True)
-    if not (col_dim == col_name):
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns.set_names(col_dim, inplace=True)
+    # >>> gpt version >>>
+    # fast path: no column dims -> DataFrame with single column "values"
+    if not col_dim:
+        # bring data in the correct dim order
+        da2 = da.transpose(*row_dim)
+        data = da2.data
+        # compute to numpy (uses on-disk chunking; no large rechunk)
+        values = data.compute() if hasattr(data, "compute")\
+                                else np.asarray(data)
+        # build index
+        row_levels = [ds.coords[n].values for n in row_dim]
+        if len(row_levels) == 1:
+            index = pd.Index(row_levels[0], name=row_dim[0])
         else:
-            df.columns.name = col_dim[0]
+            index = pd.MultiIndex.from_product(row_levels, names=row_dim)
+
+        df = pd.DataFrame({"values": values.reshape((-1,))}, index=index)
+        df.columns.name = (col_dim[0] if col_dim else None)
+
+        return df
+
+    # general path: row dims + col dims -> 2D dataframe
+    # ensure data is ordered as [row_dims..., col_dims...]
+    da2 = da.transpose(*(row_dim + col_dim))
+    data = da2.data
+    values = data.compute() if hasattr(data, "compute") else np.asarray(data)
+
+    # reshape to 2D: (nrows, ncols)
+    nrows = int(np.prod([da2.sizes[d] for d in row_dim]))
+    ncols = int(np.prod([da2.sizes[d] for d in col_dim]))
+    values2d = values.reshape((nrows, ncols))
+
+    # build row index from row level coords
+    row_levels = [ds.coords[n].values for n in row_dim]
+    if len(row_levels) == 1:
+        row_index = pd.Index(row_levels[0], name=row_dim[0])
+    else:
+        row_index = pd.MultiIndex.from_product(row_levels, names=row_dim)
+
+    # build column index from column level coords
+    col_levels = [ds.coords[n].values for n in col_dim]
+    if len(col_levels) == 1:
+        col_index = pd.Index(col_levels[0], name=col_dim[0])
+    else:
+        col_index = pd.MultiIndex.from_product(col_levels, names=col_dim)
+
+    df = pd.DataFrame(values2d, index=row_index, columns=col_index)
 
     return df
 
