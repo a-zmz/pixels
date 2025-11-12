@@ -30,7 +30,6 @@ import spikeinterface.curation as sc
 import spikeinterface.exporters as sexp
 import spikeinterface.preprocessing as spre
 import spikeinterface.postprocessing as spost
-import spikeinterface.qualitymetrics as sqm
 
 import pixels.signal_utils as signal
 from pixels import ioutils
