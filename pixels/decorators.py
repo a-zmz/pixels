@@ -168,7 +168,7 @@ def _df_from_zarr_via_xarray(
         ds = xr.open_zarr(
             store=store,
             group=group_name or "",
-            consolidated=False,
+            consolidated=False,# TODO nov 12 2025 test True
             chunks=None,
         )
 
