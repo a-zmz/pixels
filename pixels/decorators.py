@@ -420,6 +420,7 @@ def cacheable(
     _func=None,
     *,
     cache_format: str | None = None,
+    cache_dir: Path | str | None = None,
     zarr_chunks: Any = None,
     zarr_compressor: Any = None,
     zarr_dim_name: str | None = None,
@@ -452,6 +453,7 @@ def cacheable(
 
             # Per-call overrides
             per_call_backend = kwargs.pop("cache_format", None)
+            per_call_cache_dir = kwargs.pop("cache_dir", None)
             per_call_chunks = kwargs.pop("zarr_chunks", zarr_chunks)
             per_call_compressor = kwargs.pop("zarr_compressor", zarr_compressor)
             per_call_dim_name = kwargs.pop("zarr_dim_name", zarr_dim_name)
@@ -482,7 +484,21 @@ def cacheable(
             key_parts = [method.__name__] + [
                 str(i.name) if hasattr(i, "name") else str(i) for i in as_list
             ]
-            base = inst.cache / ("_".join(key_parts) + f"_{inst.stream_id}")
+
+            # set base dir
+            base_dir = (
+                per_call_cache_dir
+                or cache_dir
+                or getattr(inst, "_cache_dir", None)
+                or getattr(inst, "cache", None)
+            )
+            if base_dir is None:
+                raise PixelsError(
+                    "No cache directory available. "
+                    "Provide cache_dir or set inst.cache."
+                )
+            base_dir = Path(base_dir)
+            base = base_dir / ("_".join(key_parts) + f"_{inst.stream_id}")
 
             backend = per_call_backend\
                     or getattr(inst, "_cache_format", None)\
