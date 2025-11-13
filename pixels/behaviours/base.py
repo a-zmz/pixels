@@ -83,22 +83,22 @@ class Behaviour(ABC):
         self.data_dir = data_dir
         self.metadata = metadata
 
-        self.raw = self.data_dir / 'raw' / self.name
+        self.raw = self.data_dir / "raw" / self.name
 
         if interim_dir is None:
-            self.interim = self.data_dir / 'interim' / self.name
+            self.interim = self.data_dir / "interim" / self.name
         else:
             self.interim = Path(interim_dir).expanduser() / self.name
 
         if processed_dir is None:
-            self.processed = self.data_dir / 'processed' / self.name
+            self.processed = self.data_dir / "processed" / self.name
         else:
             self.processed = Path(processed_dir).expanduser() / self.name
-            self.backup = self.data_dir / 'processed' / self.name
+            self.backup = self.data_dir / "processed" / self.name
             self.backup.mkdir(parents=True, exist_ok=True)
 
         if hist_dir is None:
-            self.histology = self.data_dir / 'histology'\
+            self.histology = self.data_dir / "histology"\
                     / processed / self.mouse_id
         else:
             self.histology =  Path(hist_dir).expanduser() / self.mouse_id
@@ -113,7 +113,7 @@ class Behaviour(ABC):
         self.files = ioutils.get_data_files(self.raw, name)
 
         self.CatGT_dir = sorted(glob.glob(
-            str(self.interim) +'/' + f'catgt_{self.name}_g[0-9]'
+            str(self.interim) + "/" + f"catgt_{self.name}_g[0-9]"
         ))
 
         self.interim.mkdir(parents=True, exist_ok=True)
