@@ -594,16 +594,30 @@ class Experiment:
         return df
 
 
-    def sync_vr(self, vr):
+    def sync_vr(self, vr_sessions):
         """
         Synchronise virtual reality data of a mouse (or mice) with pixels
         streams.
+
+        params
+        ===
+        vr_sessions: dict, vr sessions with session names being keys, and
+            session object being value.
         """
+        session_names = list(vr_sessions.keys())
         trials = {}
         for i, session in enumerate(self.sessions):
-            # vr is a vision-in-darkness mouse object
-            vr_session = vr.sessions[i]
-            assert session.name.split("_")[0] in vr_session.name
+            date = session.date
+            try:
+                vr_session_name = next(
+                    n for n in vr_sessions.keys() if session.date in n
+                )
+            except StopIteration:
+                raise PixelsError(
+                    f"Did not find a matched vr session on {date}."
+                )
+
+            vr_session = vr_sessions[vr_session_name]
 
             session.sync_vr(vr_session)
 
