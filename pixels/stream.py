@@ -750,8 +750,10 @@ class Stream:
         time_bin=None, pos_bin=None
     ):
         # define output path for binned spike rate
-        output_path = self.cache/ f"{self.session.name}_{units}_{label.name}_"\
-                                f"{time_bin}_{pos_bin}cm_{self.stream_id}.npz"
+        file_name = f"{self.session.name}_{units}_{label.name}_"\
+            f"{time_bin}_{pos_bin}cm_{self.stream_id}.npz"
+        output_path = self.cache / file_name
+
         binned = self._bin_aligned_trials(
             label=label,
             event=event,
@@ -762,6 +764,13 @@ class Stream:
             pos_bin=pos_bin,
             output_path=output_path,
         )
+
+        if hasattr(self.session, "backup"):
+            # copy to backup if backup setup
+            copyfile(
+                output_path,
+                self.session.backup / file_name,
+            )
 
         return binned
 
@@ -1221,6 +1230,13 @@ class Stream:
             pos_bin,
             arr_path,
         )
+
+        if hasattr(self.session, "backup"):
+            # copy to backup if backup setup
+            copyfile(
+                arr_path,
+                self.session.backup / file_name,
+            )
 
         return binned_chance
 
