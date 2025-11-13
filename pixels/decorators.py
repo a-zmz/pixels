@@ -485,10 +485,15 @@ def cacheable(
                 str(i.name) if hasattr(i, "name") else str(i) for i in as_list
             ]
 
+            def resolve_dir(spec):
+                if spec is None:
+                    return None
+                return spec(inst) if callable(spec) else spec
+
             # set base dir
             base_dir = (
-                per_call_cache_dir
-                or cache_dir
+                resolve_dir(per_call_cache_dir)
+                or resolve_dir(cache_dir)
                 or getattr(inst, "_cache_dir", None)
                 or getattr(inst, "cache", None)
             )
