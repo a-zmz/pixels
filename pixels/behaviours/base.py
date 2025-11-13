@@ -856,7 +856,7 @@ class Behaviour(ABC):
             "do_CAR": False, # do not common average reference
             "skip_kilosort_preprocessing": False,
             "do_correction": ks_mc,
-            "save_preprocessed_copy": True, # save ks4 preprocessed data
+            "save_preprocessed_copy": False, # save ks4 preprocessed data
         }
 
         streams = self.files["pixels"]

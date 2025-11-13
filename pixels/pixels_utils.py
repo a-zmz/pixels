@@ -446,7 +446,6 @@ def _sort_spikes_by_group(rec, sa_rec, output, ks_image_path, ks4_params):
     rec: spikeinterface recording object.
 
     sa_rec: spikeinterface recording object for creating sorting analyser.
-        if None, then use the temp_wh.dat from ks output.
 
     output: path object, directory of output.
 
@@ -474,39 +473,7 @@ def _sort_spikes_by_group(rec, sa_rec, output, ks_image_path, ks4_params):
         **ks4_params,
     )
 
-    if not sa_rec:
-        recs = []
-        groups = rec.split_by("group")
-        for g, group in groups.items():
-            ks_preprocessed = se.read_binary(
-                file_paths=output/f"{g}/sorter_output/temp_wh.dat",
-                sampling_frequency=group.sampling_frequency,
-                dtype=np.int16,
-                num_channels=group.get_num_channels(),
-                is_filtered=True,
-            )
-
-            # attach probe # to ks4 preprocessed recording, from the raw
-            with_probe = ks_preprocessed.set_probe(group.get_probe())
-            # set properties to make sure sorting & sorting sa have all
-            # probe # properties to form correct rec_attributes, esp
-            with_probe._properties = group._properties
-
-            # >>> annotations >>>
-            annotations = group.get_annotation_keys()
-            annotations.remove("is_filtered")
-            for ann in annotations:
-                with_probe.set_annotation(
-                    annotation_key=ann,
-                    value=group.get_annotation(ann),
-                    overwrite=True,
-                )
-            # <<< annotations <<<
-            recs.append(with_probe)
-
-        recording = si.aggregate_channels(recs)
-    else:
-        recording = sa_rec
+    recording = sa_rec
 
     return sorting, recording
 
@@ -550,33 +517,7 @@ def _sort_spikes(rec, sa_rec, output, ks_image_path, ks4_params):
     # build sa with non-whitened preprocessed rec gives amp between 0-250uV,
     # which makes sense, and quality metric amp_median is comparable across
     # recordings
-    if not sa_rec:
-        # load ks preprocessed recording for # sorting analyser
-        ks_preprocessed = se.read_binary(
-            file_paths=output/"sorter_output/temp_wh.dat",
-            sampling_frequency=rec.sampling_frequency,
-            dtype=np.int16,
-            num_channels=rec.get_num_channels(),
-            is_filtered=True,
-        )
-        # attach probe # to ks4 preprocessed recording, from the raw
-        recording = ks_preprocessed.set_probe(rec.get_probe())
-        # set properties to make sure sorting & sorting sa have all
-        # probe # properties to form correct rec_attributes, esp
-        recording._properties = rec._properties
-
-        # >>> annotations >>>
-        annotations = rec.get_annotation_keys()
-        annotations.remove("is_filtered")
-        for ann in annotations:
-            recording.set_annotation(
-                annotation_key=ann,
-                value=rec.get_annotation(ann),
-                overwrite=True,
-            )
-        # <<< annotations <<<
-    else:
-        recording = sa_rec
+    recording = sa_rec
 
     return sorting, recording
 
