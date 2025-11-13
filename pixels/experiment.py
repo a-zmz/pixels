@@ -51,8 +51,9 @@ class Experiment:
         data_dir,
         meta_dir=None,
         interim_dir=None,
-        hist_dir=None,
         processed_dir=None,
+        hist_dir=None,
+        additional_interim_dir=None,
         session_date_fmt="%y%m%d",
         of_date=None,
     ):
@@ -94,8 +95,9 @@ class Experiment:
                     metadata=[s['metadata'] for s in metadata],
                     data_dir=metadata[0]['data_dir'],
                     interim_dir=interim_dir,
-                    hist_dir=hist_dir,
                     processed_dir=processed_dir,
+                    hist_dir=hist_dir,
+                    additional_interim_dir=additional_interim_dir,
                 )
             )
 

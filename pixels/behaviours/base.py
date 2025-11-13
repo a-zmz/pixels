@@ -68,12 +68,15 @@ class Behaviour(ABC):
         An non-default interim folder that we can use for faster access to interim
         files, for example, instead of one in the data_dir.
 
+    additional_interim_dir : pathlib.Path
+        An additional interim folder to expand interim directory so we can save
+        big files here.
     """
 
     SAMPLE_RATE = SAMPLE_RATE
 
     def __init__(self, name, data_dir, metadata=None, processed_dir=None,
-                 interim_dir=None, hist_dir=None):
+                 interim_dir=None, hist_dir=None, additional_interim_dir=None):
         self.name = name
         self.date = name.split("_")[0]
         self.mouse_id = name.split("_")[-1]
@@ -100,6 +103,13 @@ class Behaviour(ABC):
         else:
             self.histology =  Path(hist_dir).expanduser() / self.mouse_id
 
+        if additional_interim_dir is None:
+            self.additional_interim = self.data_dir / "interim" / self.name
+        else:
+            self.additional_interim = (
+                Path(additional_interim_dir).expanduser() / self.name
+            )
+
         self.files = ioutils.get_data_files(self.raw, name)
 
         self.CatGT_dir = sorted(glob.glob(
@@ -108,6 +118,7 @@ class Behaviour(ABC):
 
         self.interim.mkdir(parents=True, exist_ok=True)
         self.processed.mkdir(parents=True, exist_ok=True)
+        self.additional_interim.mkdir(parents=True, exist_ok=True)
 
         self._action_labels = None
         self._behavioural_data = None

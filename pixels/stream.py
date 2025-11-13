@@ -37,8 +37,8 @@ class Stream:
         self.BEHAVIOUR_SAMPLE_RATE = session.SAMPLE_RATE
         self.raw = session.raw
         self.interim = session.interim
-        self.datastore_cache = session.data_dir / "interim/cache/"
         self.cache = self.interim / "cache/"
+        self.additional_cache = session.additional_interim / "cache/"
         self.processed = session.processed
         self.histology = session.histology
 
@@ -1151,7 +1151,10 @@ class Stream:
         return psd_df
 
 
-    @cacheable(cache_format="zarr", cache_dir=self.datastore_cache)
+    @cacheable(
+        cache_format="zarr",
+        cache_dir=lambda self: self.additional_cache,
+    )
     def get_spike_chance(self, units, label, event, sigma, end_event,
         # reserved kwargs injected by decorator when cache_format='zarr'
         _zarr_out: Path | str | None = None,
