@@ -57,8 +57,8 @@ def _df_to_zarr_via_xarray(
 ) -> None:
     """
     Write DataFrame (supports MultiIndex) to a Zarr store/group via xarray.
-    If df.index is MultiIndex, we reset it into coordinate variables and record attrs
-    so we can reconstruct on read.
+    If df.index is MultiIndex, we reset it into coordinate variables and record
+    attrs so we can reconstruct on read.
 
     Provide either path (DirectoryStore path) or (store, group).
     """
@@ -440,9 +440,12 @@ def cacheable(
       > instance default self._cache_format > 'hdf5'
 
     Zarr options:
-      - zarr_chunks: int (rows per chunk for DataFrame; 1D arrays) or tuple/dict for arrays/xarray
-      - zarr_compressor: a numcodecs compressor (e.g., Blosc(...)); default zstd+bitshuffle
-      - zarr_dim_name: optional row-dimension name when writing DataFrame via xarray
+      - zarr_chunks: int (rows per chunk for DataFrame; 1D arrays) or tuple/dict
+        for arrays/xarray
+      - zarr_compressor: a numcodecs compressor (e.g., Blosc(...)); default
+        zstd+bitshuffle
+      - zarr_dim_name: optional row-dimension name when writing DataFrame via
+        xarray
     """
     default_backend = cache_format or "hdf5"
 
@@ -463,7 +466,8 @@ def cacheable(
             # Units gating (unchanged)
             if "units" in kwargs:
                 units = kwargs["units"]
-                if not isinstance(units, SelectedUnits) or not hasattr(units, "name"):
+                if not isinstance(units, SelectedUnits)\
+                    or not hasattr(units, "name"):
                     return method(*args, **kwargs)
 
             if not getattr(inst, "_use_cache", True):
@@ -471,7 +475,10 @@ def cacheable(
 
             # Build key parts (unchanged)
             self_, *as_list = list(args) + list(kwargs.values())
-            arrays = [i for i, arg in enumerate(as_list) if isinstance(arg, np.ndarray)]
+            arrays = [
+                i for i, arg in enumerate(as_list)
+                if isinstance(arg, np.ndarray)
+            ]
             if arrays:
                 if name is None:
                     raise PixelsError(
@@ -515,10 +522,10 @@ def cacheable(
                 if cache_path.exists() and inst._use_cache != "overwrite":
                     try:
                         df = ioutils.read_hdf5(cache_path)
-                        logging.info(f"\n> Cache loaded from {cache_path}.")
+                        logging.info(f"\n\t> Cache loaded from {cache_path}.")
                     except HDF5ExtError:
                         df = None
-                        logging.info("\n> df is None, cache does not exist.")
+                        logging.info("\n\t> df is None, cache does not exist.")
                     except (KeyError, ValueError):
                         df = {}
                         with pd.HDFStore(cache_path, "r") as store:
@@ -529,13 +536,15 @@ def cacheable(
                                 elif len(parts) == 2:
                                     stream, nm = parts[0], "/".join(parts[1:])
                                     df.setdefault(stream, {})[nm] = store[key]
-                        logging.info(f"\n> Cache loaded from {cache_path}.")
+                        logging.info(f"\n\t> Cache loaded from {cache_path}.")
                 else:
                     df = method(*args, **kwargs)
                     cache_path.parent.mkdir(parents=True, exist_ok=True)
                     if df is None:
                         cache_path.touch()
-                        logging.info("\n> df is None, cache will exist but be empty.")
+                        logging.info(
+                            "\n\t> df is None, cache will exist but be empty."
+                        )
                     else:
                         if isinstance(df, dict):
                             if ioutils.is_nested_dict(df):
@@ -550,7 +559,10 @@ def cacheable(
                             else:
                                 for nm, values in df.items():
                                     ioutils.write_hdf5(
-                                        path=cache_path, df=values, key=nm, mode="a"
+                                        path=cache_path,
+                                        df=values,
+                                        key=nm,
+                                        mode="a",
                                     )
                         else:
                             ioutils.write_hdf5(cache_path, df)
@@ -560,7 +572,8 @@ def cacheable(
             if backend == "zarr":
                 if zarr is None:
                     raise ImportError(
-                        "cache_format='zarr' requires zarr. pip install zarr numcodecs xarray"
+                        "cache_format='zarr' requires zarr. "
+                        "pip install zarr numcodecs xarray"
                     )
                 zarr_path = base.with_name(base.name + ".zarr")
                 can_read = zarr_path.exists() and inst._use_cache != "overwrite"
@@ -568,10 +581,15 @@ def cacheable(
                 if can_read:
                     try:
                         obj = _read_zarr_generic(zarr_path)
-                        logging.info(f"\n> Zarr cache loaded from {zarr_path}.")
+                        logging.info(
+                            f"\n\t> Zarr cache loaded from {zarr_path}."
+                        )
                         return obj
                     except Exception as e:
-                        logging.info(f"\n> Failed to read Zarr cache ({e}); recomputing.")
+                        logging.info(
+                            f"\n\t> Failed to read Zarr cache ({e}); "
+                            "recomputing."
+                        )
 
                 # inject reserved kwargs so the method can write directly to
                 # store, if the method accepts
@@ -583,7 +601,7 @@ def cacheable(
                 if result is None:
                     # Method handled writing itself; read and return
                     obj = _read_zarr_generic(zarr_path)
-                    logging.info(f"\n> Zarr cache written to {zarr_path}.")
+                    logging.info(f"\n\t> Zarr cache written to {zarr_path}.")
                     return obj
 
                 # Overwrite
@@ -601,7 +619,8 @@ def cacheable(
                         mode="w",
                     )
                     logging.info(
-                        f"\n> Zarr cache (DataFrame via xarray) written to {zarr_path}."
+                        "\n\t> Zarr cache (DataFrame via xarray) written to "
+                        f"{zarr_path}."
                     )
                     return result
 
@@ -614,12 +633,12 @@ def cacheable(
                         compressor=compressor,
                         overwrite=True,
                     )
-                    logging.info(f"\n> Zarr cache written to {zarr_path}.")
+                    logging.info(f"\n\t> Zarr cache written to {zarr_path}.")
                     return result
 
                 # Fallback for unsupported types: write HDF5 like before
                 logging.warning(
-                    "cache_format='zarr' requested but result type "
+                    "\tcache_format='zarr' requested but result type "
                     "not supported for Zarr; falling back to HDF5."
                 )
                 h5_fallback = base.with_suffix(".h5")
@@ -643,7 +662,9 @@ def cacheable(
                             )
                 else:
                     ioutils.write_hdf5(h5_fallback, result)
-                logging.info(f"\n> Cache written to {h5_fallback} (fallback).")
+                logging.info(
+                    f"\n\t> Cache written to {h5_fallback} (fallback)."
+                )
                 return result
 
             raise ValueError(f"Unknown cache_format/backend: {backend}")
@@ -678,14 +699,17 @@ def cacheable(method):
 
         if "units" in kwargs:
             units = kwargs["units"]
-            if not isinstance(units, SelectedUnits) or not hasattr(units, "name"):
+            if not isinstance(units, SelectedUnits)
+            \or not hasattr(units, "name"):
                 return method(*args, **kwargs)
 
         self, *as_list = list(args) + list(kwargs.values())
         if not self._use_cache:
             return method(*args, **kwargs)
 
-        arrays = [i for i, arg in enumerate(as_list) if isinstance(arg, np.ndarray)]
+        arrays = [
+            i for i, arg in enumerate(as_list) if isinstance(arg, np.ndarray)
+        ]
         if arrays:
             if name is None:
                 raise PixelsError(
@@ -705,10 +729,10 @@ def cacheable(method):
             # load cache
             try:
                 df = ioutils.read_hdf5(cache_path)
-                logging.info(f"\n> Cache loaded from {cache_path}.")
+                logging.info(f"\n\t> Cache loaded from {cache_path}.")
             except HDF5ExtError:
                 df = None
-                logging.info("\n> df is None, cache does not exist.")
+                logging.info("\n\t> df is None, cache does not exist.")
             except (KeyError, ValueError):
                 # if key="df" is not found, then use HDFStore to list and read
                 # all dfs
@@ -726,20 +750,20 @@ def cacheable(method):
                             # stream id is the first, data name is the second
                             stream, name = parts[0], "/".join(parts[1:])
                             df.setdefault(stream, {})[name] = store[key]
-                logging.info(f"\n> Cache loaded from {cache_path}.")
+                logging.info(f"\n\t> Cache loaded from {cache_path}.")
         else:
             df = method(*args, **kwargs)
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             if df is None:
                 cache_path.touch()
-                logging.info("\n> df is None, cache will exist but be empty.")
+                logging.info("\n\t> df is None, cache will exist but be empty.")
             else:
                 # allows to save multiple dfs in a dict in one hdf5 file
                 if isinstance(df, dict):
                     if ioutils.is_nested_dict(df):
                         for probe_id, nested_dict in df.items():
-                            # NOTE: we remove `.ap` in stream id cuz having `.`in
-                            # the key name get problems
+                            # NOTE: we remove `.ap` in stream id cuz having
+                            # `.`in the key name get problems
                             for name, values in nested_dict.items():
                                 ioutils.write_hdf5(
                                     path=cache_path,
