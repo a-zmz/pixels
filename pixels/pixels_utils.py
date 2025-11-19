@@ -227,7 +227,7 @@ def correct_ap_motion(rec, output, mc_method="dredge"):
         format="zarr",
         folder=output,
         compressor=wv_compressor,
-        #n_jobs=1, #?
+        max_threads_per_worker=1, # TODO nov 13 2025: otherwise it hangs
     )
 
     return None
@@ -575,13 +575,13 @@ def curate_sorting(sorting, recording, output):
 def curate_sorting_analyser(sa):
     # calculate all extensions BEFORE further steps
     required_extensions = [
+        "spike_amplitudes",
         "random_spikes",
         "waveforms",
         "templates",
         "noise_levels",
         "unit_locations",
         "template_similarity",
-        "spike_amplitudes",
         "correlograms",
         "principal_components", # for phy
         "quality_metrics",
