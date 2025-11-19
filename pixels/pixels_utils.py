@@ -584,20 +584,26 @@ def curate_sorting_analyser(sa):
         "template_similarity",
         "correlograms",
         "principal_components", # for phy
-        "quality_metrics",
+        #"quality_metrics",
         "template_metrics",
     ]
     ext_params = {
         "template_metrics": {
             "include_multi_channel_metrics": True,
         },
+        #"quality_metrics": {
+        #    "skip_pc_metrics": True,
+        #},
     }
-
     sa.compute(
         required_extensions,
         save=True,
         extension_params=ext_params,
     )
+
+    import spikeinterface.qualitymetrics as sqm
+    # NOTE nov 13 2025: pc metrics only runs if n_jobs=1
+    sqm.compute_quality_metrics(sa, n_jobs=1)
 
     # get max peak channel for each unit
     max_chan = si.get_template_extremum_channel(sa).values()
