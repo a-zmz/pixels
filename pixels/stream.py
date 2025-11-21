@@ -34,7 +34,7 @@ class Stream:
 
         self.session = session
         self.behaviour_files = session.files["behaviour"]
-        self.BEHAVIOUR_SAMPLE_RATE = session.SAMPLE_RATE
+        self.SAMPLE_RATE = session.SAMPLE_RATE
         self.raw = session.raw
         self.interim = session.interim
         self.cache = self.interim / "cache/"
@@ -65,8 +65,8 @@ class Stream:
         # get action and event label file
         outcomes = action_labels["outcome"]
         events = action_labels["events"]
-        # get timestamps index of behaviour in self.BEHAVIOUR_SAMPLE_RATE hz, to
-        # convert it to ms, do timestamps*1000/self.BEHAVIOUR_SAMPLE_RATE
+        # get timestamps index of behaviour in self.SAMPLE_RATE hz, to
+        # convert it to ms, do timestamps*1000/self.SAMPLE_RATE
         timestamps = action_labels["timestamps"]
 
         # select frames of wanted trial type
@@ -198,7 +198,7 @@ class Stream:
 
         # pad ends with 1 second extra to remove edge effects from
         # convolution
-        scan_pad = self.BEHAVIOUR_SAMPLE_RATE
+        scan_pad = self.SAMPLE_RATE
         scan_starts = start_t - scan_pad
         scan_ends = end_t + scan_pad + 1
         scan_durations = scan_ends - scan_starts
@@ -207,9 +207,9 @@ class Stream:
         raw_rec = self.load_raw_ap()
         samples = raw_rec.get_total_samples()
         # Account for multiple raw data files
-        in_SAMPLE_RATE_scale = (samples * self.BEHAVIOUR_SAMPLE_RATE)\
+        in_SAMPLE_RATE_scale = (samples * self.SAMPLE_RATE)\
                 / raw_rec.sampling_frequency
-        cursor_duration = (cursor * self.BEHAVIOUR_SAMPLE_RATE)\
+        cursor_duration = (cursor * self.SAMPLE_RATE)\
                 / raw_rec.sampling_frequency
         rec_spikes = spikes[
             (cursor_duration <= spikes)\
@@ -254,7 +254,7 @@ class Stream:
             rates = signal.convolve_spike_trains(
                 times=spiked,
                 sigma=sigma,
-                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                sample_rate=self.SAMPLE_RATE,
             )
 
             # remove 1s padding from the start and end
@@ -396,8 +396,8 @@ class Stream:
         # get action and event label file
         outcomes = action_labels["outcome"]
         events = action_labels["events"]
-        # get timestamps index of behaviour in self.BEHAVIOUR_SAMPLE_RATE hz, to
-        # convert it to ms, do timestamps*1000/self.BEHAVIOUR_SAMPLE_RATE
+        # get timestamps index of behaviour in self.SAMPLE_RATE hz, to
+        # convert it to ms, do timestamps*1000/self.SAMPLE_RATE
         timestamps = action_labels["timestamps"]
 
         # select frames of wanted trial type
@@ -448,7 +448,7 @@ class Stream:
         # during of event is 2s (pre + post)
         duration = 1
         pad_duration = 1
-        scan_pad = self.BEHAVIOUR_SAMPLE_RATE
+        scan_pad = self.SAMPLE_RATE
         one_side_frames = scan_pad * (duration + pad_duration)
         scan_starts = start_t - one_side_frames
         scan_ends = start_t + one_side_frames + 1
@@ -463,9 +463,9 @@ class Stream:
         raw_rec = self.load_raw_ap()
         samples = raw_rec.get_total_samples()
         # Account for multiple raw data files
-        in_SAMPLE_RATE_scale = (samples * self.BEHAVIOUR_SAMPLE_RATE)\
+        in_SAMPLE_RATE_scale = (samples * self.SAMPLE_RATE)\
                 / raw_rec.sampling_frequency
-        cursor_duration = (cursor * self.BEHAVIOUR_SAMPLE_RATE)\
+        cursor_duration = (cursor * self.SAMPLE_RATE)\
                 / raw_rec.sampling_frequency
         rec_spikes = spikes[
             (cursor_duration <= spikes)\
@@ -519,7 +519,7 @@ class Stream:
             rates = signal.convolve_spike_trains(
                 times=spiked,
                 sigma=sigma,
-                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                sample_rate=self.SAMPLE_RATE,
             )
 
             # remove 1s padding from the start and end
@@ -609,7 +609,7 @@ class Stream:
         # get sampling frequency
         fs = int(sa.sampling_frequency)
         # Convert to time into sample rate index
-        spike_times /= fs / self.BEHAVIOUR_SAMPLE_RATE
+        spike_times /= fs / self.SAMPLE_RATE
 
         return spike_times
 
@@ -655,7 +655,7 @@ class Stream:
             downsampled = signal.decimate(
                 array=syncs,
                 from_hz=spike_samp_rate,
-                to_hz=self.BEHAVIOUR_SAMPLE_RATE,
+                to_hz=self.SAMPLE_RATE,
             )
             # binarise to avoid non integers
             pixels_syncs = signal.binarise(downsampled)
@@ -682,7 +682,7 @@ class Stream:
             pixels_idx = np.arange(pixels_syncs.shape[0])
 
             synched_vr = vr_session.sync_streams(
-                self.BEHAVIOUR_SAMPLE_RATE,
+                self.SAMPLE_RATE,
                 pixels_vr_edges,
                 pixels_idx,
             )
@@ -824,7 +824,7 @@ class Stream:
             binned_count[trial] = xut.bin_vr_trial(
                 data=counts,
                 positions=trial_pos,
-                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                sample_rate=self.SAMPLE_RATE,
                 time_bin=time_bin,
                 pos_bin=pos_bin,
                 bin_method="sum",
@@ -833,7 +833,7 @@ class Stream:
             binned_fr[trial] = xut.bin_vr_trial(
                 data=rates,
                 positions=trial_pos,
-                sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+                sample_rate=self.SAMPLE_RATE,
                 time_bin=time_bin,
                 pos_bin=pos_bin,
                 bin_method="mean",
@@ -954,7 +954,7 @@ class Stream:
 
             # only select trials exists in aligned trials
             baseline = grays["fr"].iloc[
-                self.BEHAVIOUR_SAMPLE_RATE: self.BEHAVIOUR_SAMPLE_RATE * 2
+                self.SAMPLE_RATE: self.SAMPLE_RATE * 2
             ].loc[:, trials["fr"].columns].T.groupby("unit").mean().T
 
             mu = baseline.mean()
@@ -1188,7 +1188,7 @@ class Stream:
             zarr_path=_zarr_out,
             spiked=stacked_spikes,
             sigma=sigma,
-            sample_rate=self.BEHAVIOUR_SAMPLE_RATE,
+            sample_rate=self.SAMPLE_RATE,
             repeats=REPEATS,
             positions=positions,
             meta=dict(
@@ -1225,7 +1225,7 @@ class Stream:
         # bin chance data
         binned_chance = xut.bin_spike_chance(
             chance_data,
-            self.BEHAVIOUR_SAMPLE_RATE,
+            self.SAMPLE_RATE,
             time_bin,
             pos_bin,
             arr_path,
@@ -1265,7 +1265,7 @@ class Stream:
         logging.info("\n> getting chance psd")
         psds = xut.save_chance_psd(
             chance_data,
-            self.BEHAVIOUR_SAMPLE_RATE,
+            self.SAMPLE_RATE,
             units,
             trial_ids,
         )
@@ -1364,7 +1364,7 @@ class Stream:
 
         fr = xut.save_chance_positional_fr(
             chance_data,
-            self.BEHAVIOUR_SAMPLE_RATE,
+            self.SAMPLE_RATE,
             units,
             trial_ids,
         )
