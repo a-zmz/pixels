@@ -109,7 +109,10 @@ def resample(array, from_hz, to_hz, poly=True, padtype=None):
 
     # resample_poly preallocates an entire new array of float64 values, so to prevent
     # MemoryErrors we will run it with 5GB chunks that cover a subset of channels.
-    size_bytes = array[0].dtype.itemsize * array.size
+    if isinstance(array, pd.DataFrame):
+        size_bytes = array.iloc[0, 0].dtype.itemsize * array.size
+    elif isinstance(array, np.array):
+        size_bytes = array[..., 0].dtype.itemsize * array.size
     chunks = int(np.ceil(size_bytes / 5368709120))
     chunk_size = int(np.ceil(cols / chunks))
 
