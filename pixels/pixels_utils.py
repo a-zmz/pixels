@@ -2133,3 +2133,90 @@ def _positional_fr_chance_worker(
             shm.close()
 
     return pos_fr
+
+
+def interpolate_to_grid(trials, grid_size, npz_path):
+    interpolated = {}
+    frs = []
+    positions = {}
+    spikeds = {}
+    for trial_id, group in trials["fr"].T.groupby("trial"):
+        # dropna
+        fr = group.dropna(axis=1, how="all").T
+        pos = trials["positions"].xs(
+            trial_id,
+            level="trial",
+            axis=1,
+        ).dropna(axis=0, how="all")
+        spiked = trials["spiked"].xs(
+            trial_id,
+            level="trial",
+            axis=1,
+        ).dropna(axis=0, how="all")
+
+        frs.append(_interpolate_to_grid(fr, grid_size))
+        positions[trial_id] = _interpolate_to_grid(pos, grid_size)
+        spikeds[trial_id] = _interpolate_to_grid(spiked, grid_size)
+
+    interpolated["fr"] = pd.concat(frs, axis=1).sort_index(
+        axis=1,
+        level=["unit", "trial"],
+        ascending=[True, True],
+    )
+
+    interpolated["positions"] = (
+        pd.concat(positions, axis=1, names=["trial", "start"])
+        .reorder_levels(["start", "trial"], axis=1)
+        .sort_index(
+            axis=1,
+            level=["start", "trial"],
+            ascending=[False, True],
+        )
+    )
+    interpolated["spiked"] = (
+        pd.concat(spikeds, axis=1, names=["trial", "unit"])
+        .reorder_levels(["unit", "trial"], axis=1)
+        .sort_index(
+            axis=1,
+            level=["unit", "trial"],
+            ascending=[True, True],
+        )
+    )
+
+    # save .npz file
+    arr = {}
+    trial_count = trials["fr"].columns.get_level_values("trial").unique().size
+
+    arr["count"] = np.reshape(
+        interpolated["spiked"],
+        (grid_size, trial_count, -1),
+    ).astype(np.int16).T
+    # unit x trial x t
+    arr["fr"] = np.reshape(
+        interpolated["fr"],
+        (grid_size, trial_count, -1),
+    ).T
+    arr["pos"] = interpolated["fr"].values
+
+    np.savez_compressed(npz_path, **arr)
+    logging.info(f"\n> Output saved at {npz_path}.")
+
+    return interpolated
+
+
+def _interpolate_to_grid(data, grid_size):
+    grid_idx = np.linspace(0, 1, grid_size)
+
+    # get new index based on grid size
+    new_t = np.linspace(
+        data.index[0],
+        data.index[-1],
+        grid_size,
+    ).round().astype(int) # make sure index is int
+
+    # interpolate
+    interpolated = data.reindex(new_t).interpolate(method="index")
+    interpolated.index = grid_idx
+    interpolated.index.name = "sample"
+
+    return interpolated

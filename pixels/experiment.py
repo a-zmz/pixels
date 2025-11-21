@@ -644,3 +644,26 @@ class Experiment:
             binned[name] = session.get_binned_chance(*args, **kwargs)
 
         return binned
+
+
+    def align_to_fixed_grid(self, *args, units, **kwargs):
+        """
+        Get binned chance firing rate and spike count for aligned vr trials.
+        Check behaviours.base.Behaviour.get_binned_chance for usage information.
+        """
+        trials = {}
+        for i, session in enumerate(self.sessions):
+            name = session.name
+            if units:
+                trials[name] = session.align_to_fixed_grid(
+                    *args,
+                    units[name],
+                    **kwargs,
+                )
+            else:
+                trials[name] = session.align_to_fixed_grid(
+                    *args,
+                    **kwargs,
+                )
+
+        return trials

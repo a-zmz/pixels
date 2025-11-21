@@ -1370,3 +1370,58 @@ class Stream:
         )
 
         return fr
+
+    
+    @cacheable(cache_format="zarr")
+    def align_to_fixed_grid(
+        self, label, event, units=None, sigma=None, end_event=None,
+        grid_size=100,
+    ):
+
+        # define output path for binned spike rate
+        npz_name = f"{self.session.name}_{units}_{label.name}_"\
+            f"{grid_size}_samples_{self.stream_id}.npz"
+        npz_path = self.cache / npz_name
+
+        aligned = self._align_to_fixed_grid(
+            label=label,
+            event=event,
+            units=units,
+            sigma=sigma,
+            end_event=end_event,
+            grid_size=grid_size,
+            npz_path=npz_path,
+        )
+
+        if hasattr(self.session, "backup"):
+            # copy to backup if backup setup
+            copyfile(
+                npz_path,
+                self.session.backup / npz_name,
+            )
+
+        return aligned
+
+
+    def _align_to_relative_positions(
+        self, label, event, units, sigma, end_event, grid_size, npz_path,
+    ):
+        # create grid index
+        grid_idx = np.linspace(0, 1, grid_size)
+
+        trials = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            data="spike_trial", # NOTE: ALWAYS the second arg
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event, # NOTE: ALWAYS the last arg
+        )
+        # NOTE nov 19 2025
+        # we might need to exclude some very short trials, but for now, we use
+        # all lengths
+
+        # interpolate to grid
+        interpolated = xut.interpolate_to_grid(trials, grid_size, npz_path)
+
+        return interpolated
