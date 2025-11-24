@@ -1319,38 +1319,51 @@ class Stream:
         ons = chunks[..., 0]
         offs = chunks[..., 1]
 
-        all_contrasts = {}
-        resps = {}
-        for l, _ in enumerate(lms):
-            pos_fr = self.get_positional_data(
-                units=units, # NOTE: ALWAYS the first arg
-                label=label,
-                event=start_events[l],
-                sigma=sigma,
-                end_event=end_events[l], # NOTE: ALWAYS the last arg
-            )["pos_fr"]
+        def _get_results(fr_fn):
+            resps = {}
+            contrasts = {}
+            for l, lm in enumerate(landmark_names):
+                fr = fr_fn(
+                    units=units,
+                    label=label,
+                    event=start_events[l],
+                    sigma=sigma,
+                    end_event=end_events[l],
+                )["pos_fr"]
+                contrasts[lm], resps[lm] = xut.get_landmark_responsives(
+                    pos_fr=fr,
+                    units=units,
+                    ons=ons[l, :],
+                    offs=offs[l, :],
+                )
 
-            lm = landmark_names[l]
-            all_contrasts[lm], resps[lm] = xut.get_landmark_responsives(
-                pos_fr=pos_fr,
-                units=units,
-                ons=ons[l, :],
-                offs=offs[l, :],
+            responsives = pd.concat(resps, axis=1, names=["landmark"])
+            contrasts = pd.concat(
+                contrasts,
+                axis=0,
+                names=["landmark", "unit"],
             )
+            contrasts.columns.name = "metrics"
+            # if not already int
+            contrasts.start = contrasts.start.astype(int)
+            # so that row index is unique
+            contrasts = contrasts.set_index(
+                ["start", "contrast"],
+                append=True,
+            )
+            return responsives, contrasts
 
-        responsives = pd.concat(resps, axis=1, names="landmark")
-
-        contrasts = pd.concat(
-            all_contrasts,
-            axis=0,
-            names=["landmark", "unit"],
+        # landmark responsives in data
+        responsives, contrasts = _get_results(self.get_positional_data)
+        # landmark responsives in chance
+        chance_responsives, chance_contrasts = _get_results(
+            self.get_chance_positional_data
         )
-        contrasts.columns.name = "metrics"
-        contrasts.start = contrasts.start.astype(int) 
-        # so that row index is unique
-        contrasts = contrasts.set_index(["start", "contrast"], append=True)
 
-        return {"contrasts": contrasts, "responsives": responsives}
+        return {"contrasts": contrasts,
+                "responsives": responsives,
+                "chance_contrasts": chance_contrasts,
+                "chance_responsives": chance_responsives}
 
 
     @cacheable
