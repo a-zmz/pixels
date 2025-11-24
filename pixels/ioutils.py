@@ -928,13 +928,13 @@ def _to_shm(arr):
     view = np.ndarray(arr.shape, dtype=arr.dtype, buffer=shm.buf)
     view[:] = arr
     view.setflags(write=False)
-    return shm, {"name": shm.name, "dtype": arr.dtype.str, "shape": arr.shape}
+    return {"name": shm.name, "dtype": arr.dtype.str, "shape": arr.shape}, shm
 
 def _from_shm(meta):
     shm = shared_memory.SharedMemory(name=meta["name"])
     arr = np.ndarray(meta["shape"], dtype=np.dtype(meta["dtype"]), buffer=shm.buf)
     arr.setflags(write=False)
-    return shm, arr
+    return arr, shm
 
 # ---- Index/MultiIndex SHM ----
 def export_index_to_shm(idx: pd.Index):
@@ -947,13 +947,13 @@ def export_index_to_shm(idx: pd.Index):
         }, []
     # numeric/temporal fixed-width types only
     arr = idx.to_numpy(copy=False)
-    shm, meta = _to_shm(arr)
+    meta, shm = _to_shm(arr)
     return {"kind": "simple", "name": idx.name, "data": meta}, [shm]
 
 def import_index_to_shm(meta):
     if meta["kind"] == "range":
         return pd.RangeIndex(meta["start"], meta["stop"], meta["step"]), []
-    shm, arr = _from_shm(meta["data"])
+    arr, shm = _from_shm(meta["data"])
     idx = pd.Index(arr, name=meta.get("name"), copy=False)
     return idx, [shm]
 
@@ -961,13 +961,13 @@ def export_multiindex_to_shm(mi: pd.MultiIndex):
     level_metas, level_shms = [], []
     for lev in mi.levels:
         lev_arr = lev.to_numpy(copy=False)
-        shm, meta = _to_shm(lev_arr)
+        meta, shm = _to_shm(lev_arr)
         level_metas.append(meta)
         level_shms.append(shm)
     code_metas, code_shms = [], []
     for codes in mi.codes:
         codes_arr = np.asarray(codes, dtype=np.intp, order="C")
-        shm, meta = _to_shm(codes_arr)
+        meta, shm = _to_shm(codes_arr)
         code_metas.append(meta)
         code_shms.append(shm)
     meta = {
@@ -981,12 +981,12 @@ def export_multiindex_to_shm(mi: pd.MultiIndex):
 def import_multiindex_to_shm(meta):
     level_shms, level_idxs = [], []
     for lev_meta in meta["levels"]:
-        shm, lev_arr = _from_shm(lev_meta)
+        lev_arr, shm = _from_shm(lev_meta)
         level_shms.append(shm)
         level_idxs.append(pd.Index(lev_arr, copy=False))
     code_shms, code_arrs = [], []
     for code_meta in meta["codes"]:
-        shm, code_arr = _from_shm(code_meta)
+        code_arr, shm = _from_shm(code_meta)
         code_shms.append(shm)
         code_arrs.append(code_arr)
     mi = pd.MultiIndex(
@@ -1005,7 +1005,7 @@ def export_df_to_shm(df: pd.DataFrame):
         raise TypeError(
             "Object dtype is not supported for zero-copy SHM DataFrame."
         )
-    data_shm, data_meta = _to_shm(values)
+    data_meta, data_shm = _to_shm(values)
 
     # index
     if isinstance(df.index, pd.MultiIndex):
@@ -1024,7 +1024,7 @@ def export_df_to_shm(df: pd.DataFrame):
     return meta, shms
 
 def import_df_to_shm(meta):
-    data_shm, data_arr = _from_shm(meta["data"])
+    data_arr, data_shm = _from_shm(meta["data"])
 
     # index
     if meta["index"]["kind"] == "multi":
