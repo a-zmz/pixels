@@ -296,6 +296,7 @@ class Stream:
         return stacked_spiked, output
 
 
+    # TODO nov 24 2025: consider to cache this in zarr cuz it's quite big
     @cacheable#(cache_format="zarr")
     def align_trials(self, units, data, label, event, sigma, end_event):
         """
