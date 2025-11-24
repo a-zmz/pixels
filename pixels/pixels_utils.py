@@ -1479,7 +1479,7 @@ def save_chance_psd(
     """
     (idx_shms, cols_shms, positions_shms, mask_shm,
      idx_meta, cols_meta, positions_meta, mask_meta, 
-     fr_zarr, repeats, unit_ids, n_workers) = prep_chance_data(
+     fr_zarr, _, repeats, unit_ids, n_workers) = prep_chance_data(
         chance_data,
         sample_rate,
         units,
@@ -2024,6 +2024,7 @@ def prep_chance_data(
 
     # get fr zarr
     fr_zarr = chance_data["chance_fr"]
+    count_zarr = chance_data["chance_spiked"]
     # get number of repeats
     repeats = fr_zarr.shape[-1]
 
@@ -2039,10 +2040,10 @@ def prep_chance_data(
     
     return (idx_shms, cols_shms, positions_shms, mask_shm,
      idx_meta, cols_meta, positions_meta, mask_meta, 
-     fr_zarr, repeats, unit_ids, n_workers)
+     fr_zarr, count_zarr, repeats, unit_ids, n_workers)
 
 
-def save_chance_positional_fr(
+def save_chance_positional_data(
     chance_data, sample_rate, units, trial_ids, event_on_t, event_off_t,
 ):
     """
@@ -2050,7 +2051,7 @@ def save_chance_positional_fr(
     """
     (idx_shms, cols_shms, positions_shms, mask_shm,
      idx_meta, cols_meta, positions_meta, mask_meta, 
-     fr_zarr, repeats, unit_ids, n_workers) = prep_chance_data(
+     fr_zarr, spiked_zarr, repeats, unit_ids, n_workers) = prep_chance_data(
         chance_data,
         sample_rate,
         units,
@@ -2067,6 +2068,7 @@ def save_chance_positional_fr(
             ex.submit(
                 _positional_fr_chance_worker,
                 fr_zarr,
+                spiked_zarr,
                 r,
                 sample_rate,
                 positions_meta,
@@ -2085,36 +2087,40 @@ def save_chance_positional_fr(
         shm.unlink()
 
     # concat results
-    fr = pd.concat(
-        results,
+    occupancy = pd.concat(
+        [result["occupancy"] for result in results],
+        axis=1,
+        keys=range(repeats),
+        names=["repeat", "trial"],
+    )
+    fc = pd.concat(
+        [result["pos_fc"] for result in results],
         axis=1,
         keys=range(repeats),
         names=["repeat", "start", "unit", "trial"],
     )
-
-    trials = {}
-    # group by trials
-    trial_groups = fr.T.groupby("trial")
-    for (trial, group) in trial_groups:
-        # group by unit, and get mean across repeats
-        mean_fr = group.groupby("unit").mean().T
-        start = group.index.get_level_values("start")[:mean_fr.shape[-1]]
-        # add start level
-        new_cols = pd.MultiIndex.from_arrays(
-            [start, mean_fr.columns],
-            names=["start", "unit"],
-        )
-        mean_fr.columns = new_cols
-        trials[trial] = mean_fr
-
-    output = pd.concat(
-        trials,
+    fr = pd.concat(
+        [result["pos_fr"] for result in results],
         axis=1,
-        names=["trial", "start", "unit"],
+        keys=range(repeats),
+        names=["repeat", "start", "unit", "trial"],
     )
+    mean_fr = _get_mean_across_repeats(fr, ["trial", "start", "unit"])
+    mean_fc = _get_mean_across_repeats(fc, ["trial", "start", "unit"])
+    mean_occu = _get_mean_across_repeats(occupancy, ["trial"], neural=False)
+
     # keep the same structure as data
-    output = (
-        output
+    mean_fc = (
+        mean_fc
+        .reorder_levels(["unit", "start", "trial"], axis=1)
+        .sort_index(
+            axis=1,
+            level=["unit", "start", "trial"],
+            ascending=[True, False, True],
+        )
+    )
+    mean_fr = (
+        mean_fr
         .reorder_levels(["unit", "start", "trial"], axis=1)
         .sort_index(
             axis=1,
@@ -2123,12 +2129,41 @@ def save_chance_positional_fr(
         )
     )
 
+    return {"pos_fc": mean_fc, "pos_fr": mean_fr, "occupancy": mean_occu}
+
+
+def _get_mean_across_repeats(df, names, neural=True):
+    trials = {}
+    # group by trials
+    trial_groups = df.T.groupby("trial")
+    for (trial, group) in trial_groups:
+        if neural:
+            # group by unit, and get mean across repeats
+            mean_data = group.groupby("unit").mean().T
+            start = group.index.get_level_values("start")[:mean_data.shape[-1]]
+            # add start level
+            new_cols = pd.MultiIndex.from_arrays(
+                [start, mean_data.columns],
+                names=["start", "unit"],
+            )
+            mean_data.columns = new_cols
+            trials[trial] = mean_data
+        else:
+            mean_data = group.mean().T
+            trials[trial] = mean_data
+
+    output = pd.concat(
+        trials,
+        axis=1,
+        names=names,
+    )
+
     return output
 
 
 def _positional_fr_chance_worker(
-    fr_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta, mask_meta,
-    unit_ids, trial_ids,
+    fr_zarr, spiked_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta,
+    mask_meta, unit_ids, trial_ids,
 ):
     """
     Worker that computes positional fr.
@@ -2147,14 +2182,20 @@ def _positional_fr_chance_worker(
     mask, mask_shm = ioutils._from_shm(mask_meta)
 
     try:
-        pos_fr, _ = _get_vr_positional_neural_data(
-            positions=positions,
-            data_type="spike_rate",
-            data=pd.DataFrame(
-                fr_zarr[..., r],
-                index=idx,
-                columns=cols,
-            ).loc[trial_ids, unit_ids][mask],
+        pos_data = get_vr_positional_data(
+            {
+                "positions": positions,
+                "spiked": pd.DataFrame(
+                    spiked_zarr[..., r],
+                    index=idx,
+                    columns=cols,
+                ).loc[trial_ids, unit_ids][mask],
+                "fr": pd.DataFrame(
+                   fr_zarr[..., r],
+                   index=idx,
+                   columns=cols,
+                ).loc[trial_ids, unit_ids][mask],
+            }
         )
         del positions, idx, cols, mask, trial_ids, unit_ids
         gc.collect()
@@ -2164,7 +2205,7 @@ def _positional_fr_chance_worker(
         for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
             shm.close()
 
-    return pos_fr
+    return pos_data
 
 
 def interpolate_to_grid(trials, grid_size, npz_path):

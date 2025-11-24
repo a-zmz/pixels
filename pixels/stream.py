@@ -1245,9 +1245,15 @@ class Stream:
     def get_chance_positional_psd(self, units, label, event, sigma, end_event):
         # NOTE: we only use completed trials for this analysis
         label_name = label.name.split("_")[-1]
+        # get timestamps and trial ids of all trials of current label
+        _, _, _, trial_start_t, _, all_trial_ids = self._map_trials(
+            label,
+            event.trial_start,
+            end_event.trial_end,
+        )
 
-        # get trial ids
-        _, _, _, _, _, trial_ids = self._map_trials(
+        # get trial ids of target events
+        _, _, _, start_t, end_t, trial_ids = self._map_trials(
             label,
             event,
             end_event,
@@ -1262,12 +1268,20 @@ class Stream:
             end_event=end_event.trial_end,
         )
 
+        # get trial start and end timestamps
+        target_trial_start_t = trial_start_t[all_trial_ids.isin(trial_ids)]
+        # get trial start and end time in reference of each trial
+        event_on_t = start_t - target_trial_start_t
+        event_off_t = end_t - target_trial_start_t
+
         logging.info("\n> getting chance psd")
         psds = xut.save_chance_psd(
             chance_data,
             self.SAMPLE_RATE,
             units,
             trial_ids,
+            event_on_t,
+            event_off_t,
         )
 
         return psds
@@ -1340,7 +1354,7 @@ class Stream:
 
 
     @cacheable
-    def get_chance_positional_fr(
+    def get_chance_positional_data(
         self, units, label, event, sigma, end_event, #normalised,
     ):
         # NOTE: we only use completed trials for this analysis
@@ -1374,7 +1388,7 @@ class Stream:
         event_on_t = start_t - target_trial_start_t
         event_off_t = end_t - target_trial_start_t
 
-        fr = xut.save_chance_positional_fr(
+        pos_data = xut.save_chance_positional_data(
             chance_data,
             self.SAMPLE_RATE,
             units,
@@ -1383,7 +1397,7 @@ class Stream:
             event_off_t,
         )
 
-        return fr
+        return pos_data
 
     
     @cacheable(cache_format="zarr")
