@@ -1409,8 +1409,8 @@ def get_psd(df):
 
 
 def _psd_chance_worker(
-    fr_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta, unit_ids,
-    trial_ids, cut_start, cut_end,
+    fr_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta, mask_meta,
+    unit_ids, trial_ids,
 ):
     """
     Worker that computes one set of psd.
@@ -1451,10 +1451,9 @@ def _psd_chance_worker(
                 axis=1,
             ).dropna(how="all")
 
-            cropped = start_df.loc[start+cut_start:cut_end, :]
-            psd[start] = get_psd(cropped)
+            psd[start] = get_psd(start_df)
 
-            del cropped, start_df
+            del start_df
             gc.collect()
 
         del pos_fr, starts
@@ -1505,8 +1504,6 @@ def save_chance_psd(
                 mask_meta,
                 unit_ids,
                 trial_ids,
-                PRE_DARK_LEN,
-                landmarks[-1] - 1,
             ) for r in range(repeats)
         ]
         # collect and concat
