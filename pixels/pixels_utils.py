@@ -1426,6 +1426,7 @@ def _psd_chance_worker(
     idx, idx_shms = ioutils.import_multiindex_to_shm(idx_meta)
     cols, cols_shms = ioutils.import_index_to_shm(cols_meta)
     positions, positions_shms = ioutils.import_df_to_shm(positions_meta)
+    mask, mask_shm = ioutils._from_shm(mask_meta)
 
     try:
         pos_fr, _ = _get_vr_positional_neural_data(
@@ -1435,7 +1436,7 @@ def _psd_chance_worker(
                 fr_zarr[..., r],
                 index=idx,
                 columns=cols,
-            ).loc[trial_ids, unit_ids],
+            ).loc[trial_ids, unit_ids][mask],
         )
         del positions, idx, cols
         gc.collect()
@@ -1465,48 +1466,31 @@ def _psd_chance_worker(
         )
         logging.info(f"\nRepeat {r} finished.")
     finally:
-        for shm in idx_shms + cols_shms + positions_shms:
+        for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
             shm.close()
 
     return psd_df
 
 
-def save_chance_psd(chance_data, sample_rate, units, trial_ids):
+def save_chance_psd(
+    chance_data, sample_rate, units, trial_ids, event_on_t, event_off_t,
+):
     """
     Implementation of saving chance level spike data.
     """
-    # TODO nov 4 2025:
-    # do not get pre_dark_len and landmarks, simply align to pre_dark_end to
-    # landmark5_off for chance?
-    #import concurrent.futures
-    from vision_in_darkness.constants import PRE_DARK_LEN, landmarks
-
-    # get index and columns to reconstruct df
-    spiked = chance_data["spiked"].dropna(axis=0, how="all")
-    idx = spiked.index
-    cols = spiked.columns
-    cols_meta, cols_shms = ioutils.export_index_to_shm(cols)
-    idx_meta, idx_shms = ioutils.export_multiindex_to_shm(idx)
-    # get positions
-    positions = chance_data["positions"].dropna(axis=1, how="all").loc[
-        :, pd.IndexSlice[:, trial_ids] # only keep selected trials
-    ]
-    positions_meta, positions_shms = ioutils.export_df_to_shm(positions)
-
-    # get fr zarr
-    fr_zarr = chance_data["chance_fr"]
-    # get number of repeats
-    repeats = fr_zarr.shape[-1]
-
-    del spiked, positions, chance_data
+    (idx_shms, cols_shms, positions_shms, mask_shm,
+     idx_meta, cols_meta, positions_meta, mask_meta, 
+     fr_zarr, repeats, unit_ids, n_workers) = prep_chance_data(
+        chance_data,
+        sample_rate,
+        units,
+        trial_ids,
+        event_on_t,
+        event_off_t,
+    )
+    del chance_data
     gc.collect()
 
-    # get unit ids
-    unit_ids = np.array(units.flat(), dtype=np.int16)
-
-    # Set up the process pool to run the worker in parallel.
-    # Submit jobs for each repeat.
-    n_workers = 2 ** (mp.cpu_count().bit_length() - 2)
     futures = []
     with ProcessPoolExecutor(max_workers=n_workers) as ex:
         futures = [
@@ -1518,6 +1502,7 @@ def save_chance_psd(chance_data, sample_rate, units, trial_ids):
                 positions_meta,
                 idx_meta,
                 cols_meta,
+                mask_meta,
                 unit_ids,
                 trial_ids,
                 PRE_DARK_LEN,
@@ -2001,7 +1986,9 @@ def filter_non_somatics(unit_ids, templates, sampling_freq):
     return mask
 
 
-def save_chance_positional_fr(chance_data, sample_rate, units, trial_ids):
+def prep_chance_data(
+    chance_data, sample_rate, units, trial_ids, event_on_t, event_off_t,
+):
     """
     Implementation of saving chance level spike data.
     """
@@ -2017,12 +2004,33 @@ def save_chance_positional_fr(chance_data, sample_rate, units, trial_ids):
     ]
     positions_meta, positions_shms = ioutils.export_df_to_shm(positions)
 
+    # get index time bound of selected trials
+    bound = pd.DataFrame(
+        {"on": event_on_t, "off": event_off_t},
+        index=trial_ids,
+    )
+    # get index time of selected trials
+    idx_time = idx.get_level_values("time")[
+        idx.get_level_values("trial").isin(trial_ids)
+    ]
+    # get index trial of selected trials
+    idx_trial = idx.get_level_values("trial")[
+        idx.get_level_values("trial").isin(trial_ids)
+    ]
+    # get event on to off mask
+    mask = (
+        (idx_time >= bound.on.loc[idx_trial])
+        & (idx_time <= bound.off.loc[idx_trial])
+    )
+    # add mask to shared memory
+    mask_meta, mask_shm = ioutils._to_shm(mask)
+
     # get fr zarr
     fr_zarr = chance_data["chance_fr"]
     # get number of repeats
     repeats = fr_zarr.shape[-1]
 
-    del spiked, positions, chance_data
+    del spiked, positions, chance_data, idx_time, idx_trial, bound
     gc.collect()
 
     # get unit ids
@@ -2031,6 +2039,31 @@ def save_chance_positional_fr(chance_data, sample_rate, units, trial_ids):
     # Set up the process pool to run the worker in parallel.
     # Submit jobs for each repeat.
     n_workers = 2 ** (mp.cpu_count().bit_length() - 2)
+    
+    return (idx_shms, cols_shms, positions_shms, mask_shm,
+     idx_meta, cols_meta, positions_meta, mask_meta, 
+     fr_zarr, repeats, unit_ids, n_workers)
+
+
+def save_chance_positional_fr(
+    chance_data, sample_rate, units, trial_ids, event_on_t, event_off_t,
+):
+    """
+    Implementation of saving chance level spike data.
+    """
+    (idx_shms, cols_shms, positions_shms, mask_shm,
+     idx_meta, cols_meta, positions_meta, mask_meta, 
+     fr_zarr, repeats, unit_ids, n_workers) = prep_chance_data(
+        chance_data,
+        sample_rate,
+        units,
+        trial_ids,
+        event_on_t,
+        event_off_t,
+    )
+    del chance_data
+    gc.collect()
+
     futures = []
     with ProcessPoolExecutor(max_workers=n_workers) as ex:
         futures = [
@@ -2042,6 +2075,7 @@ def save_chance_positional_fr(chance_data, sample_rate, units, trial_ids):
                 positions_meta,
                 idx_meta,
                 cols_meta,
+                mask_meta,
                 unit_ids,
                 trial_ids,
             ) for r in range(repeats)
@@ -2049,7 +2083,7 @@ def save_chance_positional_fr(chance_data, sample_rate, units, trial_ids):
         # collect and concat
         results = [f.result() for f in as_completed(futures)]
 
-    for shm in idx_shms + cols_shms + positions_shms:
+    for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
         shm.close()
         shm.unlink()
 
@@ -2096,7 +2130,7 @@ def save_chance_positional_fr(chance_data, sample_rate, units, trial_ids):
 
 
 def _positional_fr_chance_worker(
-    fr_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta,
+    fr_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta, mask_meta,
     unit_ids, trial_ids,
 ):
     """
@@ -2113,23 +2147,24 @@ def _positional_fr_chance_worker(
     idx, idx_shms = ioutils.import_multiindex_to_shm(idx_meta)
     cols, cols_shms = ioutils.import_index_to_shm(cols_meta)
     positions, positions_shms = ioutils.import_df_to_shm(positions_meta)
+    mask, mask_shm = ioutils._from_shm(mask_meta)
 
     try:
-        pos_fr,_ = _get_vr_positional_neural_data(
+        pos_fr, _ = _get_vr_positional_neural_data(
             positions=positions,
             data_type="spike_rate",
             data=pd.DataFrame(
                 fr_zarr[..., r],
                 index=idx,
                 columns=cols,
-            ).loc[trial_ids, unit_ids],
+            ).loc[trial_ids, unit_ids][mask],
         )
-        del positions, idx, cols
+        del positions, idx, cols, mask, trial_ids, unit_ids
         gc.collect()
 
         logging.info(f"\nRepeat {r} finished.")
     finally:
-        for shm in idx_shms + cols_shms + positions_shms:
+        for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
             shm.close()
 
     return pos_fr
