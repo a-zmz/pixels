@@ -1376,6 +1376,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
     if occupancy.index.min() < 0:
         occupancy = occupancy.loc[0:, :]
         pos_data = pos_data.loc[0:, :]
+    occupancy.index.name = "position"
 
     return pos_data, occupancy
 
