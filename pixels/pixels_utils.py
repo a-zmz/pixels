@@ -1820,9 +1820,8 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
         * C(zone, Treatment(reference='pre_wall'))"""
     )
 
-    lm_responsive_bool = np.zeros(len(units)).astype(np.int8)
     responsives = pd.Series(
-        lm_responsive_bool,
+        np.zeros(len(units)).astype(np.int8),
         index=units,
     )
     responsives.index.name = "unit"
