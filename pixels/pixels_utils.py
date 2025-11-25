@@ -959,6 +959,11 @@ def save_spike_chance_zarr(
 
 
 def bin_spike_chance(chance_data, sample_rate, time_bin, pos_bin, arr_path):
+    # TODO nov 25 2025:
+    # 1. allows to align to specific event and select units like
+    # `save_chance_psd`; 
+    # 2. implement multiprocessing here!
+
     # extract data from chance
     chance_spiked = chance_data["chance_spiked"]
     chance_fr = chance_data["chance_fr"]
