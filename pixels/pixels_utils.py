@@ -787,35 +787,34 @@ def _permute_spikes_n_convolve_fr(array, sigma, sample_rate):
     return random_spiked, random_fr
 
 
-def _worker_write_repeat(
-    i, zarr_path, sigma, sample_rate, shm_name, shape, dtype_str,
-):
+def _worker_write_repeat(i, zarr_path, sigma, sample_rate, spike_meta):
     # attach to shared memory
-    shm = shared_memory.SharedMemory(name=shm_name)
+    spiked, spike_shms = ioutils.import_df_to_shm(spike_meta)
     try:
-        spiked = np.ndarray(
-            shape,
-            dtype=np.dtype(dtype_str),
-            buffer=shm.buf,
-        )
-        # avoid accidental in-place mutation
-        spiked.setflags(write=False)
-        # get permuted data
-        c_spiked, c_fr = _permute_spikes_n_convolve_fr(spiked, sigma, sample_rate)
-
         # child process re-opens the store to avoid pickling big arrays
-        store = zarr.DirectoryStore(zarr_path)
-        root = zarr.open_group(store=store, mode="a")
+        root = zarr.open_group(
+            store=zarr.DirectoryStore(zarr_path),
+            mode="a",
+        )
 
-        # Write the i-th slice along last axis
+        # get permuted data
+        c_spiked, c_fr = _permute_spikes_n_convolve_fr(
+            array=spiked.to_numpy(),
+            sigma=sigma,
+            sample_rate=sample_rate,
+        )
+        # write the i-th slice along last axis
         root["chance_spiked"][..., i] = c_spiked
         root["chance_fr"][..., i] = c_fr
-        del c_spiked, c_fr
+
+        del spiked, c_spiked, c_fr
         gc.collect()
 
         logging.info(f"\nRepeat {i} finished.")
     finally:
-        shm.close()
+        for shm in spike_shms:
+            shm.close()
+            shm.unlink()
 
     return None
 
@@ -844,11 +843,8 @@ def save_spike_chance_zarr(
     zarr_path = Path(zarr_path)
     zarr_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Convert to array ONCE for shared memory
-    if isinstance(spiked, pd.DataFrame):
-        spike_arr = np.ascontiguousarray(spiked.to_numpy())
-    else:
-        spike_arr = np.ascontiguousarray(np.asarray(spiked))
+    # add spiked to shared memory
+    spike_meta, spike_shms = ioutils.export_df_to_shm(spiked)
 
     base_shape = spiked.shape
     d_shape = base_shape + (repeats,)
@@ -938,40 +934,24 @@ def save_spike_chance_zarr(
     del positions
     gc.collect()
 
-    # Create shared memory once
-    shm = shared_memory.SharedMemory(
-        create=True,
-        size=spike_arr.nbytes,
-    )
-    try:
-        shm_arr = np.ndarray(
-            base_shape,
-            dtype=spike_arr.dtype,
-            buffer=shm.buf,
-        )
-        shm_arr[...] = spike_arr
+    logging.info(f"\n> Starting process pool.")
 
-        logging.info(f"\n> Starting process pool.")
-        # Pass only the metadata needed to reconstruct the view
-        dtype_str = spike_arr.dtype.str # portable dtype spec
+    # parallel fill: each worker writes a distinct final-axis slice
+    with ProcessPoolExecutor(max_workers=n_workers) as ex:
+        futures = [
+            ex.submit(
+                _worker_write_repeat,
+                i,
+                str(zarr_path),
+                sigma,
+                sample_rate,
+                spike_meta,
+            ) for i in range(repeats)
+        ]
+        for f in as_completed(futures):
+            f.result()  # raise on error
 
-        # Parallel fill: each worker writes a distinct final-axis slice
-        with ProcessPoolExecutor(max_workers=n_workers) as ex:
-            futures = [
-                ex.submit(
-                    _worker_write_repeat,
-                    i,
-                    str(zarr_path),
-                    sigma,
-                    sample_rate,
-                    shm.name,
-                    base_shape,
-                    dtype_str,
-                ) for i in range(repeats)
-            ]
-            for f in as_completed(futures):
-                f.result()  # raise on error
-    finally:
+    for shm in spike_shms:
         shm.close()
         shm.unlink()
 
