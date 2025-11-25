@@ -805,12 +805,6 @@ class Stream:
         spiked = trials["spiked"]
         positions = trials["positions"]
 
-        # TODO apr 11 2025:
-        # bin chance while bin data
-        #spiked_chance_path = self.processed / stream_files["spiked_shuffled"]
-        #spiked_chance = ioutils.read_hdf5(spiked_chance_path, "spiked")
-        #bin_counts_chance[stream_id] = {}
-
         bin_arr = {}
         binned_count = {}
         binned_fr = {}
@@ -1209,6 +1203,9 @@ class Stream:
     def get_binned_chance(
         self, units, label, event, sigma, end_event, time_bin, pos_bin,
     ):
+        # NOTE: we only need the condition name
+        label_name = label.name.split("_")[-1]
+
         # get array name and path 
         name_parts = [self.session.name, self.probe_id, label.name, units.name,
         "shuffled", time_bin, f"{pos_bin}cm.npz"]
@@ -1217,11 +1214,11 @@ class Stream:
 
         # get chance data
         chance_data = self.get_spike_chance(
-            units=units,
-            label=label,
-            event=event,
+            units=self.session.select_units(name="all"),
+            label=getattr(label, label_name),
+            event=event.trial_start,
             sigma=sigma,
-            end_event=end_event,
+            end_event=end_event.trial_end,
         )
         # bin chance data
         binned_chance = xut.bin_spike_chance(
