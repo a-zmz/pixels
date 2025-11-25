@@ -1334,6 +1334,14 @@ class Stream:
                     sigma=sigma,
                     end_event=end_events[l],
                 )["pos_fr"]
+
+                starts = fr.columns.get_level_values("start")
+                if starts.nunique() < 2:
+                    logging.info(
+                        "\n> We will still calculate contrasts but skip "
+                        f"testing landmark {lm} responsiveness cuz only start "
+                        f"{starts[0]} covers it."
+                    )
                 contrasts[lm], resps[lm] = xut.get_landmark_responsives(
                     pos_fr=fr,
                     units=units,
