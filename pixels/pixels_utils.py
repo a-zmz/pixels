@@ -832,10 +832,10 @@ def save_spike_chance_zarr(
     Create a Zarr store at `zarr_path` with datasets:
       - spiked: base spiked array (read-only reference)
       - chance_spiked: base_shape + (repeats,), int16
-      - chance_fr:     base_shape + (repeats,), float32
-      - positions:     optional small array (or vector), stored if provided
-    Then fill each repeat slice in parallel processes.
+      - chance_fr: base_shape + (repeats,), float32
+      - positions: optional small array (or vector), stored if provided
 
+    Then fill each repeat slice in parallel processes.
     This function is idempotent: if the target datasets exist and match shape, it skips creation.
     """
     n_workers = 2 ** (mp.cpu_count().bit_length() - 2)
