@@ -1829,11 +1829,14 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
 
     lm_contrasts = {}
     for unit_id in units:
+        df = agg[agg["unit"] == str(unit_id)].copy()
+        if df.empty:
+            raise ValueError(f"No data for unit {unit_id}")
+
         unit_fit = fit_per_unit_ols(
-            df=agg,
+            df=df,
             formula=full_model,
             #formula=simple_model,
-            unit_id=unit_id,
         )
         # check contrast at each start
         unit_contrasts = start_contrasts_ols(
