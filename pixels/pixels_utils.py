@@ -2262,7 +2262,7 @@ def interpolate_to_grid(trials, grid_size, npz_path):
 
     # save .npz file
     arr = {}
-    trial_count = trials["fr"].columns.get_level_values("trial").unique().size
+    trial_count = trials["fr"].columns.get_level_values("trial").nunique()
 
     arr["count"] = np.reshape(
         interpolated["spiked"],
