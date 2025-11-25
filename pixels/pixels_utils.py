@@ -1820,13 +1820,37 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
         * C(zone, Treatment(reference='pre_wall'))"""
     )
 
+    lm_contrasts = {}
     responsives = pd.Series(
         np.zeros(len(units)).astype(np.int8),
         index=units,
     )
     responsives.index.name = "unit"
 
-    lm_contrasts = {}
+    # number of params and number of observations
+    n_params = agg.start.nunique() * agg.zone.nunique()
+    n_observs = agg.trial.nunique() * agg.zone.nunique()
+    if not n_observs > n_params:
+        logging.info(
+            f"\n> We have {n_observs} observations but {n_params} "
+            f"parameters, cannot fit to ols."
+        )
+        col_names = ["start", "contrast", "coef", "SE", "stat", "p", "p_holm"]
+        contrast_names = ["lm_pre", "lm_post"]
+        df = pd.DataFrame(
+            np.full(
+                (starts.size * len(contrast_names), len(col_names)),
+                np.nan,
+            ),
+            columns=col_names,
+        )
+        df["start"] = np.repeat(starts, len(contrast_names))
+        df["contrast"] = contrast_names * starts.size
+        contrasts = pd.concat([df] * len(units), ignore_index=True)
+        contrasts.index = pd.Index(np.repeat(units, len(df)), name="unit")
+
+        return contrasts, responsives
+
     for unit_id in units:
         df = agg[agg["unit"] == str(unit_id)].copy()
         if df.empty:
