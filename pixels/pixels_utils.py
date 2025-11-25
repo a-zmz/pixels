@@ -1868,12 +1868,7 @@ def get_landmark_responsives(pos_fr, units, ons, offs):
         )
         lm_contrasts[unit_id] = unit_contrasts
 
-        if len(starts) < 2:
-            logging.info(
-                f"\n> Skip testing this landmark cuz only start {starts[0]} "
-                "covers it."
-            )
-        else:
+        if len(starts) >= 2:
             # positive responsive
             if (unit_contrasts.coef > 0).all()\
             and (unit_contrasts.p_holm < ALPHA).all():
