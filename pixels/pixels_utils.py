@@ -1599,19 +1599,16 @@ def compute_contrast(fit, newdf_a, newdf_b=None):
 
 
 # >>> single unit mixed model
-def fit_per_unit_ols(df, formula, unit_id):
+def fit_per_unit_ols(df, formula):
     """
     Step 1
     Fit mean fr of pre-wall, landmark, and post-wall from each trial, each unit
     to GLM with cluster-robust SE.
     """
-    d = df[df["unit"] == str(unit_id)].copy()
-    if d.empty:
-        raise ValueError(f"No data for unit {unit_id}")
     # OLS with cluster-robust SE by trial
-    fit = smf.ols(formula, data=d).fit(
+    fit = smf.ols(formula, data=df).fit(
         cov_type="cluster",
-        cov_kwds={"groups": d["trial"]},
+        cov_kwds={"groups": df["trial"]},
     )
     return fit
 
