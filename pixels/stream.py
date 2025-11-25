@@ -1227,6 +1227,11 @@ class Stream:
             time_bin,
             pos_bin,
             arr_path,
+            # TODO nov 25 2025:
+            #units,
+            #trial_ids,
+            #event_on_t,
+            #event_off_t,
         )
 
         if hasattr(self.session, "backup"):
@@ -1239,6 +1244,7 @@ class Stream:
         return binned_chance
 
 
+    # TODO nov 25 2025: (cache_format="zarr") cuz it's big?
     @cacheable
     def get_chance_positional_psd(self, units, label, event, sigma, end_event):
         # NOTE: we only use completed trials for this analysis
