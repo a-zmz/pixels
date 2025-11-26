@@ -1434,7 +1434,7 @@ class Stream:
         # define output path for binned spike rate
         npz_name = f"{self.session.name}_{units}_{label.name}_"\
             f"{grid_size}_samples_{self.stream_id}.npz"
-        npz_path = self.cache / npz_name
+        npz_path = self.processed / npz_name
 
         aligned = self._align_to_fixed_grid(
             label=label,
