@@ -1456,7 +1456,7 @@ class Stream:
         return aligned
 
 
-    def _align_to_relative_positions(
+    def _align_to_fixed_grid(
         self, label, event, units, sigma, end_event, grid_size, npz_path,
     ):
         # create grid index
