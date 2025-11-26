@@ -2244,9 +2244,11 @@ def interpolate_to_grid(trials, grid_size, npz_path):
         level=["unit", "trial"],
         ascending=[True, True],
     )
-
+    # sort positions by trial, to be consistent with fr and spiked for arr
+    pos_concat = pd.concat(positions, axis=1, names=["trial", "start"])
+    # sort positions by start then trial for better view in df
     interpolated["positions"] = (
-        pd.concat(positions, axis=1, names=["trial", "start"])
+        pos_concat
         .reorder_levels(["start", "trial"], axis=1)
         .sort_index(
             axis=1,
@@ -2278,12 +2280,12 @@ def interpolate_to_grid(trials, grid_size, npz_path):
         interpolated["fr"],
         (grid_size, trial_count, -1),
     ).T
-    # t x trial
-    arr["pos"] = interpolated["positions"].values
+    # trial x grid sample
+    arr["pos"] = pos_concat.values.T
     arr["time"] = interpolated["timestamps"].values.T
 
     np.savez_compressed(npz_path, **arr)
-    logging.info(f"\n> Output saved at {npz_path}.")
+    logging.info(f"\n> npz saved to {npz_path}.")
 
     return interpolated
 
