@@ -2215,6 +2215,7 @@ def interpolate_to_grid(trials, grid_size, npz_path):
     interpolated = {}
     frs = []
     positions = {}
+    timestamps = {}
     spikeds = {}
     for trial_id, group in trials["fr"].T.groupby("trial"):
         # dropna
@@ -2231,8 +2232,12 @@ def interpolate_to_grid(trials, grid_size, npz_path):
         ).dropna(axis=0, how="all")
 
         frs.append(_interpolate_to_grid(fr, grid_size))
-        positions[trial_id] = _interpolate_to_grid(pos, grid_size, "time")
+        positions[trial_id] = _interpolate_to_grid(pos, grid_size)
         spikeds[trial_id] = _interpolate_to_grid(spiked, grid_size)
+        # save timestamps too
+        time = pos.iloc[:, 0].copy()
+        time.iloc[:] = pos.index / SAMPLE_RATE
+        timestamps[trial_id] = _interpolate_to_grid(time, grid_size)
 
     interpolated["fr"] = pd.concat(frs, axis=1).sort_index(
         axis=1,
@@ -2258,6 +2263,7 @@ def interpolate_to_grid(trials, grid_size, npz_path):
             ascending=[True, True],
         )
     )
+    interpolated["timestamps"] = pd.concat(timestamps, axis=1, names=["trial"])
 
     # save .npz file
     arr = {}
@@ -2274,6 +2280,7 @@ def interpolate_to_grid(trials, grid_size, npz_path):
     ).T
     # t x trial
     arr["pos"] = interpolated["positions"].values
+    arr["time"] = interpolated["timestamps"].values.T
 
     np.savez_compressed(npz_path, **arr)
     logging.info(f"\n> Output saved at {npz_path}.")
@@ -2281,21 +2288,17 @@ def interpolate_to_grid(trials, grid_size, npz_path):
     return interpolated
 
 
-def _interpolate_to_grid(data, grid_size, index="grid_sample"):
+def _interpolate_to_grid(data, grid_size):
     # get new index based on grid size
     new_t = np.linspace(
         data.index[0],
         data.index[-1],
         grid_size,
     ).round().astype(int) # make sure index is int
+
     # interpolate
     interpolated = data.reindex(new_t).interpolate(method="index")
-
-    if index == "grid_sample":
-        interpolated.index = np.linspace(0, 1, grid_size)
-        interpolated.index.name = "sample"
-    elif index == "time":
-        interpolated.index = new_t / SAMPLE_RATE
-        interpolated.index.name = "time"
+    interpolated.index = np.linspace(0, 1, grid_size)
+    interpolated.index.name = "sample"
 
     return interpolated
