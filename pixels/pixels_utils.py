@@ -814,7 +814,6 @@ def _worker_write_repeat(i, zarr_path, sigma, sample_rate, spike_meta):
     finally:
         for shm in spike_shms:
             shm.close()
-            shm.unlink()
 
     return None
 
