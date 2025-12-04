@@ -2309,7 +2309,10 @@ def _interpolate_to_grid(data, grid_size, method="at_idx"):
     elif method == "sum_till_idx":
         # create right ward bins
         bins = pd.IntervalIndex.from_breaks(new_t, closed="right")
-        interpolated = pd.DataFrame(np.zeros((grid_size, data.shape[1])))
+        interpolated = pd.DataFrame(
+            np.zeros((grid_size, data.shape[1])),
+            columns=data.columns,
+        )
         # sum by right inclusion
         interpolated.iloc[1:, :] = data.groupby(
             pd.cut(data.index, bins, right=True), observed=False,
