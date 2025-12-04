@@ -296,11 +296,10 @@ class Stream:
         return stacked_spiked, output
 
 
-    # TODO nov 24 2025: consider to cache this in zarr cuz it's quite big
-    @cacheable#(cache_format="zarr")
-    def align_trials(self, units, data, label, event, sigma, end_event):
+    @cacheable(cache_format="zarr")
+    def align_full_trials(self, units, data, label, event, sigma, end_event):
         """
-        Align pixels data to behaviour trials.
+        Align pixels data to full behaviour trials, from trial start to end.
 
         params
         ===
@@ -329,16 +328,29 @@ class Stream:
         ===
         df, output from individual functions according to data type.
         """
+        if not (event.name == event.trial_start.name
+            and end_event.name == end_event.trial_end.name):
+            raise PixelsError(
+                "\n > Only use this function to align to full trials."
+            )
 
         if "spike_trial" in data:
             logging.info(
                 f"\n> Aligning spike times and spike rate of {units} units to "
-                f"<{label.name}> trials, from {event.name} to {end_event.name}."
+                f"<{label.name}> trials, from {event.name} to "
+                f"{end_event.name}, with {sigma} ms sigma."
             )
             return self._get_aligned_trials(
                 label, event, units=units, sigma=sigma, end_event=end_event,
             )
         elif "spike_event" in data:
+            assert 0, "not implemented"
+            # TODO dec 4 2025:
+            # this should align all available events, and save it all, so we
+            # only need to index into it
+            # for each event, we have the dataframe of timestamp x trial id,
+            # each value is a boolean.
+            # use the trial-wise, not original timestamp
             logging.info(
                 f"\n> Aligning spike times and spike rate of {units} units to "
                 f"{event.name} event in <{label.name}> trials."
@@ -372,8 +384,6 @@ class Stream:
 
 
     def _get_aligned_events(self, label, event, units=None, sigma=None):
-        # TODO oct 17 2025:
-        # use _get_vr_spikes??
         # get spikes and firing rate
         _, output = self._get_vr_spikes(
             units,
@@ -570,6 +580,136 @@ class Stream:
 
         output["spiked"] = spiked
         output["fr"] = fr
+
+        return output
+
+
+    def align_trials(self, units, data, label, event, sigma, end_event):
+        """
+        Align pixels data to behaviour trials by indexing into aligned full
+        trials with event timestamps.
+
+        params
+        ===
+        units : dictionary of lists of ints
+            The output from self.select_units, used to only apply this method to a
+            selection of units.
+
+        data : str, optional
+            The data type to align.
+
+        label : int
+            An action label value to specify which trial types are desired.
+
+        event : int
+            An event type value to specify which event to align the trials to.
+
+        sigma : int, optional
+            Time in milliseconds of sigma of gaussian kernel to use when
+            aligning firing rates.
+
+        end_event : int | None
+            For VR behaviour, when aligning to the whole trial, this param is
+            the end event to align to.
+
+        return
+        ===
+        df, output from individual functions according to data type.
+        """
+        if "spike_trial" in data:
+            logging.info(
+                f"\n> Indexing into aligned trials to get spike times "
+                f"and spike rate of {units} units to <{label.name}> trials, "
+                f"from {event.name} to {end_event.name}, with {sigma} ms sigma."
+            )
+            return self._cut_trials_between_bounds(
+                units, label, event, sigma, end_event,
+            )
+        elif "spike_event" in data:
+            logging.info(
+                f"\n> Indexing into aligned trials to get spike times and "
+                f"spike rate of {units} units to {event.name} event "
+                f"in <{label.name}> trials."
+            )
+            assert 0, "not implemented"
+            return self._get_aligned_events(
+                label, event, units=units, sigma=sigma,
+            )
+        else:
+            raise NotImplementedError(
+                "> Other types of alignment are not implemented."
+            )
+
+    def _cut_trials_between_bounds(self, units, label, event, sigma, end_event):
+        # get aligned trials
+        trials = self.align_full_trials(
+            units=units,
+            data="spike_trial", # NOTE: ALWAYS the second arg
+            label=label,
+            event=event.trial_start,
+            sigma=sigma,
+            end_event=end_event.trial_end, # NOTE: ALWAYS the last arg
+        )
+
+        # get timestamps and trial ids of all trials of current label
+        _, _, _, trial_start_t, _, all_trial_ids = self._map_trials(
+            label,
+            event.trial_start,
+            end_event.trial_end,
+        )
+        # get trial ids of target events
+        _, _, _, start_t, end_t, trial_ids = self._map_trials(
+            label,
+            event,
+            end_event,
+        )
+        # get trial start and end timestamps
+        target_trial_start_t = trial_start_t[all_trial_ids.isin(trial_ids)]
+        # get trial start and end time in reference of each trial
+        event_on_t = start_t - target_trial_start_t
+        event_off_t = end_t - target_trial_start_t
+        bounds = pd.DataFrame(
+           {"on": event_on_t, "off": event_off_t},
+           index=trial_ids,
+        )
+
+        # mask trials by target trial id
+        trial_mask = (
+            trials["spiked"]
+            .columns.get_level_values("trial").isin(trial_ids)
+        )
+        masked_spiked = trials["spiked"].loc[:, trial_mask]
+        masked_fr = trials["fr"].loc[:, trial_mask]
+        pos_trial_mask = (
+            trials["positions"]
+            .columns.get_level_values("trial").isin(trial_ids)
+        )
+        masked_pos = trials["positions"].loc[:, pos_trial_mask]
+
+        del (trials, trial_start_t, start_t, end_t, target_trial_start_t,
+             event_on_t, event_off_t)
+        gc.collect()
+
+        output = {}
+        # cut data between bounds
+        output["fr"] = xut.cut_between_bounds(
+            df=masked_fr,
+            bounds=bounds,
+            level=["unit", "trial"],
+            ascending=[True, True],
+        )
+        output["spiked"] = xut.cut_between_bounds(
+            df=masked_spiked,
+            bounds=bounds,
+            level=["unit", "trial"],
+            ascending=[True, True],
+        )
+        output["positions"] = xut.cut_between_bounds(
+            df=masked_pos,
+            bounds=bounds,
+            level=["start", "trial"],
+            ascending=[True, True],
+        )
 
         return output
 
