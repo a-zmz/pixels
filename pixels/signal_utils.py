@@ -321,7 +321,7 @@ def _convolve_worker(shm_kernal, shm_times, sample_rate):
     return None
 
 
-def convolve_spike_trains(times, sigma=100, size=10, sample_rate=1000):
+def convolve_spike_trains(times, sigma=50, size=10, sample_rate=1000):
     """
     Convolve spike times data with 1D gaussian kernel to get spike rate.
 
@@ -333,7 +333,7 @@ def convolve_spike_trains(times, sigma=100, size=10, sample_rate=1000):
 
     sigma : float/int, optional
         Time in milliseconds of sigma of gaussian kernel to use.
-        Default: 100 ms.
+        Default: 50 ms.
 
     size : float/int, optional
         Number of sigma for gaussian kernel to cover, i.e., size of the kernel
