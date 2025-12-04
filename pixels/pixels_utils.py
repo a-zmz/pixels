@@ -2233,7 +2233,11 @@ def interpolate_to_grid(trials, grid_size, npz_path):
 
         frs.append(_interpolate_to_grid(fr, grid_size))
         positions[trial_id] = _interpolate_to_grid(pos, grid_size)
-        spikeds[trial_id] = _interpolate_to_grid(spiked, grid_size)
+        spikeds[trial_id] = _interpolate_to_grid(
+            spiked,
+            grid_size,
+            method="sum_till_idx",
+        )
         # save timestamps too
         time = pos.iloc[:, 0].copy()
         time.iloc[:] = pos.index / SAMPLE_RATE
@@ -2290,7 +2294,7 @@ def interpolate_to_grid(trials, grid_size, npz_path):
     return interpolated
 
 
-def _interpolate_to_grid(data, grid_size):
+def _interpolate_to_grid(data, grid_size, method="at_idx"):
     # get new index based on grid size
     new_t = np.linspace(
         data.index[0],
@@ -2299,8 +2303,19 @@ def _interpolate_to_grid(data, grid_size):
     ).round().astype(int) # make sure index is int
 
     # interpolate
-    interpolated = data.reindex(new_t).interpolate(method="index")
-    interpolated.index = np.linspace(0, 1, grid_size)
+    if method == "at_idx":
+        interpolated = data.reindex(new_t).interpolate(method="index")
+        interpolated.index = np.linspace(0, 1, grid_size)
+    elif method == "sum_till_idx":
+        # create right ward bins
+        bins = pd.IntervalIndex.from_breaks(new_t, closed="right")
+        interpolated = pd.DataFrame(np.zeros((grid_size, data.shape[1])))
+        # sum by right inclusion
+        interpolated.iloc[1:, :] = data.groupby(
+            pd.cut(data.index, bins, right=True), observed=False,
+        ).sum()
+        interpolated.iloc[0, :] = data.iloc[0, :]
+
     interpolated.index.name = "sample"
 
     return interpolated
