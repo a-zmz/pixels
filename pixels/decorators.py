@@ -36,7 +36,7 @@ def _safe_key(s: str) -> str:
 def _make_default_compressor() -> Any:
     if Blosc is None:
         return None
-    return Blosc(cname="zstd", clevel=5, shuffle=Blosc.BITSHUFFLE)
+    return Blosc(cname="zstd", clevel=9, shuffle=Blosc.SHUFFLE)
 
 # ---------------------------
 # xarray <-> DataFrame helpers
