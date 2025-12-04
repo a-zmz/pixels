@@ -341,7 +341,7 @@ def convolve_spike_trains(times, sigma=50, size=10, sample_rate=1000):
 
     """
     # get kernel size in ms
-    kernel_size = int(sigma * size)
+    kernel_size = int(sigma * size) + 1
     # get gaussian kernel
     kernel = gaussian(kernel_size, std=sigma)
     # normalise kernel to ensure that the total area under the Gaussian is 1
