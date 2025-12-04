@@ -1303,6 +1303,11 @@ class Stream:
         # reserved kwargs injected by decorator when cache_format='zarr'
         _zarr_out: Path | str | None = None,
     ):
+        if not (event.name == event.trial_start.name
+            and end_event.name == end_event.trial_end.name):
+            raise PixelsError(
+                "\n > Only save chance data of full trials."
+            )
         # get positions
         positions = self._get_vr_positions(label, event, end_event)
 
