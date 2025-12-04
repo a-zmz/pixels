@@ -358,10 +358,23 @@ def convolve_spike_trains(times, sigma=50, size=10, sample_rate=1000):
             mode='nearest',
             axis=0,
         ) * sample_rate # rescale it to second
-
         output = pd.DataFrame(
             convolved,
             columns=times.columns,
+            index=times.index,
+        )
+
+    elif isinstance(times, pd.Series):
+        # convolve with gaussian
+        convolved = convolve1d(
+            input=times.values,
+            weights=n_kernel,
+            output=np.float32,
+            mode='nearest',
+            axis=0,
+        ) * sample_rate # rescale it to second
+        output = pd.Series(
+            convolved,
             index=times.index,
         )
 
