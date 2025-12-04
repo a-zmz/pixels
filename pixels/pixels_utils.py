@@ -2322,3 +2322,25 @@ def _interpolate_to_grid(data, grid_size, method="at_idx"):
     interpolated.index.name = "sample"
 
     return interpolated
+
+
+def cut_between_bounds(df, bounds, level, ascending):
+    trial_groups = df.T.groupby("trial")
+    dfs = []
+    for (trial, group) in trial_groups:
+        trials = group.T.dropna(how="all", axis=0)
+        mask = (
+            (trials.index >= bounds.on.loc[trial])
+            & (trials.index <= bounds.off.loc[trial]))
+        masked = trials.loc[mask, :].dropna(how="all", axis=1)
+        masked.reset_index(inplace=True, drop=True)
+        dfs.append(masked)
+
+    output = pd.concat(dfs, axis=1).sort_index(
+        axis=1,
+        level=level,
+        ascending=ascending,
+    )
+    output.index.name = df.index.name
+
+    return output
