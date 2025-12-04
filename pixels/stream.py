@@ -1352,10 +1352,9 @@ class Stream:
         label_name = label.name.split("_")[-1]
 
         # get array name and path 
-        name_parts = [self.session.name, self.probe_id, label.name, units.name,
-        "shuffled", time_bin, f"{pos_bin}cm.npz"]
-        file_name = "_".join(p for p in name_parts)
-        arr_path = self.processed / file_name
+        npz_name = f"{self.session.name}_{units.name}_{label.name}_"\
+            f"{time_bin}_{pos_bin}cm_shuffled_{self.stream_id}.npz"
+        arr_path = self.processed / npz_name
 
         # get chance data
         chance_data = self.get_spike_chance(
@@ -1383,7 +1382,7 @@ class Stream:
             # copy to backup if backup setup
             copyfile(
                 arr_path,
-                self.session.backup / file_name,
+                self.session.backup / npz_name,
             )
 
         return binned_chance
@@ -1578,7 +1577,7 @@ class Stream:
 
         # define output path for binned spike rate
         npz_name = f"{self.session.name}_{units}_{label.name}_"\
-            f"{grid_size}_samples_{self.stream_id}.npz"
+            f"{grid_size}_samples_{sigma}_sigma_{self.stream_id}.npz"
         npz_path = self.processed / npz_name
 
         aligned = self._align_to_fixed_grid(
