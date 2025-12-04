@@ -1283,7 +1283,7 @@ class Stream:
             cropped = data.loc[crop_from:, :]
 
             # get power spectral density
-            psds[start] = xut.get_psd(cropped)
+            psds[start] = xut.get_psd(cropped, nperseg=256)
 
         psd_df = pd.concat(
             psds,

@@ -1365,7 +1365,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
     return pos_data, occupancy
 
 
-def get_psd(df):
+def get_psd(df, nperseg=256):
     """
     Compute power spectrum density.
 
@@ -1377,9 +1377,13 @@ def get_psd(df):
     ===
     psd
     """
-    def _compute_psd(col):
+    def _compute_psd(col, nperseg):
         x = col.dropna().values.squeeze()
-        f, psd = math_utils.estimate_power_spectrum(x, use_welch=False)
+        f, psd = math_utils.estimate_power_spectrum(
+            x,
+            t_seg=nperseg,
+            use_welch=True,
+        )
         # remove 0 to avoid infinity
         f = f[1:]
         psd = psd[1:]
@@ -1388,7 +1392,7 @@ def get_psd(df):
 
         return ser
 
-    psd = df.apply(_compute_psd, axis=0)
+    psd = df.apply(_compute_psd(nperseg), axis=0)
 
     return psd
 
