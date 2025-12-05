@@ -34,3 +34,15 @@ ALPHA = 0.05
 # position bin sizes
 POSITION_BIN = 1 # cm
 BIG_POSITION_BIN = 10 # cm
+
+# power spectrum density esimate params
+P_NPERSEG = 240
+P_SMALL_NPERSEG = 160
+T_NPERSEG = 256
+T_SMALL_NPERSEG = 128
+MIN_CYCLE = 3
+SMALL_MIN_CYCLE = 2
+# number of psd background noise median filter bins
+N_MEDIAN_FILT_BINS = 11
+# time segment size for psd estimation
+T_SEG = 5 # second
