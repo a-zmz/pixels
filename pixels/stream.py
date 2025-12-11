@@ -1323,8 +1323,43 @@ class Stream:
                 nperseg=nperseg,
             )
 
-            # get power spectral density
-            psds[start] = xut.get_psd(cropped, nperseg=256)
+            # whiten
+            psds[start] = xut.whiten_psd(
+                psd=psd,
+                fs=SPATIAL_SAMPLE_RATE,
+                nperseg=nperseg,
+                min_cycle=SMALL_MIN_CYCLE,
+                n_median_filt_bins=N_MEDIAN_FILT_BINS,
+            )
+
+            # get mean of all trials within start
+            chance_mean = {}
+            start_chance = (
+                chance_psd
+                .xs(start, level="start", axis=0)
+                .dropna(how="all", axis=1)
+                .dropna(how="all", axis=0)
+            )
+            unit_groups = start_chance.T.groupby("unit")
+            for (unit, group) in unit_groups:
+                unit_chance_mean = group.groupby("repeat").mean().T
+                chance_mean[int(unit)] = xut.whiten_psd(
+                    psd=unit_chance_mean,
+                    fs=SPATIAL_SAMPLE_RATE,
+                    nperseg=nperseg,
+                    min_cycle=SMALL_MIN_CYCLE,
+                    n_median_filt_bins=N_MEDIAN_FILT_BINS,
+                )
+            chance[start] = pd.concat(
+                chance_mean,
+                axis=1,
+                names=["unit", "repeat"],
+            )
+
+        chance_df = pd.concat(
+            chance,
+            names=["start","frequency"],
+        )
 
         psd_df = pd.concat(
             psds,
@@ -1333,7 +1368,7 @@ class Stream:
         # NOTE: all trials will appear in all starts, but their values will be
         # all nan in other starts, so remember to dropna(axis=1)!
 
-        return psd_df
+        return {"data": psd_df, "chance": chance_df}
 
 
     @cacheable(
