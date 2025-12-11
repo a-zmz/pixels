@@ -1256,6 +1256,15 @@ class Stream:
         # always put units first, cuz it is like that in
         # experiemnt.align_trials, otherwise the same cache cannot be loaded
 
+        # get chance psd
+        chance_psd = self.get_chance_positional_psd(
+            units=units, # NOTE: ALWAYS the first arg
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event, # NOTE: ALWAYS the last arg
+        )
+
         # get aligned firing rates and positions
         if not use_binned:
             trials = self.get_positional_data(
