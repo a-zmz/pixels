@@ -19,6 +19,8 @@ from pixels.error import PixelsError
 
 from common_utils import file_utils
 
+from vision_in_darkness.constants import SPATIAL_SAMPLE_RATE
+
 class Stream:
     def __init__(
         self,
