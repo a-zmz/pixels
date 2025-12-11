@@ -644,11 +644,14 @@ class Stream:
             )
 
     def _cut_trials_between_bounds(self, units, label, event, sigma, end_event):
+        # make sure to use condition to get full trial data
+        label_name = label.name.split("_")[-1]
+
         # get aligned trials
         trials = self.align_full_trials(
             units=units,
             data="spike_trial", # NOTE: ALWAYS the second arg
-            label=label,
+            label=getattr(label, label_name),
             event=event.trial_start,
             sigma=sigma,
             end_event=end_event.trial_end, # NOTE: ALWAYS the last arg
