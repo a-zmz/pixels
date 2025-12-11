@@ -39,6 +39,7 @@ from pixels.constants import *
 from pixels.decorators import _df_to_zarr_via_xarray
 
 from common_utils import math_utils
+from vision_in_darkness.constants import landmarks, SPATIAL_SAMPLE_RATE
 
 def load_raw(paths, stream_id):
     """
@@ -1224,7 +1225,6 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         shape: position x trial
     """
     from pandas.api.types import is_integer_dtype
-    from vision_in_darkness.constants import SPATIAL_SAMPLE_RATE
 
     if "bin" in positions.index.name:
         logging.info(f"\n> Getting binned positional {data_type}...")
