@@ -1472,7 +1472,7 @@ def _psd_chance_worker(
 
 
 def save_chance_psd(
-    chance_data, sample_rate, units, trial_ids, event_on_t, event_off_t,
+    chance_data, fs, units, trial_ids, event_on_t, event_off_t,
 ):
     """
     Implementation of saving chance level spike data.
@@ -1481,7 +1481,6 @@ def save_chance_psd(
      idx_meta, cols_meta, positions_meta, mask_meta, 
      fr_zarr, _, repeats, unit_ids, n_workers) = prep_chance_data(
         chance_data,
-        sample_rate,
         units,
         trial_ids,
         event_on_t,
@@ -1497,7 +1496,8 @@ def save_chance_psd(
                 _psd_chance_worker,
                 fr_zarr,
                 r,
-                sample_rate,
+                fs,
+                nperseg_max,
                 positions_meta,
                 idx_meta,
                 cols_meta,
@@ -2002,7 +2002,7 @@ def filter_non_somatics(unit_ids, templates, sampling_freq):
 
 
 def prep_chance_data(
-    chance_data, sample_rate, units, trial_ids, event_on_t, event_off_t,
+    chance_data, units, trial_ids, event_on_t, event_off_t,
 ):
     """
     Implementation of saving chance level spike data.
@@ -2062,7 +2062,7 @@ def prep_chance_data(
 
 
 def save_chance_positional_data(
-    chance_data, sample_rate, units, trial_ids, event_on_t, event_off_t,
+    chance_data, units, trial_ids, event_on_t, event_off_t,
 ):
     """
     Implementation of saving chance level spike data.
@@ -2071,7 +2071,6 @@ def save_chance_positional_data(
      idx_meta, cols_meta, positions_meta, mask_meta, 
      fr_zarr, spiked_zarr, repeats, unit_ids, n_workers) = prep_chance_data(
         chance_data,
-        sample_rate,
         units,
         trial_ids,
         event_on_t,
@@ -2088,7 +2087,6 @@ def save_chance_positional_data(
                 fr_zarr,
                 spiked_zarr,
                 r,
-                sample_rate,
                 positions_meta,
                 idx_meta,
                 cols_meta,
@@ -2180,7 +2178,7 @@ def _get_mean_across_repeats(df, names, neural=True):
 
 
 def _positional_fr_chance_worker(
-    fr_zarr, spiked_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta,
+    fr_zarr, spiked_zarr, r, positions_meta, idx_meta, cols_meta,
     mask_meta, unit_ids, trial_ids,
 ):
     """
