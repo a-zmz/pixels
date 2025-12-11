@@ -1389,7 +1389,7 @@ class Stream:
 
 
     # TODO nov 25 2025: (cache_format="zarr") cuz it's big?
-    @cacheable
+    @cacheable(cache_format="zarr")
     def get_chance_positional_psd(self, units, label, event, sigma, end_event):
         # NOTE: we only use completed trials for this analysis
         label_name = label.name.split("_")[-1]
