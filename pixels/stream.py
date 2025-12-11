@@ -1635,7 +1635,6 @@ class Stream:
 
         pos_data = xut.save_chance_positional_data(
             chance_data,
-            self.SAMPLE_RATE,
             units,
             trial_ids,
             event_on_t,
