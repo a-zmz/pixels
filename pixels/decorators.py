@@ -85,49 +85,77 @@ def _df_to_zarr_via_xarray(
             df.columns.name = f"{col_prefix}0"
         col_names = [df.columns.name]
 
-    # stack ALL column levels to move them into the row index; result index
-    # levels = row_names + col_names
-    # Series with MultiIndex index
-    series = df.stack(col_names, future_stack=True)
+    target_chunk_bytes = 128 * 1024 * 1024 # ~128MB per chunk
+    values = df.to_numpy(copy=False)
+    nrows, ncols = values.shape
+    itemsize = (
+        np.dtype(values.dtype).itemsize if values.dtype != object else 8
+    ) or 8
+    # aim for ~target_chunk_bytes per chunk but keep columns contiguous for good
+    # write throughput
+    max_rows_per_chunk = max(
+        1, min(nrows, target_chunk_bytes // max(itemsize * ncols, 1))
+    )
+    # if very wide, also limit col chunk to keep chunks reasonable
+    max_cols_per_chunk = max(
+        1, min(ncols, target_chunk_bytes // max(itemsize * max_rows_per_chunk, 1))
+    )
 
-    # Build DataArray (dims are level names of the Series index, in order)
-    da = xr.DataArray.from_series(series).rename("values")
-    ds = da.to_dataset()
+    # prefer whole columns if it fits; otherwise, split both dims
+    row_chunk = max_rows_per_chunk
+    col_chunk = ncols if (itemsize * row_chunk * ncols) <= target_chunk_bytes\
+                    else max_cols_per_chunk
 
-    # Mark attrs for round-trip (which dims belong to rows vs columns)
+    # build a 2D DataArray
+    da = xr.DataArray(
+        values,
+        dims=["__row__", "__col__"],
+        coords={ # can be Index or MultiIndex
+            "__row__": df.index,
+            "__col__": df.columns,
+        },
+        name="values",
+    )
+
+    # lazily split MultiIndex dims into multiple dims (no big materialization)
+    # row dims
+    if isinstance(df.index, pd.MultiIndex):
+        da = da.unstack("__row__") # creates dims = row_names
+    else:
+        da = da.rename({"__row__": row_names[0]})
+
+    # column dims
+    if isinstance(df.columns, pd.MultiIndex):
+        da = da.unstack("__col__") # creates dims = col_names
+    else:
+        da = da.rename({"__col__": col_names[0]})
+
+    # ensure final dim order matches the reader expectation
+    # [row_dims..., col_dims...]
+    da = da.transpose(*(row_names + col_names))
+
+    ds = da.to_dataset(name="values")
+
+    # mark attrs for round-trip
     ds.attrs["__via"] = "pd_df_any_mi"
     ds.attrs["__row_dims__"] = row_names
     ds.attrs["__col_dims__"] = col_names
 
-    # check size to determine chunking
-    chunking = {}
-    for name, size in ds.sizes.items():
-        if size > BIG_CHUNKS:
-            chunking[name] = BIG_CHUNKS
-        else:
-            chunking[name] = SMALL_CHUNKS
-
-    ds = ds.chunk(chunking)
-
-    if compressor is None:
-        compressor = _make_default_compressor()
-
-    # compressor & object codec
-    encoding = {
-        "values": {"compressor": compressor}
-    }
     # ensure coords are writable (handle object/string coords): cast to str
     for cname, coord in ds.coords.items():
         if coord.dtype == object:
             ds = ds.assign_coords({cname: coord.astype(str)})
 
-    # Write
+    if compressor is None:
+        compressor = _make_default_compressor()
+
+    encoding = {
+        "values": {"compressor": compressor}
+    }
+
+    # write lazily; dask controls memory during compute
     if path is not None:
-        ds.to_zarr(
-            str(path),
-            mode=mode,
-            encoding=encoding,
-        )
+        ds.to_zarr(str(path), mode=mode, encoding=encoding)
         try:
             zarr.consolidate_metadata(str(path))
         except Exception:
