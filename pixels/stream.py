@@ -1275,12 +1275,38 @@ class Stream:
         # get positional fr
         pos_fr = trials["pos_fr"]
 
+        # get max possible number of frequencies per segment
+        nperseg_max = max(
+            int(SPATIAL_SAMPLE_RATE / (1 / T_SEG)), p_npersegs.max()
+        )
+
+        # get starts
         starts = pos_fr.columns.get_level_values("start").unique()
+
         psds = {}
+        chance = {}
         for s, start in enumerate(starts):
-            data = pos_fr.xs(start, level="start", axis=1)
+            # make sure only data from start onwards included
+            data = pos_fr.xs(start, level="start", axis=1).loc[start:, :]
             # crop if needed
-            cropped = data.loc[crop_from:, :]
+            cropped = data.loc[crop_from:, :].dropna(how="all", axis=0)
+
+            # get nperseg based on trial length
+            if np.all(cropped.shape[0] > p_npersegs):
+                nperseg = nperseg_max
+            elif np.any(cropped.shape[0] > p_npersegs):
+                nperseg = p_npersegs[
+                    np.where(cropped.shape[0] > p_npersegs)[0]
+                ].max()
+            else:
+                nperseg = cropped.shape[0]
+
+            # get data power spectral density
+            psd = xut.get_psd(
+                df=cropped,
+                fs=SPATIAL_SAMPLE_RATE,
+                nperseg=nperseg,
+            )
 
             # get power spectral density
             psds[start] = xut.get_psd(cropped, nperseg=256)
