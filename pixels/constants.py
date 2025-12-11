@@ -38,6 +38,7 @@ BIG_POSITION_BIN = 10 # cm
 # power spectrum density esimate params
 P_NPERSEG = 240
 P_SMALL_NPERSEG = 160
+p_npersegs = np.array([160, 240, 320])
 T_NPERSEG = 256
 T_SMALL_NPERSEG = 128
 MIN_CYCLE = 3
