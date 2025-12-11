@@ -1396,7 +1396,7 @@ def get_psd(df, fs, nperseg):
 
 
 def _psd_chance_worker(
-    fr_zarr, r, sample_rate, positions_meta, idx_meta, cols_meta, mask_meta,
+    fr_zarr, r, fs, nperseg_max, positions_meta, idx_meta, cols_meta, mask_meta,
     unit_ids, trial_ids,
 ):
     """
@@ -1432,13 +1432,26 @@ def _psd_chance_worker(
         starts = pos_fr.columns.get_level_values("start").unique()
 
         for start in starts:
-            start_df = pos_fr.xs(
-                start,
-                level="start",
-                axis=1,
-            ).dropna(how="all")
+            start_df = (
+                pos_fr.xs(
+                    start,
+                    level="start",
+                    axis=1,
+                ).loc[start:, ].dropna(how="all")
+                .loc[landmarks[0]:, :] # crop from blackwall
+            )
 
-            psd[start] = get_psd(start_df)
+            # get nperseg based on trial length
+            if np.all(start_df.shape[0] > p_npersegs):
+                nperseg = nperseg_max
+            elif np.any(start_df.shape[0] > p_npersegs):
+                nperseg = p_npersegs[
+                    np.where(start_df.shape[0] > p_npersegs)[0]
+                ].max()
+            else:
+                nperseg = start_df.shape[0]
+
+            psd[start] = get_psd(start_df, fs, nperseg)
 
             del start_df
             gc.collect()
