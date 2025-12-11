@@ -329,7 +329,8 @@ class Stream:
         df, output from individual functions according to data type.
         """
         if not (event.name == event.trial_start.name
-            and end_event.name == end_event.trial_end.name):
+            and end_event.name == end_event.trial_end.name
+        ):
             raise PixelsError(
                 "\n > Only use this function to align to full trials."
             )
