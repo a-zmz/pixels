@@ -1489,6 +1489,9 @@ def save_chance_psd(
     del chance_data
     gc.collect()
 
+    # get max possible number of frequencies per segment
+    nperseg_max = max(int(fs / (1 / T_SEG)), p_npersegs.max())
+
     futures = []
     with ProcessPoolExecutor(max_workers=n_workers) as ex:
         futures = [
