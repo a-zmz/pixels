@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 from scipy import stats
+from scipy.ndimage import median_filter
 import statsmodels.formula.api as smf
 from statsmodels.stats.multitest import multipletests
 from patsy import build_design_matrices
@@ -2360,3 +2361,36 @@ def cut_between_bounds(df, bounds, level, ascending):
     output.index.name = df.index.name
 
     return output
+
+
+def whiten_psd(psd, fs, nperseg, min_cycle, n_median_filt_bins):
+    """
+    Normalise psd by its own background noise so that we can identify its real
+    peak.
+    """
+    # smooth broadband to get background noise
+    eps = np.finfo(float).eps
+    background_noise = np.exp(
+        median_filter(np.log(psd + eps), size=(n_median_filt_bins, 1))
+    )
+
+    # get freq resolvability
+    fmin_resolvable = (min_cycle * fs) / nperseg
+    fmax_resolvable = 1 / (2 * (1 / fs))
+
+    mask = np.ones_like(psd.index, dtype=bool)
+    mask &= (psd.index > 0)
+    # NOTE: shortest wavelength (nyquist) lambda_min = 2 * (1 / fs), and longest
+    # resolvable wavelength is lambda_max = 1 /fmin_resolvable.
+    # the maximum ability to separate close periods is limited by
+    #Q_max = nperseg * (1/fs) / lambda_0
+    # freq is above the minimum resolvable freq
+    mask &= (psd.index >= fmin_resolvable)
+    # freq is below the maximum resolvable freq
+    mask &= (psd.index <= fmax_resolvable)
+    idxs = np.where(mask)[0]
+
+    # whiten & mask
+    whitened = psd.div(background_noise + eps).loc[mask, :]
+
+    return whitened
