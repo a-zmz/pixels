@@ -1501,7 +1501,7 @@ class Stream:
         logging.info("\n> getting chance psd")
         psds = xut.save_chance_psd(
             chance_data,
-            self.SAMPLE_RATE,
+            SPATIAL_SAMPLE_RATE,
             units,
             trial_ids,
             event_on_t,
