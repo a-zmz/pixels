@@ -85,10 +85,9 @@ def _df_to_zarr_via_xarray(
             df.columns.name = f"{col_prefix}0"
         col_names = [df.columns.name]
 
-    values = df.to_numpy(copy=False)
     # build a 2D DataArray
-    darr = xr.DataArray(
-        values,
+    da = xr.DataArray(
+        df.to_numpy(copy=False),
         dims=("__row__", "__col__"),
         coords={ # can be Index or MultiIndex
             "__row__": ("__row__", df.index),
