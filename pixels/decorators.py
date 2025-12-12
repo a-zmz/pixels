@@ -116,6 +116,7 @@ def _df_to_zarr_via_xarray(
         },
         name="values",
     )
+    da = darr.chunk({"__row__": row_chunk, "__col__": col_chunk})
 
     # lazily split MultiIndex dims into multiple dims (no big materialization)
     # row dims
@@ -133,7 +134,6 @@ def _df_to_zarr_via_xarray(
     # ensure final dim order matches the reader expectation
     # [row_dims..., col_dims...]
     da = da.transpose(*(row_names + col_names))
-
     ds = da.to_dataset(name="values")
 
     # mark attrs for round-trip
