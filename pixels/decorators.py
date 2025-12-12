@@ -85,27 +85,7 @@ def _df_to_zarr_via_xarray(
             df.columns.name = f"{col_prefix}0"
         col_names = [df.columns.name]
 
-    target_chunk_bytes = 128 * 1024 * 1024 # ~128MB per chunk
     values = df.to_numpy(copy=False)
-    nrows, ncols = values.shape
-    itemsize = (
-        np.dtype(values.dtype).itemsize if values.dtype != object else 8
-    ) or 8
-    # aim for ~target_chunk_bytes per chunk but keep columns contiguous for good
-    # write throughput
-    max_rows_per_chunk = max(
-        1, min(nrows, target_chunk_bytes // max(itemsize * ncols, 1))
-    )
-    # if very wide, also limit col chunk to keep chunks reasonable
-    max_cols_per_chunk = max(
-        1, min(ncols, target_chunk_bytes // max(itemsize * max_rows_per_chunk, 1))
-    )
-
-    # prefer whole columns if it fits; otherwise, split both dims
-    row_chunk = max_rows_per_chunk
-    col_chunk = ncols if (itemsize * row_chunk * ncols) <= target_chunk_bytes\
-                    else max_cols_per_chunk
-
     # build a 2D DataArray
     darr = xr.DataArray(
         values,
@@ -116,7 +96,6 @@ def _df_to_zarr_via_xarray(
         },
         name="values",
     )
-    da = darr.chunk({"__row__": row_chunk, "__col__": col_chunk})
 
     # lazily split MultiIndex dims into multiple dims (no big materialization)
     # row dims
@@ -140,6 +119,15 @@ def _df_to_zarr_via_xarray(
     ds.attrs["__via"] = "pd_df_any_mi"
     ds.attrs["__row_dims__"] = row_names
     ds.attrs["__col_dims__"] = col_names
+
+    # check size to determine chunking
+    chunking = {}
+    for name, size in ds.sizes.items():
+        if size > BIG_CHUNKS:
+            chunking[name] = BIG_CHUNKS
+        else:
+            chunking[name] = SMALL_CHUNKS
+    ds = ds.chunk(chunking)
 
     # ensure coords are writable (handle object/string coords): cast to str
     for cname, coord in ds.coords.items():
