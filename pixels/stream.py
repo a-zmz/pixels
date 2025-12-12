@@ -1539,9 +1539,11 @@ class Stream:
 
         # group pre wall, landmarks, and post wall together
         chunks = np.stack([pre_walls, lms, post_walls], axis=1)
-
         ons = chunks[..., 0]
         offs = chunks[..., 1]
+
+        del Events, wall_events, walls, pre_walls, post_walls, lms, chunks
+        gc.collect()
 
         def _get_results(fr_fn):
             resps = {}
