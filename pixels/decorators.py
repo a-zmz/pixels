@@ -107,12 +107,12 @@ def _df_to_zarr_via_xarray(
                     else max_cols_per_chunk
 
     # build a 2D DataArray
-    da = xr.DataArray(
+    darr = xr.DataArray(
         values,
-        dims=["__row__", "__col__"],
+        dims=("__row__", "__col__"),
         coords={ # can be Index or MultiIndex
-            "__row__": df.index,
-            "__col__": df.columns,
+            "__row__": ("__row__", df.index),
+            "__col__": ("__col__", df.columns),
         },
         name="values",
     )
