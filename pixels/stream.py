@@ -1570,6 +1570,8 @@ class Stream:
                     ons=ons[l, :],
                     offs=offs[l, :],
                 )
+                del fr
+                gc.collect()
 
             responsives = pd.concat(resps, axis=1, names=["landmark"])
             contrasts = pd.concat(
@@ -1642,6 +1644,8 @@ class Stream:
             event_on_t,
             event_off_t,
         )
+        del chance_data, units, trial_ids, event_on_t, event_off_t
+        gc.collect()
 
         return pos_data
 
