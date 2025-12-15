@@ -660,7 +660,7 @@ class Stream:
         # get timestamps and trial ids of all trials of current label
         _, _, _, trial_start_t, _, all_trial_ids = self._map_trials(
             label,
-            event.trial_start,
+            event.gray_on,
             end_event.trial_end,
         )
         # get trial ids of target events
