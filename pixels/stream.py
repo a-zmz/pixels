@@ -330,7 +330,7 @@ class Stream:
         ===
         df, output from individual functions according to data type.
         """
-        if not (event.name == event.trial_start.name
+        if not (event.name == event.gray_on.name
             and end_event.name == end_event.trial_end.name
         ):
             raise PixelsError(
@@ -652,7 +652,7 @@ class Stream:
             units=units,
             data="spike_trial", # NOTE: ALWAYS the second arg
             label=getattr(label, label_name),
-            event=event.trial_start,
+            event=event.gray_on,
             sigma=sigma,
             end_event=end_event.trial_end, # NOTE: ALWAYS the last arg
         )
