@@ -131,6 +131,9 @@ def get_data_files(data_dir, session_name):
         # if performed units merge, we have an updated sorting analyser
         pixels[stream_id]["merged_sorting_analyser"] = sorted_stream_dir /\
             "merged_sa.zarr"
+        # raw sorting analyser before curation
+        pixels[stream_id]["raw_sorting_analyser"] = sorted_stream_dir /\
+            "sa.zarr"
         # <<< spikeinterface cache <<<
 
         # depth info of probe
