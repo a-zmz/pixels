@@ -639,43 +639,52 @@ def curate_sorting_analyser(sa):
     )
     # <<< get depth of units on each shank <<<
 
+    # remove bad units using metrics
+    curate_units(sa)
+
+    # get unit ids
+    curated_unit_ids = np.intersect1d(good_units, soma_units)
+    # select curated
+    curated_sorting = sa.sorting.select_units(curated_unit_ids)
+    curated_sa = sa.select_units(curated_unit_ids)
+    # reattach curated sorting to curated_sa to keep sorting properties
+    curated_sa.sorting = curated_sorting
+
+    return sa, curated_sa
+
+
+def curate_units(sa):
     # get quality metrics
     qms = sa.get_extension("quality_metrics").get_data()
 
     # remove bad units
-    #rule = "sliding_rp_violation <= 0.1 & amplitude_median <= -40\
-    #        & amplitude_cutoff < 0.05 & sd_ratio < 1.5 & presence_ratio > 0.9\
-    #        & snr > 1.1 & rp_contamination < 0.2 & firing_rate > 0.1"
-    # use the ibl methods, but amplitude_cutoff rather than noise_cutoff
-    qms_rule = "snr > 1.1 & rp_contamination < 0.2 & amplitude_median <= -40\
-            & presence_ratio > 0.9"
     good_qms = qms.query(qms_rule)
     logging.info(
         "\n> quality metrics check removed "
-        f"{np.setdiff1d(sa.unit_ids, good_qms.index.values)}, "
-        f"{len(np.setdiff1d(sa.unit_ids, good_qms.index.values))} in total."
+        #f"{np.setdiff1d(sa.unit_ids, good_qms.index.values)}, "
+        f"{len(np.setdiff1d(sa.unit_ids, good_qms.index.values))} "
+        "units in total."
     )
-    # TODO nov 26 2024
-    # wait till noise cutoff implemented and include that.
-    # also see why sliding rp violation gives loads nan.
 
     # get template metrics
     tms = sa.get_extension("template_metrics").get_data()
 
     # remove noise based on waveform
-    tms_rule = "num_positive_peaks <= 2 & num_negative_peaks == 1 &\
-    exp_decay > 0.01 & exp_decay < 0.1" # bombcell
-    #peak_to_valley > 0.00018 &\
     good_tms = tms.query(tms_rule)
     logging.info(
         "\n> Template metrics check removed "
-        f"{np.setdiff1d(sa.unit_ids, good_tms.index.values)}, "
-        f"{len(np.setdiff1d(sa.unit_ids, good_tms.index.values))} in total."
+        #f"{np.setdiff1d(sa.unit_ids, good_tms.index.values)}, "
+        f"{len(np.setdiff1d(sa.unit_ids, good_tms.index.values))} "
+        "units in total."
     )
 
     # get good units that passed quality metrics & template metrics
     good_units = np.intersect1d(good_qms.index.values, good_tms.index.values)
     good_unit_mask = np.isin(sa.unit_ids, good_units)
+
+    # get max peak channel for each unit
+    max_chan = si.get_template_extremum_channel(sa).values()
+    max_chan_idx = sa.channel_ids_to_indices(max_chan)
 
     # get template of each unit on its max channel
     templates = sa.load_extension("templates").get_data()
@@ -690,15 +699,7 @@ def curate_sorting_analyser(sa):
     )
     soma_units = good_units[soma_mask] 
 
-    # get unit ids
-    curated_unit_ids = np.intersect1d(good_units, soma_units)
-    # select curated
-    curated_sorting = sa.sorting.select_units(curated_unit_ids)
-    curated_sa = sa.select_units(curated_unit_ids)
-    # reattach curated sorting to curated_sa to keep sorting properties
-    curated_sa.sorting = curated_sorting
-
-    return sa, curated_sa
+    return good_units, soma_units
 
 
 def export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
