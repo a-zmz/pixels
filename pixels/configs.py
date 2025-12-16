@@ -47,3 +47,19 @@ ks4_0_30_image_name = "si103.0_ks4-0-30_with_wavpack.sif"
 #ks4_0_30_image_name = "si102.3_ks4-0-30_with_wavpack.sif"
 ks4_0_18_image_name = "ks4-0-18_with_wavpack.sif"
 ks4_image_name = ks4_0_30_image_name
+
+# quality metrics rule
+# TODO nov 26 2024
+# wait till noise cutoff implemented and include that.
+# also see why sliding rp violation gives loads nan.
+#qms_rule = "sliding_rp_violation <= 0.1 & amplitude_median <= -40\
+#        & amplitude_cutoff < 0.05 & sd_ratio < 1.5 & presence_ratio > 0.9\
+#        & snr > 1.1 & rp_contamination < 0.2 & firing_rate > 0.1"
+# use the ibl methods, but amplitude_cutoff rather than noise_cutoff
+qms_rule = "snr > 1.1 & rp_contamination < 0.2 & amplitude_median <= -40\
+        & presence_ratio > 0.9"
+
+# template metrics rule
+tms_rule = "num_positive_peaks <= 2 & num_negative_peaks == 1 &\
+exp_decay > 0.01 & exp_decay < 0.1" # bombcell
+#peak_to_valley > 0.00018 &\
