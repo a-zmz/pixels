@@ -693,7 +693,7 @@ def curate_units(sa):
 
     # filter non somatic units by waveform analysis
     soma_mask = filter_non_somatics(
-        sa.unit_ids,
+        good_units,
         max_chan_templates,
         sa.sampling_frequency,
     )
