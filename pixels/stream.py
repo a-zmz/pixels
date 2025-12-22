@@ -332,14 +332,15 @@ class Stream:
         """
         if not (event.name == event.gray_on.name
             and end_event.name == end_event.trial_end.name
+            and units.name == "all"
         ):
             raise PixelsError(
-                "\n > Only use this function to align to full trials."
+                "\n > Only use this function to align all units to full trials."
             )
 
         if "spike_trial" in data:
             logging.info(
-                f"\n> Aligning spike times and spike rate of {units} units to "
+                f"\n> Aligning spike times and spike rate of all units to "
                 f"<{label.name}> trials, from {event.name} to "
                 f"{end_event.name}, with {sigma} ms sigma."
             )
@@ -649,7 +650,7 @@ class Stream:
 
         # get aligned trials
         trials = self.align_full_trials(
-            units=units,
+            units=self.session.select_units(name="all"),
             data="spike_trial", # NOTE: ALWAYS the second arg
             label=getattr(label, label_name),
             event=event.gray_on,
@@ -679,13 +680,17 @@ class Stream:
            index=trial_ids,
         )
 
-        # mask trials by target trial id
-        trial_mask = (
+        # mask trials by target trial ids and unit ids
+        spike_mask = (
             trials["spiked"]
             .columns.get_level_values("trial").isin(trial_ids)
+            &
+            trials["spiked"]
+            .columns.get_level_values("unit").isin(units.flat())
         )
-        masked_spiked = trials["spiked"].loc[:, trial_mask]
+        masked_spiked = trials["spiked"].loc[:, spike_mask]
         masked_fr = trials["fr"].loc[:, trial_mask]
+        # mask trials by target trial ids
         pos_trial_mask = (
             trials["positions"]
             .columns.get_level_values("trial").isin(trial_ids)
