@@ -903,7 +903,7 @@ class Stream:
     ):
         # define output path for binned spike rate
         file_name = f"{self.session.name}_{units}_{label.name}_"\
-            f"{time_bin}_{pos_bin}cm_{self.stream_id}.npz"
+            f"{time_bin}_{pos_bin}cm_{sigma}_sigma_{self.stream_id}.npz"
         output_path = self.cache / file_name
 
         binned = self._bin_aligned_trials(
