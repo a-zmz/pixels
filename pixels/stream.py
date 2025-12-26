@@ -1429,13 +1429,38 @@ class Stream:
     def get_binned_chance(
         self, units, label, event, sigma, end_event, time_bin, pos_bin,
     ):
-        # NOTE: we only need the condition name
-        label_name = label.name.split("_")[-1]
+        logging.info(
+            f"\n> binning {label.name} chance data between {event.name} and "
+            f"{end_event.name} to {time_bin} and {pos_bin}cm"
+        )
 
         # get array name and path 
         npz_name = f"{self.session.name}_{units.name}_{label.name}_"\
             f"{time_bin}_{pos_bin}cm_shuffled_{self.stream_id}.npz"
         arr_path = self.processed / npz_name
+
+        # NOTE: we only need the condition name
+        label_name = label.name.split("_")[-1]
+
+        # get timestamps and trial ids of all trials of current label
+        _, _, _, trial_start_t, _, all_trial_ids = self._map_trials(
+            label,
+            event.trial_start,
+            end_event.trial_end,
+        )
+
+        # get trial ids of target events
+        _, _, _, start_t, end_t, trial_ids = self._map_trials(
+            label,
+            event,
+            end_event,
+        )
+
+        # get trial start and end timestamps
+        target_trial_start_t = trial_start_t[all_trial_ids.isin(trial_ids)]
+        # get trial start and end time in reference of each trial
+        event_on_t = start_t - target_trial_start_t
+        event_off_t = end_t - target_trial_start_t
 
         # get chance data
         chance_data = self.get_spike_chance(
@@ -1445,6 +1470,7 @@ class Stream:
             sigma=sigma,
             end_event=end_event.trial_end,
         )
+
         # bin chance data
         binned_chance = xut.bin_spike_chance(
             chance_data,
@@ -1452,11 +1478,10 @@ class Stream:
             time_bin,
             pos_bin,
             arr_path,
-            # TODO nov 25 2025:
-            #units,
-            #trial_ids,
-            #event_on_t,
-            #event_off_t,
+            units,
+            trial_ids,
+            event_on_t,
+            event_off_t,
         )
 
         if hasattr(self.session, "backup"):

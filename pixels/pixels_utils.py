@@ -960,96 +960,62 @@ def save_spike_chance_zarr(
     return None
 
 
-def bin_spike_chance(chance_data, sample_rate, time_bin, pos_bin, arr_path):
+def bin_spike_chance(
+    chance_data, sample_rate, time_bin, pos_bin, arr_path, units, trial_ids,
+    event_on_t, event_off_t
+):
     # TODO nov 25 2025:
     # 1. allows to align to specific event and select units like
     # `save_chance_psd`; 
     # 2. implement multiprocessing here!
 
     # extract data from chance
-    chance_spiked = chance_data["chance_spiked"]
-    chance_fr = chance_data["chance_fr"]
-    REPEATS = chance_spiked.shape[-1]
+    (idx_shms, cols_shms, positions_shms, mask_shm,
+     idx_meta, cols_meta, positions_meta, mask_meta, 
+     fr_zarr, spiked_zarr, repeats, unit_ids, n_workers) = prep_chance_data(
+        chance_data,
+        units,
+        trial_ids,
+        event_on_t,
+        event_off_t,
+    )
+    del chance_data
+    gc.collect()
 
-    # get index and columns to reconstruct df
-    spiked = chance_data["spiked"].dropna(axis=0, how="all")
-    idx = spiked.index
-    cols = spiked.columns
-    trial_ids = spiked.index.get_level_values("trial").unique()
-    # get positions
-    positions = chance_data["positions"].dropna(axis=1, how="all")
+    futures = []
+    with ProcessPoolExecutor(max_workers=n_workers) as ex:
+        futures = [
+            ex.submit(
+                _bin_chance_worker,
+                fr_zarr,
+                spiked_zarr,
+                r,
+                positions_meta,
+                idx_meta,
+                cols_meta,
+                mask_meta,
+                unit_ids,
+                trial_ids,
+                sample_rate,
+                time_bin,
+                pos_bin,
+            ) for r in range(repeats)
+        ]
+        # collect and concat
+        results = [f.result() for f in as_completed(futures)]
 
-    count_arrs = {}
-    fr_arrs = {}
-    count_dfs = {}
-    fr_dfs = {}
-    temp_spiked = {}
-    temp_fr = {}
-    for repeat in range(REPEATS):
-        r_fr = pd.DataFrame(
-            chance_fr[:, :, repeat],
-            index=idx,
-            columns=cols,
-        )
-        r_spiked = pd.DataFrame(
-            chance_spiked[:, :, repeat],
-            index=idx,
-            columns=cols,
-        )
-
-        temp_spiked[repeat] = {}
-        temp_fr[repeat] = {}
-        for trial in trial_ids:
-            trial_pos = positions.xs(trial, level="trial", axis=1).dropna()
-            counts = r_spiked.xs(trial, level="trial", axis=0)
-            fr = r_fr.xs(trial, level="trial", axis=0)
-
-            # bin fr
-            temp_fr[repeat][trial] = bin_vr_trial(
-                data=fr,
-                positions=trial_pos,
-                sample_rate=sample_rate,
-                time_bin=time_bin,
-                pos_bin=pos_bin,
-                bin_method="mean", # fr
-            )
-            # bin spiked
-            temp_spiked[repeat][trial] = bin_vr_trial(
-                data=counts,
-                positions=trial_pos,
-                sample_rate=sample_rate,
-                time_bin=time_bin,
-                pos_bin=pos_bin,
-                bin_method="sum", # spike count
-            )
-
-        fr_dfs[repeat] = pd.concat(
-            temp_fr[repeat],
-            axis=0,
-        )
-        count_dfs[repeat] = pd.concat(
-            temp_spiked[repeat],
-            axis=0,
-        )
-
-        # np array for andrew
-        fr_arrs[repeat] = ioutils.reindex_by_longest(
-            dfs=temp_fr[repeat],
-            return_format="array",
-        )
-        count_arrs[repeat] = ioutils.reindex_by_longest(
-            dfs=temp_spiked[repeat],
-            return_format="array",
-        )
+    for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
+        shm.close()
+        shm.unlink()
 
     # save np array, for andrew
     arr_count_output = np.stack(
-        list(count_arrs.values()),
+        [result["count_arr"] for result in results],
         axis=-1,
         dtype=np.float32,
     )
     arr_fr_output = np.stack(
-        list(fr_arrs.values()),
+        [result["fr_arr"] for result in results],
         axis=-1,
         dtype=np.float32,
     )
@@ -1062,19 +1028,101 @@ def bin_spike_chance(chance_data, sample_rate, time_bin, pos_bin, arr_path):
 
     # output df
     df_fr = pd.concat(
-        fr_dfs,
+        {r: result["fr_df"] for r, result in enumerate(results)},
         axis=0,
         names=["repeat", "trial", "bin_time"],
     ).iloc[:, :-2]
     temp = pd.concat(
-        count_dfs,
+        {r: result["count_df"] for r, result in enumerate(results)},
         axis=0,
         names=["repeat", "trial", "bin_time"],
     )
     df_spiked = temp.iloc[:, :-2]
     df_pos = temp.iloc[:, -2:]
+    # remove position columns name 
+    df_pos.columns.name = None
 
     return {"spiked": df_spiked, "fr": df_fr, "positions": df_pos}
+
+
+def _bin_chance_worker(
+    fr_zarr, spiked_zarr, r, positions_meta, idx_meta, cols_meta, mask_meta,
+    unit_ids, trial_ids, sample_rate, time_bin, pos_bin,
+):
+    """
+    Worker that bins chance data.
+
+    params
+    ===
+
+    return
+    ===
+    """
+    # attach to shared memory and rebuild the indices
+    idx, idx_shms = ioutils.import_multiindex_to_shm(idx_meta)
+    cols, cols_shms = ioutils.import_index_to_shm(cols_meta)
+    positions, positions_shms = ioutils.import_df_to_shm(positions_meta)
+    mask, mask_shm = ioutils._from_shm(mask_meta)
+
+    try:
+        spiked = pd.DataFrame(
+            spiked_zarr[..., r],
+            index=idx,
+            columns=cols,
+        ).loc[mask, unit_ids]
+
+        fr = pd.DataFrame(
+           fr_zarr[..., r],
+           index=idx,
+           columns=cols,
+        ).loc[mask, unit_ids]
+
+        temp_spiked = {}
+        temp_fr = {}
+        for trial in trial_ids:
+            # bin fr
+            temp_fr[trial] = bin_vr_trial(
+                data=fr.xs(trial, level="trial", axis=0),
+                positions=positions.xs(trial, level="trial", axis=1).dropna(),
+                sample_rate=sample_rate,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+                bin_method="mean", # fr
+            )
+            # bin spiked
+            temp_spiked[trial] = bin_vr_trial(
+                data=spiked.xs(trial, level="trial", axis=0),
+                positions=positions.xs(trial, level="trial", axis=1).dropna(),
+                sample_rate=sample_rate,
+                time_bin=time_bin,
+                pos_bin=pos_bin,
+                bin_method="sum", # spike count
+            )
+
+        fr_df = pd.concat(temp_fr, axis=0)
+        count_df = pd.concat(temp_spiked, axis=0)
+
+        # np array for andrew
+        fr_arr = ioutils.reindex_by_longest(
+            dfs=temp_fr,
+            return_format="array",
+        )
+        count_arr = ioutils.reindex_by_longest(
+            dfs=temp_spiked,
+            return_format="array",
+        )
+
+        del (temp_fr, temp_spiked, positions, idx, cols, mask, trial_ids,
+             unit_ids, time_bin, pos_bin)
+        gc.collect()
+
+        logging.info(f"\nRepeat {r} finished.")
+    finally:
+        for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
+            shm.close()
+
+    return {"fr_df": fr_df, "count_df": count_df, "fr_arr": fr_arr,
+            "count_arr": count_arr}
 
 
 def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
