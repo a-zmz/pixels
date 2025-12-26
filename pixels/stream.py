@@ -689,7 +689,7 @@ class Stream:
             .columns.get_level_values("unit").isin(units.flat())
         )
         masked_spiked = trials["spiked"].loc[:, spike_mask]
-        masked_fr = trials["fr"].loc[:, trial_mask]
+        masked_fr = trials["fr"].loc[:, spike_mask]
         # mask trials by target trial ids
         pos_trial_mask = (
             trials["positions"]
