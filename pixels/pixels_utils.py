@@ -1425,7 +1425,7 @@ def _psd_chance_worker(
                 fr_zarr[..., r],
                 index=idx,
                 columns=cols,
-            ).loc[trial_ids, unit_ids][mask],
+            ).loc[mask, unit_ids],
         )
         del positions, idx, cols
         gc.collect()
@@ -2029,19 +2029,18 @@ def prep_chance_data(
         {"on": event_on_t, "off": event_off_t},
         index=trial_ids,
     )
-    # get index time of selected trials
-    idx_time = idx.get_level_values("time")[
-        idx.get_level_values("trial").isin(trial_ids)
-    ]
-    # get index trial of selected trials
-    idx_trial = idx.get_level_values("trial")[
-        idx.get_level_values("trial").isin(trial_ids)
-    ]
-    # get event on to off mask
+
+    # map trial on to off, trials not in trial_ids set to NaN
+    trial_ons = idx.get_level_values("trial").map(bound.on)
+    trial_offs = idx.get_level_values("trial").map(bound.off)
+
+    # full-index mask (len == len(idx))
     mask = (
-        (idx_time >= bound.on.loc[idx_trial])
-        & (idx_time <= bound.off.loc[idx_trial])
+        (idx.get_level_values("time") >= trial_ons)
+        &
+        (idx.get_level_values("time") <= trial_offs)
     )
+    assert mask.shape == (len(idx),)
     # add mask to shared memory
     mask_meta, mask_shm = ioutils._to_shm(mask)
 
@@ -2051,7 +2050,7 @@ def prep_chance_data(
     # get number of repeats
     repeats = fr_zarr.shape[-1]
 
-    del spiked, positions, chance_data, idx_time, idx_trial, bound
+    del spiked, positions, chance_data, trial_ons, trial_offs, bound
     gc.collect()
 
     # get unit ids
@@ -2210,12 +2209,12 @@ def _positional_fr_chance_worker(
                     spiked_zarr[..., r],
                     index=idx,
                     columns=cols,
-                ).loc[trial_ids, unit_ids][mask],
+                ).loc[mask, unit_ids],
                 "fr": pd.DataFrame(
                    fr_zarr[..., r],
                    index=idx,
                    columns=cols,
-                ).loc[trial_ids, unit_ids][mask],
+                ).loc[mask, unit_ids],
             }
         )
         del positions, idx, cols, mask, trial_ids, unit_ids
