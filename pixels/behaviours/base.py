@@ -2603,7 +2603,7 @@ class Behaviour(ABC):
 
 
     def get_binned_chance(
-        self, label, event, sigma, end_event, time_bin, pos_bin,
+        self, label, event, units, sigma, end_event, time_bin, pos_bin,
     ):
         """
         This function saves binned data in the format that Andrew wants:
@@ -2615,8 +2615,6 @@ class Behaviour(ABC):
         pos_bin: int | None
             For VR behaviour, size of positional bin for position data.
         """
-        units = self.select_units(name="all")
-
         binned = {}
         streams = self.files["pixels"]
         for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
