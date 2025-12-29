@@ -1696,11 +1696,23 @@ class Behaviour(ABC):
                     # get shank depths
                     min_depth = kwargs["min_depth"]
                     max_depth = kwargs["max_depth"]
-                    # find units
-                    in_range = unit_ids[
-                        (depths >= min_depth) & (depths < max_depth) &\
-                        (shank_ids == shank_id)
-                    ]
+                    if isinstance(min_depth, list):
+                        bool_in_range = []
+                        for m, min_d in enumerate(min_depth):
+                            bool_in_range.append(
+                                (depths >= min_d)
+                                & (depths < max_depth[m])
+                                & (shank_ids == shank_id)
+                            )
+                        in_range = unit_ids[
+                            np.logical_or.reduce(bool_in_range)
+                        ]
+                    elif isinstance(min_depth, int):
+                        # find units
+                        in_range = unit_ids[
+                            (depths >= min_depth) & (depths < max_depth) &\
+                            (shank_ids == shank_id)
+                        ]
                     # add to list
                     selected_units.extend(stream_id, in_range)
             else:
