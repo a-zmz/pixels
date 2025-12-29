@@ -942,7 +942,7 @@ class Stream:
         )
 
         if trials is None:
-            logging.info(f"\n> No trials found with label {label.name} and "
+            logging.info(f"\n> No trials found with label <{label.name}> and "
                          f"event {event.name}, output will be empty.")
             return None
 
@@ -1430,8 +1430,8 @@ class Stream:
         self, units, label, event, sigma, end_event, time_bin, pos_bin,
     ):
         logging.info(
-            f"\n> binning {label.name} chance data between {event.name} and "
-            f"{end_event.name} to {time_bin} and {pos_bin}cm"
+            f"\n> binning {units.name} <{label.name}> chance data between "
+            f"{event.name} and {end_event.name} to {time_bin} and {pos_bin}cm"
         )
 
         # get array name and path 
