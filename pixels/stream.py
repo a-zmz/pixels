@@ -1292,6 +1292,13 @@ class Stream:
             )
             crop_from = crop_from // pos_bin + 1
 
+        # NOTE dec 4 2025:
+        # we want to get whitened data psd and whitened chance psd so that we
+        # could identify in the plotting script later where is the peak, and
+        # compare where the peak lies in chance distribution
+        # NOTE we want to get the mean for each start, and keep all repeats for
+        # each trials to have the distribution
+
         # get positional fr
         pos_fr = trials["pos_fr"]
 
