@@ -36,6 +36,7 @@ POSITION_BIN = 1 # cm
 BIG_POSITION_BIN = 10 # cm
 
 # power spectrum density esimate params
+P_TARGET_PERIOD = 80 # cm
 P_NPERSEG = 240
 P_SMALL_NPERSEG = 160
 p_npersegs = np.array([160, 240, 320])
