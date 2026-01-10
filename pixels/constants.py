@@ -48,3 +48,6 @@ SMALL_MIN_CYCLE = 2
 N_MEDIAN_FILT_BINS = 11
 # time segment size for psd estimation
 T_SEG = 5 # second
+
+# min number of units for analysis
+MIN_N_UNITS = 5
