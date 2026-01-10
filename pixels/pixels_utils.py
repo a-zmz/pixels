@@ -1186,35 +1186,35 @@ def correct_group_id(rec):
     npx 2.0 commercial: 2013
     '''
     probe_type = int(rec.get_annotation("probes_info")[0]["probe_type"])
-    # double check it is multishank probe
-    assert probe_type > 0
-
-    # get channel x locations
-    shank_x_locs = {
-        0: [0, 32],
-        1: [250, 282],
-        2: [500, 532],
-        3: [750, 782],
-    }
 
     # get group ids
     group_ids = rec.get_channel_groups()
 
-    x_locs = rec.get_channel_locations()[:, 0]
-    for shank_id, shank_x in shank_x_locs.items():
-        # map bool channel x locations
-        shank_bool = np.isin(x_locs, shank_x)
-        if np.any(shank_bool) == False:
-            logging.info(
-                f"\n> Recording does not have shank {shank_id}, continue."
-            )
-            continue
-        group_ids[shank_bool] = shank_id
+    # correct only if it is multishank probe
+    if probe_type > 0:
+        # get channel x locations
+        shank_x_locs = {
+            0: [0, 32],
+            1: [250, 282],
+            2: [500, 532],
+            3: [750, 782],
+        }
 
-    logging.info(
-        "\n> Not all shanks used in multishank probe, change group ids into "
-        f"{np.unique(group_ids)}."
-    )
+        x_locs = rec.get_channel_locations()[:, 0]
+        for shank_id, shank_x in shank_x_locs.items():
+            # map bool channel x locations
+            shank_bool = np.isin(x_locs, shank_x)
+            if np.any(shank_bool) == False:
+                logging.info(
+                    f"\n> Recording does not have shank {shank_id}, continue."
+                )
+                continue
+            group_ids[shank_bool] = shank_id
+
+        logging.info(
+            "\n> Not all shanks used in multishank probe, change group ids into "
+            f"{np.unique(group_ids)}."
+        )
 
     return group_ids
 
