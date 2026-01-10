@@ -72,21 +72,21 @@ class Stream:
         timestamps = action_labels["timestamps"]
 
         # select frames of wanted trial type
-        trials = np.flatnonzero(outcomes & label)
+        trials = np.flatnonzero(outcomes & label.value)
         # map starts by event
-        starts = np.flatnonzero(events & event)
+        starts = np.flatnonzero(events & event.value)
         # map starts by end event
-        ends = np.flatnonzero(events & end_event)
+        ends = np.flatnonzero(events & end_event.value)
 
         if ("dark" in label.name) and\
             any(name in event.name for name in ["landmark", "wall"]):
             # get dark onset and offset edges
-            dark_on = ((events & event.dark_on) != 0).astype(np.int8)
-            dark_off = ((events & event.dark_off) != 0).astype(np.int8)
+            dark_on = ((events & event.dark_on.value) != 0).astype(np.int8)
+            dark_off = ((events & event.dark_off.value) != 0).astype(np.int8)
             # make in dark boolean
             in_dark = np.cumsum(dark_on - dark_off) > 0
             # get starts only when also in dark
-            starts = np.flatnonzero(((events & event) != 0) & in_dark)
+            starts = np.flatnonzero(((events & event.value) != 0) & in_dark)
 
         # only take starts and ends from selected trials
         selected_starts = trials[np.isin(trials, starts)]
@@ -149,7 +149,7 @@ class Stream:
 
         # map actual starting locations
         if not "trial_start" in event.name:
-            all_start_idx = np.flatnonzero(events & event.trial_start)
+            all_start_idx = np.flatnonzero(events & event.trial_start.value)
             trial_start_idx = trials[np.isin(trials, all_start_idx)]
             # make sure to only get the included trials' starting positions,
             # i.e., the one with start and end event, not all trials in the
