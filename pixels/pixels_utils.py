@@ -661,7 +661,7 @@ def curate_units(sa):
     good_qms = qms.query(qms_rule)
     logging.info(
         "\n> quality metrics check removed "
-        #f"{np.setdiff1d(sa.unit_ids, good_qms.index.values)}, "
+        f"{np.setdiff1d(sa.unit_ids, good_qms.index.values)}, "
         f"{len(np.setdiff1d(sa.unit_ids, good_qms.index.values))} "
         "units in total."
     )
@@ -673,7 +673,7 @@ def curate_units(sa):
     good_tms = tms.query(tms_rule)
     logging.info(
         "\n> Template metrics check removed "
-        #f"{np.setdiff1d(sa.unit_ids, good_tms.index.values)}, "
+        f"{np.setdiff1d(sa.unit_ids, good_tms.index.values)}, "
         f"{len(np.setdiff1d(sa.unit_ids, good_tms.index.values))} "
         "units in total."
     )
