@@ -640,7 +640,7 @@ def curate_sorting_analyser(sa):
     # <<< get depth of units on each shank <<<
 
     # remove bad units using metrics
-    curate_units(sa)
+    good_units, soma_units = curate_units(sa)
 
     # get unit ids
     curated_unit_ids = np.intersect1d(good_units, soma_units)
