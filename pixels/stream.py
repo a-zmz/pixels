@@ -1130,7 +1130,7 @@ class Stream:
 
         # find faulty channels to remove
         faulty_channels = file_utils.load_yaml(
-            path=self.processed / self.files["faulty_channels"],
+            path=self.session.find_file(self.files["faulty_channels"]),
         )
 
         # preprocess
