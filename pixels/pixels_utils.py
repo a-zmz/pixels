@@ -2006,7 +2006,9 @@ def filter_non_somatics(unit_ids, templates, sampling_freq):
             width=min_width,
         )
 
-        assert len(peak_idx) <= 2, "why are there more than 2 peaks?"
+        if not len(peak_idx) <= 2:
+            print(f"unit {unit_ids[t]} has more than 2 peaks")
+            continue
 
         if not len(peak_idx) == 0:
             # maximum positive peak is not larger than 80% of trough
