@@ -149,36 +149,6 @@ def get_data_files(data_dir, session_name):
             f"{session_name}_{probe_id}_bandwise_psd.h5"
         )
 
-        # TODO mar 5 2025:
-        # maybe do NOT put shuffled data in here, cuz there will be different
-        # trial conditions, better to cache them???
-
-        # shuffled response for each unit, in light & dark conditions, to get
-        # the chance
-        # memmaps for temporary storage
-        pixels[stream_id]["spiked_shuffled_memmap"] = base_name.with_name(
-            f"{session_name}_{probe_id}_spiked_shuffled.bin"
-        )
-        pixels[stream_id]["fr_shuffled_memmap"] = base_name.with_name(
-                f"{session_name}_{probe_id}_fr_shuffled.bin"
-        )
-        pixels[stream_id]["shuffled_shape"] = base_name.with_name(
-            f"{session_name}_{probe_id}_shuffled_shape.json"
-        )
-        pixels[stream_id]["shuffled_index"] = base_name.with_name(
-            f"{session_name}_{probe_id}_shuffled_index.h5"
-        )
-        pixels[stream_id]["shuffled_columns"] = base_name.with_name(
-            f"{session_name}_{probe_id}_shuffled_columns.h5"
-        )
-        # .h5 files
-        pixels[stream_id]["spiked_shuffled"] = base_name.with_name(
-            f"{session_name}_{probe_id}_spiked_shuffled.h5"
-        )
-        pixels[stream_id]["fr_shuffled"] = base_name.with_name(
-            f"{session_name}_{probe_id}_fr_shuffled.h5"
-        )
-
         # noise in curated units
         pixels[stream_id]["noisy_units"] = base_name.with_name(
                 f"{session_name}_{probe_id}_noisy_units.yaml"
@@ -206,10 +176,6 @@ def get_data_files(data_dir, session_name):
         pixels[stream_id]["faulty_channels"] = base_name.with_name(
             f"{session_name}_{probe_id}_faulty_channels.yaml"
         )
-
-        #pixels[stream_id]["spike_rate_processed"] = base_name.with_name(
-        #    f"spike_rate_{stream_id}.h5"
-        #)
 
     if pupil_raw:
         behaviour["pupil_processed"] = []
