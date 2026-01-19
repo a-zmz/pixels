@@ -798,7 +798,15 @@ class Stream:
 
             # get sync pulses
             sync_map = ioutils.read_bin(spike_data, 385, 384)
+            # ensure only 64 & 0 are included, assign the rest to 0
+            # NOTE: if we do some sophsiticated things in sync then clearly
+            # define those values here, and assign glitches to 0
+            #clean_sync = sync_map.copy()
+            #clean_sync[~((clean_sync == 64) | (clean_sync == 0))] = 0
+            #syncs = signal.binarise(clean_sync)
             syncs = signal.binarise(sync_map)
+            del sync_map
+            gc.collect()
 
             # >>>> resample pixels sync pulse to sample rate >>>>
             # get ap data sampling rate
