@@ -820,22 +820,12 @@ class Stream:
 
             # get the rise and fall edges in pixels sync
             pixels_edges = np.where(np.diff(pixels_syncs) != 0)[0] + 1
-            # double check if the pulse from arduino initiation is also
-            # included, if so there will be two long pulses before vr frames
-            first_pulses = np.diff(pixels_edges)[:4]
-            if (first_pulses > 1000).all():
-                logging.info("\n> There are two long pulses before vr frames, "
-                                "remove both.")
-                remove = 4
-            else:
-                remove = 2
-            pixels_vr_edges = pixels_edges[remove:]
             # convert value into their index to calculate all timestamps
             pixels_idx = np.arange(pixels_syncs.shape[0])
 
             synched_vr = vr_session.sync_streams(
                 self.SAMPLE_RATE,
-                pixels_vr_edges,
+                pixels_edges,
                 pixels_idx,
             )
 
