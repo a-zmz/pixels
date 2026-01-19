@@ -811,7 +811,7 @@ class Stream:
             )
             # binarise to avoid non integers
             pixels_syncs = signal.binarise(downsampled)
-            # <<<< resample pixels sync pulse to 1kHz <<<<
+            # <<<< resample pixels sync pulse to sample rate <<<<
 
             # TODO apr 11 2025:
             # for 20250723 VDCN09, sync pulses are weird. check number of syncs
