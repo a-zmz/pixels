@@ -125,7 +125,12 @@ def get_data_files(data_dir, session_name):
         pixels[stream_id]["detected_peaks"] = base_name.with_name(
             f"{base_name.stem}_detected_peaks.h5"
         )
-        sorted_stream_dir = base_name.parent / f"sorted_stream_{probe_id[-1]}"
+        # old WDAN cohorts used catgt during preprocessing
+        if "WDAN" in str(base_name):
+            sorted_stream_dir = base_name.parent /\
+                                f"sorted_stream_cat_{probe_id[-1]}"
+        else:
+            sorted_stream_dir = base_name.parent / f"sorted_stream_{probe_id[-1]}"
         pixels[stream_id]["sorting_analyser"] = sorted_stream_dir /\
             "curated_sa.zarr"
         # if performed units merge, we have an updated sorting analyser
