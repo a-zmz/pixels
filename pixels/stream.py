@@ -1314,7 +1314,7 @@ class Stream:
             # make sure only data from start onwards included
             data = pos_fr.xs(start, level="start", axis=1).loc[start:, :]
             # crop if needed
-            cropped = data.loc[crop_from:, :].dropna(how="all", axis=0)
+            cropped = data.loc[crop_from:, :].dropna(how="any", axis=0)
 
             # get nperseg based on trial length
             if np.all(cropped.shape[0] > p_npersegs):
