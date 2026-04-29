@@ -53,7 +53,8 @@ class Experiment:
         interim_dir=None,
         processed_dir=None,
         hist_dir=None,
-        additional_interim_dir=None,
+        interim1_dir=None,
+        interim2_dir=None,
         session_date_fmt="%y%m%d",
         of_date=None,
     ):
@@ -97,7 +98,8 @@ class Experiment:
                     interim_dir=interim_dir,
                     processed_dir=processed_dir,
                     hist_dir=hist_dir,
-                    additional_interim_dir=additional_interim_dir,
+                    interim1_dir=interim1_dir,
+                    interim2_dir=interim2_dir,
                 )
             )
 

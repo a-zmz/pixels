@@ -68,7 +68,11 @@ class Behaviour(ABC):
         An non-default interim folder that we can use for faster access to interim
         files, for example, instead of one in the data_dir.
 
-    additional_interim_dir : pathlib.Path
+    interim1_dir : pathlib.Path
+        An additional interim folder to expand interim directory so we can save
+        big files here.
+
+    interim2_dir : pathlib.Path
         An additional interim folder to expand interim directory so we can save
         big files here.
     """
@@ -76,7 +80,8 @@ class Behaviour(ABC):
     SAMPLE_RATE = SAMPLE_RATE
 
     def __init__(self, name, data_dir, metadata=None, processed_dir=None,
-                 interim_dir=None, hist_dir=None, additional_interim_dir=None):
+                 interim_dir=None, hist_dir=None, interim1_dir=None,
+                 interim2_dir=None):
         self.name = name
         self.date = name.split("_")[0]
         self.mouse_id = name.split("_")[-1]
@@ -103,11 +108,18 @@ class Behaviour(ABC):
         else:
             self.histology =  Path(hist_dir).expanduser() / self.mouse_id
 
-        if additional_interim_dir is None:
-            self.additional_interim = self.data_dir / "interim" / self.name
+        if interim1_dir is None:
+            self.interim1 = self.data_dir / "interim" / self.name
         else:
-            self.additional_interim = (
-                Path(additional_interim_dir).expanduser() / self.name
+            self.interim1 = (
+                Path(interim1_dir).expanduser() / self.name
+            )
+
+        if interim2_dir is None:
+            self.interim2 = self.data_dir / "interim" / self.name
+        else:
+            self.interim2 = (
+                Path(interim2_dir).expanduser() / self.name
             )
 
         self.files = ioutils.get_data_files(self.raw, name)
@@ -118,7 +130,8 @@ class Behaviour(ABC):
 
         self.interim.mkdir(parents=True, exist_ok=True)
         self.processed.mkdir(parents=True, exist_ok=True)
-        self.additional_interim.mkdir(parents=True, exist_ok=True)
+        self.interim1.mkdir(parents=True, exist_ok=True)
+        self.interim2.mkdir(parents=True, exist_ok=True)
 
         self._action_labels = None
         self._behavioural_data = None
@@ -254,6 +267,14 @@ class Behaviour(ABC):
         interim = self.interim / name
         if interim.exists():
             return interim
+
+        interim1 = self.interim1 / name
+        if interim1.exists():
+            return interim1
+
+        interim2 = self.interim2 / name
+        if interim2.exists():
+            return interim2
 
         raw = self.raw / name
         if raw.exists():
