@@ -28,6 +28,32 @@ from pixels import ioutils
 from pixels.error import PixelsError
 from pixels.units import SelectedUnits
 
+def _ensure_list(x):
+    if x is None:
+        return []
+    if isinstance(x, (list, tuple)):
+        return list(x)
+    return [x]
+
+
+def _resolve_cache_dirs(spec, inst):
+    """
+    Resolve cache_dir spec into a non-empty list of Paths.
+
+    spec may be:
+      - None
+      - Path | str
+      - list[Path | str]
+      - callable(self) -> Path | str | list[Path | str]
+    """
+    if spec is None:
+        return []
+
+    value = spec(inst) if callable(spec) else spec
+    values = _ensure_list(value)
+
+    return [Path(v) for v in values if v is not None]
+
 
 def _safe_key(s: str) -> str:
     return str(s).replace("/", "_").replace(".", "_")
@@ -462,7 +488,7 @@ def cacheable(
       - zarr_dim_name: optional row-dimension name when writing DataFrame via
         xarray
     """
-    default_backend = cache_format or "hdf5"
+    deco_backend = cache_format
 
     def decorator(method):
         @wraps(method)
@@ -507,6 +533,27 @@ def cacheable(
                 str(i.name) if hasattr(i, "name") else str(i) for i in as_list
             ]
 
+            # Resolve cache dirs with precedence:
+            # per-call cache_dir > decorator cache_dir > instance _cache_dir >
+            # instance cache
+            cache_dirs = (
+                _resolve_cache_dirs(per_call_cache_dir, inst)
+                or _resolve_cache_dirs(cache_dir, inst)
+                or _resolve_cache_dirs(getattr(inst, "_cache_dir", None), inst)
+                or _resolve_cache_dirs(getattr(inst, "cache", None), inst)
+            )
+
+            if not cache_dirs:
+                raise PixelsError(
+                    "No cache directory available. "
+                    "Provide cache_dir or set inst.cache."
+                )
+
+            cache_key = "_".join(key_parts) + f"_{inst.stream_id}"
+            bases = [d / cache_key for d in cache_dirs]
+            write_base = bases[0]
+
+            """
             def resolve_dir(spec):
                 if spec is None:
                     return None
@@ -526,15 +573,26 @@ def cacheable(
                 )
             base_dir = Path(base_dir)
             base = base_dir / ("_".join(key_parts) + f"_{inst.stream_id}")
+            """
 
-            backend = per_call_backend\
-                    or getattr(inst, "_cache_format", None)\
-                    or default_backend
+            backend = (per_call_backend
+                or deco_backend
+                or getattr(inst, "_cache_format", None)
+                or "hdf5"
+            )
 
             # HDF5 backend
             if backend == "hdf5":
-                cache_path = base.with_name(base.name + ".h5")
-                if cache_path.exists() and inst._use_cache != "overwrite":
+                cache_paths = [b.with_name(b.name + ".h5") for b in bases]
+
+                cache_path = None
+                if inst._use_cache != "overwrite":
+                    for p in cache_paths:
+                        if p.exists():
+                            cache_path = p
+                            break
+
+                if cache_path is not None:
                     try:
                         df = ioutils.read_hdf5(cache_path)
                         logging.info(f"\n\t> Cache loaded from {cache_path}.")
@@ -554,9 +612,11 @@ def cacheable(
                         logging.info(f"\n\t> Cache loaded from {cache_path}.")
                 else:
                     df = method(*args, **kwargs)
-                    cache_path.parent.mkdir(parents=True, exist_ok=True)
+                    write_path = write_base.with_name(write_base.name + ".h5")
+                    write_path.parent.mkdir(parents=True, exist_ok=True)
+
                     if df is None:
-                        cache_path.touch()
+                        write_path.touch()
                         logging.info(
                             "\n\t> df is None, cache will exist but be empty."
                         )
@@ -566,7 +626,7 @@ def cacheable(
                                 for probe_id, nested_dict in df.items():
                                     for nm, values in nested_dict.items():
                                         ioutils.write_hdf5(
-                                            path=cache_path,
+                                            path=write_path,
                                             df=values,
                                             key=f"/{probe_id}/{nm}",
                                             mode="a",
@@ -574,13 +634,14 @@ def cacheable(
                             else:
                                 for nm, values in df.items():
                                     ioutils.write_hdf5(
-                                        path=cache_path,
+                                        path=write_path,
                                         df=values,
                                         key=nm,
                                         mode="a",
                                     )
                         else:
-                            ioutils.write_hdf5(cache_path, df)
+                            ioutils.write_hdf5(write_path, df)
+                    cache_path = write_path
                 return df
 
             # Zarr backend (with DataFrame via xarray, MultiIndex supported)
@@ -590,21 +651,27 @@ def cacheable(
                         "cache_format='zarr' requires zarr. "
                         "pip install zarr numcodecs xarray"
                     )
-                zarr_path = base.with_name(base.name + ".zarr")
-                can_read = zarr_path.exists() and inst._use_cache != "overwrite"
+                zarr_paths = [b.with_name(b.name + ".zarr") for b in bases]
 
-                if can_read:
+                read_path = None
+                if inst._use_cache != "overwrite":
+                    for p in zarr_paths:
+                        if p.exists():
+                            read_path = p
+                            break
+
+                if read_path is not None:
                     try:
-                        obj = _read_zarr_generic(zarr_path)
-                        logging.info(
-                            f"\n\t> Zarr cache loaded from {zarr_path}."
-                        )
+                        obj = _read_zarr_generic(read_path)
+                        logging.info(f"\n\t> Zarr cache loaded from {read_path}.")
                         return obj
                     except Exception as e:
                         logging.info(
-                            f"\n\t> Failed to read Zarr cache ({e}); "
+                            f"\n\t> Failed to read Zarr cache from {read_path} ({e}); "
                             "recomputing."
                         )
+
+                zarr_path = write_base.with_name(write_base.name + ".zarr")
 
                 # inject reserved kwargs so the method can write directly to
                 # store, if the method accepts
@@ -656,7 +723,7 @@ def cacheable(
                     "\tcache_format='zarr' requested but result type "
                     "not supported for Zarr; falling back to HDF5."
                 )
-                h5_fallback = base.with_suffix(".h5")
+                h5_fallback = write_base.with_suffix(".h5")
                 if isinstance(result, dict):
                     if ioutils.is_nested_dict(result):
                         for probe_id, nested_dict in result.items():
