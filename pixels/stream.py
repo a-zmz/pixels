@@ -738,7 +738,7 @@ class Stream:
         else:
             sa_path = self.session.find_file(self.files["sorting_analyser"])
         # load sorting analyser
-        temp_sa = si.load_sorting_analyzer(sa_path)
+        temp_sa = si.load_sorting_analyzer(sa_path, load_extensions=False)
         # select units
         sorting = temp_sa.sorting.select_units(units)
         sa = temp_sa.select_units(units)

@@ -1680,7 +1680,7 @@ class Behaviour(ABC):
                 sa_dir = self.find_file(stream_files["sorting_analyser"])
 
             # load sorting analyser
-            temp_sa = si.load_sorting_analyzer(sa_dir)
+            temp_sa = si.load_sorting_analyzer(sa_dir, load_extensions=False)
             # NOTE: si.load gives warning when using temp_wh.dat to build
             # sorting analyser, and to load sa it will be loading binary
             # recording obj, and that checks version
