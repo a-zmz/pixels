@@ -1386,15 +1386,22 @@ class Stream:
         cache_format="zarr",
         cache_dir=lambda self: [self.cache1, self.cache2]
     )
-    def get_spike_chance(self, units, label, event, sigma, end_event,
+    def get_spike_chance(self, units, label, sigma,
         # reserved kwargs injected by decorator when cache_format='zarr'
         _zarr_out: Path | str | None = None,
     ):
-        if not (event.name == event.trial_start.name
-            and end_event.name == end_event.trial_end.name):
-            raise PixelsError(
-                "\n > Only save chance data of full trials."
-            )
+        from pixels.behaviours.virtual_reality import Events
+        if "light" in label.name:
+            event = Events.trial_start
+            end_event = Events.trial_end
+
+        elif"dark" in label.name:
+            event = Events.dark_on
+            end_event = Events.dark_off
+
+        else:
+            raise PixelsError(f"\n > {label.name} not found.")
+
         # get positions
         positions = self._get_vr_positions(label, event, end_event)
 
@@ -1472,9 +1479,7 @@ class Stream:
         chance_data = self.get_spike_chance(
             units=self.session.select_units(name="all"),
             label=getattr(label, label_name),
-            event=event.trial_start,
             sigma=sigma,
-            end_event=end_event.trial_end,
         )
 
         # bin chance data
@@ -1523,9 +1528,7 @@ class Stream:
         chance_data = self.get_spike_chance(
             units=self.session.select_units(name="all"),
             label=getattr(label, label_name),
-            event=event.trial_start,
             sigma=sigma,
-            end_event=end_event.trial_end,
         )
 
         # get trial start and end timestamps
@@ -1662,9 +1665,7 @@ class Stream:
         chance_data = self.get_spike_chance(
             units=self.session.select_units(name="all"),
             label=getattr(label, label_name),
-            event=event.trial_start,
             sigma=sigma,
-            end_event=end_event.trial_end,
         )
 
         # get trial start and end timestamps
