@@ -1455,11 +1455,20 @@ class Stream:
         # NOTE: we only need the condition name
         label_name = label.name.split("_")[-1]
 
+        if "dark" in label.name:
+            ref_start_event = event.dark_on
+            ref_end_event = event.dark_off
+        elif "light" in label.name:
+            ref_start_event = event.trial_start
+            ref_end_event = event.trial_end
+        else:
+            raise PixelsError(f"\n > {label.name} not found.")
+
         # get timestamps and trial ids of all trials of current label
         _, _, _, trial_start_t, _, all_trial_ids = self._map_trials(
             label,
-            event.trial_start,
-            end_event.trial_end,
+            ref_start_event,
+            ref_end_event,
         )
 
         # get trial ids of target events
