@@ -921,6 +921,19 @@ class Behaviour(ABC):
                )
                 logging.info(f"\n> Sorter ourput copied to {self.backup}.")
 
+            if hasattr(self.session, "backup") and self.session.backup is not None:
+                src = Path(arr_path)
+                dst = Path(self.session.backup) / npz_name
+
+                try:
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    copyfile(src, dst)
+                except PermissionError as e:
+                    logging.warning(
+                        "Could not copy binned chance file to backup. "
+                        f"src={src}, dst={dst}, error={e}"
+                    )
+
         return None
 
 

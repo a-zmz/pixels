@@ -916,12 +916,19 @@ class Stream:
             output_path=output_path,
         )
 
-        if hasattr(self.session, "backup"):
-            # copy to backup if backup setup
-            copyfile(
-                output_path,
-                self.session.backup / file_name,
-            )
+        if hasattr(self.session, "backup") and self.session.backup is not None:
+            src = output_path
+            dst = self.session.backup / file_name
+
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                copyfile(src, dst)
+            except PermissionError as e:
+                logging.warning(
+                    "Could not copy binned chance file to backup. "
+                    f"src={src}, dst={dst}, error={e}"
+                )
+
 
         return binned
 
@@ -1504,12 +1511,20 @@ class Stream:
             event_off_t,
         )
 
-        if hasattr(self.session, "backup"):
+        if hasattr(self.session, "backup") and self.session.backup is not None:
             # copy to backup if backup setup
-            copyfile(
-                arr_path,
-                self.session.backup / npz_name,
-            )
+            src = arr_path
+            dst = self.session.backup / npz_name
+
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                copyfile(src, dst)
+            except PermissionError as e:
+                logging.warning(
+                    "Could not copy binned chance file to backup. "
+                    f"src={src}, dst={dst}, error={e}"
+                )
+
 
         return binned_chance
 
