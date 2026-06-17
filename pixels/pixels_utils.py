@@ -2123,7 +2123,7 @@ def prep_chance_data(
 
 
 def save_chance_positional_data(
-    chance_data, units, trial_ids, event_on_t, event_off_t,
+    chance_data, units, trial_ids, event_on_t, event_off_t, pos_bin=None,
 ):
     """
     Implementation of saving chance level spike data.
@@ -2182,6 +2182,16 @@ def save_chance_positional_data(
         keys=range(repeats),
         names=["repeat", "start", "unit", "trial"],
     )
+
+    if pos_bin:
+        # save pos binned
+        bin_pos = (fr.index - 1) // pos_bin + 1
+        bin_fr = fr.groupby(bin_pos).mean()
+        bin_fc = fc.groupby(bin_pos).mean()
+        bin_occu = occupancy.groupby(bin_pos).mean()
+
+        return {"pos_fc": bin_fc, "pos_fr": bin_fr, "occupancy": bin_occu}
+
     mean_fr = _get_mean_across_repeats(fr, ["trial", "start", "unit"])
     mean_fc = _get_mean_across_repeats(fc, ["trial", "start", "unit"])
     mean_occu = _get_mean_across_repeats(occupancy, ["trial"], neural=False)

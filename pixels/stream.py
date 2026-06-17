@@ -1652,7 +1652,7 @@ class Stream:
 
     @cacheable
     def get_chance_positional_data(
-        self, units, label, event, sigma, end_event, #normalised,
+        self, units, label, event, sigma, end_event, pos_bin=None,
     ):
         # NOTE: we only use completed trials for this analysis
         label_name = label.name.split("_")[-1]
@@ -1689,6 +1689,7 @@ class Stream:
             trial_ids,
             event_on_t,
             event_off_t,
+            pos_bin,
         )
         del chance_data, units, trial_ids, event_on_t, event_off_t
         gc.collect()
