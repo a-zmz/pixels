@@ -901,8 +901,9 @@ class Stream:
         time_bin=None, pos_bin=None
     ):
         # define output path for binned spike rate
-        file_name = f"{self.session.name}_{units}_{label.name}_"\
-            f"{time_bin}_{pos_bin}cm_{sigma}_sigma_{self.stream_id}.npz"
+        file_name = f"{self.session.name}_{units.name}_{label.name}_"\
+            f"{time_bin}ms_{pos_bin}cm_{event.name}_{sigma}ms_"\
+            f"{end_event.name}_{self.stream_id}.npz"
         output_path = self.cache / file_name
 
         binned = self._bin_aligned_trials(
@@ -1063,7 +1064,6 @@ class Stream:
         return data, pos
 
 
-    #@cacheable
     def get_positional_data(
         self, label, event, end_event=None, sigma=None, units=None,
         normalised=False,
@@ -1456,7 +1456,8 @@ class Stream:
 
         # get array name and path 
         npz_name = f"{self.session.name}_{units.name}_{label.name}_"\
-            f"{time_bin}_{pos_bin}cm_shuffled_{self.stream_id}.npz"
+            f"{time_bin}ms_{pos_bin}cm_{event.name}_{sigma}ms_"\
+            f"{end_event.name}_shuffled_{self.stream_id}.npz"
         arr_path = self.processed / npz_name
 
         # NOTE: we only need the condition name
@@ -1729,8 +1730,9 @@ class Stream:
     ):
 
         # define output path for binned spike rate
-        npz_name = f"{self.session.name}_{units}_{label.name}_"\
-            f"{grid_size}_samples_{sigma}_sigma_{self.stream_id}.npz"
+        npz_name = f"{self.session.name}_{units.name}_{label.name}_"\
+            f"{grid_size}_samples_{event.name}_{sigma}ms_"\
+            f"{end_event.name}_{self.stream_id}.npz"
         npz_path = self.processed / npz_name
 
         aligned = self._align_to_fixed_grid(
