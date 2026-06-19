@@ -112,7 +112,69 @@ class Stream:
         return trials, events, selected_starts, start_t, end_t, trial_ids
 
 
-    #@cacheable(cache_format="zarr")
+    def _get_vr_variable(self, label, event, end_event, vr_variable):
+        logging.info(
+            f"\n> Getting {self.session.name} {self.stream_id} {vr_variable}."
+        )
+
+        # map trials
+        (trials, events, selected_starts,
+         start_t, end_t, trial_ids) = self._map_trials(
+            label,
+            event,
+            end_event,
+        )
+
+        if selected_starts.size == 0:
+            logging.info(f"\n> No trials found with label {label} and event "
+                         f"{event.name}, output will be empty.")
+            return None
+
+        # get synched vr
+        synched_vr, _ = self.get_synched_vr()
+
+        # get vr variable of all trials
+        data = synched_vr.loc[:, vr_variable]
+        data_val = data.to_numpy()
+        data_idx = data.index.to_numpy()
+
+        # find start and end index
+        trial_start_t = np.searchsorted(data_idx, start_t, side="left")
+        trial_end_t = np.searchsorted(data_idx, end_t, side="right")
+        ls = [
+            pd.Series(data_val[s:e])
+            for s, e in zip(trial_start_t, trial_end_t)
+        ]
+        df = pd.concat(ls, axis=1)
+
+        # map actual starting locations
+        if not "trial_start" in event.name:
+            all_start_idx = np.flatnonzero(events & event.trial_start.value)
+            trial_start_idx = trials[np.isin(trials, all_start_idx)]
+            # make sure to only get the included trials' starting positions,
+            # i.e., the one with start and end event, not all trials in the
+            # label by aligning trial ids
+            all_ids = synched_vr.trial_count.iloc[trial_start_idx].values
+            start_idx = trial_start_idx[np.isin(all_ids, trial_ids)]
+        else:
+            start_idx = selected_starts.copy()
+
+        # get start positions
+        start_pos = synched_vr.position_in_tunnel.values[start_idx].astype(int)
+        # create multiindex with starts
+        cols_with_starts = pd.MultiIndex.from_arrays(
+            [start_pos, trial_ids],
+            names=("start", "trial"),
+        )
+
+        # add level with start positions
+        df.columns = cols_with_starts
+        df = df.sort_index(axis=1, ascending=[False, True])
+        df.index.name = "time"
+
+        return df
+
+
     def _get_vr_positions(self, label, event, end_event):
         logging.info(
             f"\n> Getting {self.session.name} {self.stream_id} positions."
@@ -373,7 +435,12 @@ class Stream:
         self, label, event, units=None, sigma=None, end_event=None,
     ):
         # get positions
-        positions = self._get_vr_positions(label, event, end_event)
+        positions = self._get_vr_variable(
+            label,
+            event,
+            end_event,
+            "position_in_tunnel",
+        )
 
         # get spikes and firing rate
         _, output = self._get_vr_spikes(
@@ -1410,7 +1477,12 @@ class Stream:
             raise PixelsError(f"\n > {label.name} not found.")
 
         # get positions
-        positions = self._get_vr_positions(label, event, end_event)
+        positions = self._get_vr_variable(
+            label,
+            event,
+            end_event,
+            "position_in_tunnel",
+        )
 
         # get spikes
         stacked_spikes, _ = self._get_vr_spikes(
