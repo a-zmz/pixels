@@ -2461,3 +2461,191 @@ def whiten_psd(psd, fs, nperseg, min_cycle, n_median_filt_bins):
     whitened = psd.div(background_noise + eps).loc[mask, :]
 
     return whitened
+
+
+def get_vr_velocity_data(trial_data, velocity):
+    """
+    Get velocity tuned firing rate and spike count for VR behaviour.
+
+    params
+    ===
+    trial_data: pandas df, output from align_trials.
+
+    velocity: pandas df, output from align_trials.
+
+    return
+    ===
+    dict, positional firing rate, positional spike count, positional occupancy,
+    data in 1cm resolution.
+    """
+    # NOTE: take occupancy from spike count since in we might need to
+    # interpolate fr for binned data
+    fc, occupancy = _get_vr_velocity_neural_data(
+        velocity=velocity,
+        data_type="spiked",
+        data=trial_data["spiked"],
+    )
+    fr, _ = _get_vr_velocity_neural_data(
+        velocity=velocity,
+        data_type="spike_rate",
+        data=trial_data["fr"],
+    )
+
+    return {"fc": fc, "fr": fr, "occupancy": occupancy}
+
+
+def _get_vr_velocity_neural_data(velocity, data_type, data):
+    """
+    Get velocity aligned neural data for VR behaviour.
+
+    params
+    ===
+    velocity: pandas df, vr velocity of all trials.
+        shape: time x trials.
+    
+    data_type: str, type of neural data.
+        "spike_rate": firing rate of each unit in each trial.
+        "spiked": spike boolean of each unit in each trial.
+
+    data: pandas df, aligned trial firing rate or spike boolean.
+        shape: time x (unit x trial)
+        levels: unit, trial
+
+    return
+    ===
+    data: pandas df, positional neural data.
+        shape: velocity x (num of starting positions x unit x trial)
+        levels: start, unit, trial
+
+    occupancy: pandas df, count of each position.
+        shape: position x trial
+    """
+    from pandas.api.types import is_integer_dtype
+
+    if "bin" in velocity.index.name:
+        logging.info(f"\n> Getting binned velocity {data_type}...")
+        # create position indices for binned data
+        indices_range = [
+            velocity.min().min(),
+            velocity.max().max()+1,
+        ]
+    else:
+        logging.info(f"\n> Getting velocity {data_type}...")
+        # create position indices
+        indices_range = [
+            np.floor(velocity.min().min()),
+            np.ceil(velocity.max().max())+1,
+        ]
+
+    # get trial ids
+    trial_ids = velocity.columns.get_level_values("trial")
+
+    # create position indices
+    indices = np.arange(*indices_range, SPATIAL_SAMPLE_RATE).astype(int)
+    # create occupancy array for trials
+    occupancy = pd.DataFrame(
+        data=np.full((len(indices), velocity.shape[1]), np.nan),
+        index=indices,
+        columns=trial_ids,
+    )
+
+    output = {}
+    for t, trial in enumerate(trial_ids):
+        # get trial velocity
+        trial_v = velocity.xs(trial, level="trial", axis=1).dropna()
+
+        # convert to int if float 
+        if not trial_v.dtypes.map(is_integer_dtype).all():
+            # floor velocity and set to int
+            trial_v = trial_v.apply(lambda x: np.round(x)).astype(int)
+
+        # get firing rates for current trial of all units
+        try:
+            trial_data = data.xs(
+                key=trial,
+                axis=1,
+                level="trial",
+            ).dropna(how="all").copy()
+        except TypeError:
+            # chance data has trial and time on index, not column
+            trial_data = data.T.xs(
+                key=trial,
+                axis=1,
+                level="trial",
+            ).T.dropna(how="all").copy()
+
+        # put trial velocity in trial data df
+        trial_data["velocity"] = trial_v.values
+
+        if data_type == "spike_rate":
+            # group values by position and get mean data
+            how = "mean"
+        elif data_type == "spiked":
+            # group values by position and get sum data
+            how = "sum"
+        grouped_data = math_utils.group_and_aggregate(
+            trial_data,
+            "velocity",
+            how,
+        )
+
+        # reindex into full tunnel length
+        reidxed = grouped_data.reindex(indices)
+
+        # check for missing values in binned data
+        if ("bin" in velocity.index.name) and (data_type == "spike_rate"):
+            if grouped_data.isna().any().any():
+                # remove alll nan before data actually starts
+                start_idx = grouped_data.index[0]
+                # and remove alll nan after data actually ends otherwise we have
+                # artefacts
+                end_idx = grouped_data.index[-1]
+                # interpolate missing fr
+                logging.info(f"\n> trial {trial} has missing values, "
+                             "do linear interpolation.")
+                reidxed.loc[start_idx:end_idx, :] = grouped_data.interpolate(
+                    method="linear",
+                    axis=0,
+                )
+
+        # save to dict
+        output[trial] = reidxed
+
+        # get trial occupancy
+        velo_count = trial_data.groupby("velocity").size()
+        occupancy.loc[velo_count.index.values, trial] = velo_count.values
+
+    # concatenate dfs
+    output = pd.concat(output, axis=1, names=["trial", "unit"])
+
+    # add another level of starting position
+    # group trials by their starting index
+    trial_level = output.columns.get_level_values("trial")
+    unit_level = output.columns.get_level_values("unit")
+    # map start level
+    starts = velocity.columns.get_level_values("start").values
+    start_series = pd.Series(
+        data=starts,
+        index=trial_ids,
+        name="start",
+    )
+    start_level = trial_level.map(start_series)
+
+    # define new columns
+    new_cols = pd.MultiIndex.from_arrays(
+        [start_level, unit_level, trial_level],
+        names=["start", "unit", "trial"],
+    )
+    output.columns = new_cols
+
+    # sort by unit, starting position, and then trial
+    output = output.sort_index(
+        axis=1,
+        level=["unit", "start", "trial"],
+        ascending=[True, False, True],
+    ).dropna(how="all")
+
+    occupancy = occupancy.dropna(how="all")
+    occupancy.index.name = "velocity"
+
+    return output, occupancy

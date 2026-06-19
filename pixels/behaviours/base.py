@@ -2884,3 +2884,39 @@ class Behaviour(ABC):
         return output
 
 
+    def get_velocity_data(
+        self, label, event, end_event=None, sigma=None, units=None,
+    ):
+        """
+        Get velocity aligned firing rate of selected units in vr, and occupancy
+        of each velocity.
+        """
+        # NOTE: order of args matters for loading the cache!
+        # always put units first, cuz it is like that in
+        # experiemnt.align_trials, otherwise the same cache cannot be loaded
+
+        output = {}
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            stream = Stream(
+                stream_id=stream_id,
+                stream_num=stream_num,
+                files=stream_files,
+                session=self,
+            )
+
+            logging.info(
+                f"\n> Getting velocity tuned neural data of {units} units in "
+                f"<{label.name}> trials."
+            )
+
+            output[stream_id] = stream.get_velocity_data(
+                units=units, # NOTE: put units first!
+                label=label,
+                event=event,
+                sigma=sigma,
+                end_event=end_event,
+            )
+
+        return output
+

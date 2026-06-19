@@ -1775,3 +1775,38 @@ class Stream:
         interpolated = xut.interpolate_to_grid(trials, grid_size, npz_path)
 
         return interpolated
+
+
+    def get_velocity_data(
+        self, label, event, end_event=None, sigma=None, units=None,
+    ):
+        """
+        Get positional firing rate of selected units in vr, and spatial
+        occupancy of each position.
+        """
+        # NOTE: order of args matters for loading the cache!
+        # always put units first, cuz it is like that in
+        # experiemnt.align_trials, otherwise the same cache cannot be loaded
+
+        # get aligned firing rates and positions
+        trials = self.align_trials(
+            units=units, # NOTE: ALWAYS the first arg
+            data="spike_trial", # NOTE: ALWAYS the second arg
+            label=label,
+            event=event,
+            sigma=sigma,
+            end_event=end_event, # NOTE: ALWAYS the last arg
+        )
+
+        # get veolocity
+        velocity = self._get_vr_variable(
+            label,
+            event,
+            end_event,
+            "velocity",
+        )
+
+        # get velocity aligned spike rate, spike count, and occupancy
+        output = xut.get_vr_velocity_data(trials, velocity)
+
+        return output
