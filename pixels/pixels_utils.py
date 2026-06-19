@@ -1185,6 +1185,7 @@ def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
 
     return bin_data
 
+
 def correct_group_id(rec):
     # check probe type
     '''
@@ -1362,15 +1363,16 @@ def _get_vr_positional_neural_data(positions, data_type, data):
 
         # check for missing values in binned data
         if ("bin" in positions.index.name) and (data_type == "spike_rate"):
-            # remove alll nan before data actually starts
-            start_idx = grouped_data.index[0]
-            chunk_data = reidxed.loc[start_idx:, :]
-            nan_check = chunk_data.isna().any().any()
-            if nan_check:
+            if grouped_data.isna().any().any():
+                # remove all nan before data actually starts
+                start_idx = grouped_data.index[0]
+                # remove alll nan after data actually ends otherwise we have
+                # artefacts
+                end_idx = grouped_data.index[-1]
                 # interpolate missing fr
                 logging.info(f"\n> trial {trial} has missing values, "
                              "do linear interpolation.")
-                reidxed.loc[start_idx:, :] = chunk_data.interpolate(
+                reidxed.loc[start_idx:end_idx, :] = grouped_data.interpolate(
                     method="linear",
                     axis=0,
                 )
