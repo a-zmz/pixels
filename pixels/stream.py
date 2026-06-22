@@ -969,7 +969,7 @@ class Stream:
     ):
         # define output path for binned spike rate
         file_name = f"{self.session.name}_{units.name}_{label.name}_"\
-            f"{time_bin}ms_{pos_bin}cm_{event.name}_{sigma}ms_"\
+            f"{time_bin}_{pos_bin}cm_{event.name}_{sigma}ms_"\
             f"{end_event.name}_{self.stream_id}.npz"
         output_path = self.cache / file_name
 
@@ -1528,7 +1528,7 @@ class Stream:
 
         # get array name and path 
         npz_name = f"{self.session.name}_{units.name}_{label.name}_"\
-            f"{time_bin}ms_{pos_bin}cm_{event.name}_{sigma}ms_"\
+            f"{time_bin}_{pos_bin}cm_{event.name}_{sigma}ms_"\
             f"{end_event.name}_shuffled_{self.stream_id}.npz"
         arr_path = self.cache / npz_name
 
