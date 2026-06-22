@@ -1530,7 +1530,7 @@ class Stream:
         npz_name = f"{self.session.name}_{units.name}_{label.name}_"\
             f"{time_bin}ms_{pos_bin}cm_{event.name}_{sigma}ms_"\
             f"{end_event.name}_shuffled_{self.stream_id}.npz"
-        arr_path = self.processed / npz_name
+        arr_path = self.cache / npz_name
 
         # NOTE: we only need the condition name
         label_name = label.name.split("_")[-1]
@@ -1805,7 +1805,7 @@ class Stream:
         npz_name = f"{self.session.name}_{units.name}_{label.name}_"\
             f"{grid_size}_samples_{event.name}_{sigma}ms_"\
             f"{end_event.name}_{self.stream_id}.npz"
-        npz_path = self.processed / npz_name
+        npz_path = self.cache / npz_name
 
         aligned = self._align_to_fixed_grid(
             label=label,
