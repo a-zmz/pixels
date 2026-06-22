@@ -1176,8 +1176,8 @@ def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
 
     # add position here to bin together
     bin_data['positions'] = mean_pos.values
-    # add bin positions to have position 1 - 10 as bin 1
-    bin_pos = (mean_pos - 1) // pos_bin + 1
+    # add bin positions to have position 0 - 9 as bin 1
+    bin_pos = mean_pos // pos_bin + 1
     bin_data['bin_pos'] = bin_pos.values
 
     # use numeric index
