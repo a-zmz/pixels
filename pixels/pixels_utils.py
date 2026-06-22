@@ -1233,7 +1233,7 @@ def get_vr_positional_data(trial_data):
 
     params
     ===
-    trial_data: pandas df, output from align_trials.
+    trial_data: pandas df, output from align_trials, and velocity.
 
     return
     ===
@@ -1242,21 +1242,31 @@ def get_vr_positional_data(trial_data):
     """
     # NOTE: take occupancy from spike count since in we might need to
     # interpolate fr for binned data
-    pos_fc, occupancy = _get_vr_positional_neural_data(
+    pos_fc, occupancy = _get_vr_positional_data(
         positions=trial_data["positions"],
         data_type="spiked",
         data=trial_data["spiked"],
     )
-    pos_fr, _ = _get_vr_positional_neural_data(
+    pos_fr, _ = _get_vr_positional_data(
         positions=trial_data["positions"],
         data_type="spike_rate",
         data=trial_data["fr"],
     )
+    pos_v, _ = _get_vr_positional_data(
+        positions=trial_data["positions"],
+        data_type="velocity",
+        data=trial_data["velocity"],
+    )
 
-    return {"pos_fc": pos_fc, "pos_fr": pos_fr, "occupancy": occupancy}
+    return {
+            "pos_fc": pos_fc,
+            "pos_fr": pos_fr,
+            "pos_v": pos_v,
+            "occupancy": occupancy,
+        }
 
 
-def _get_vr_positional_neural_data(positions, data_type, data):
+def _get_vr_positional_data(positions, data_type, data):
     """
     Get positional neural data for VR behaviour.
 
@@ -1320,7 +1330,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
             # floor position and set to int
             trial_pos = trial_pos.apply(lambda x: np.floor(x)).astype(int)
             # exclude positions after tunnel reset
-            trial_pos = trial_pos[trial_pos <= indices[-1]]
+            trial_pos = trial_pos[trial_pos.values <= indices[-1]]
 
         # get firing rates for current trial of all units
         try:
@@ -1346,7 +1356,7 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         # put trial positions in trial data df
         trial_data["position"] = trial_pos.values
 
-        if data_type == "spike_rate":
+        if (data_type == "spike_rate") or (data_type == "velocity"):
             # group values by position and get mean data
             how = "mean"
         elif data_type == "spiked":
@@ -1384,42 +1394,59 @@ def _get_vr_positional_neural_data(positions, data_type, data):
         pos_count = trial_data.groupby("position").size()
         occupancy.loc[pos_count.index.values, trial] = pos_count.values
 
-    # concatenate dfs
-    pos_data = pd.concat(pos_data, axis=1, names=["trial", "unit"])
+    if not "spike" in data_type:
+        pos_data = pd.concat(pos_data, axis=1, names=["trial", "start"])
+        # sort by starting position, and then trial
+        pos_data = pos_data.swaplevel("trial", "start", axis=1).sort_index(
+            axis=1,
+            level=["start", "trial"],
+            ascending=[False, True],
+        ).dropna(how="all")
+    else:
+        # concatenate dfs
+        pos_data = pd.concat(pos_data, axis=1, names=["trial", "unit"])
 
-    # add another level of starting position
-    # group trials by their starting index
-    trial_level = pos_data.columns.get_level_values("trial")
-    unit_level = pos_data.columns.get_level_values("unit")
-    # map start level
-    starts = positions.columns.get_level_values("start").values
-    start_series = pd.Series(
-        data=starts,
-        index=trial_ids,
-        name="start",
+        # add another level of starting position
+        # group trials by their starting index
+        trial_level = pos_data.columns.get_level_values("trial")
+        unit_level = pos_data.columns.get_level_values("unit")
+        # get starting positions
+        starts = positions.columns.get_level_values("start").values
+        # map start level
+        start_series = pd.Series(
+            data=starts,
+            index=trial_ids,
+            name="start",
+        )
+        start_level = trial_level.map(start_series)
+
+        # define new columns
+        new_cols = pd.MultiIndex.from_arrays(
+            [start_level, unit_level, trial_level],
+            names=["start", "unit", "trial"],
+        )
+        pos_data.columns = new_cols
+
+        # sort by unit, starting position, and then trial
+        pos_data = pos_data.sort_index(
+            axis=1,
+            level=["start", "unit", "trial"],
+            ascending=[False, True, True],
+        ).dropna(how="all")
+
+        occupancy = occupancy.dropna(how="all")
+        # remove negative position values
+        if occupancy.index.min() < 0:
+            occupancy = occupancy.loc[0:, :]
+            pos_data = pos_data.loc[0:, :]
+        occupancy.index.name = "position"
+
+    # make sure data before start is nan
+    mask = (
+        indices[:, None]
+        < pos_data.columns.get_level_values("start").to_numpy()[None,:]
     )
-    start_level = trial_level.map(start_series)
-
-    # define new columns
-    new_cols = pd.MultiIndex.from_arrays(
-        [start_level, unit_level, trial_level],
-        names=["start", "unit", "trial"],
-    )
-    pos_data.columns = new_cols
-
-    # sort by unit, starting position, and then trial
-    pos_data = pos_data.sort_index(
-        axis=1,
-        level=["unit", "start", "trial"],
-        ascending=[True, False, True],
-    ).dropna(how="all")
-
-    occupancy = occupancy.dropna(how="all")
-    # remove negative position values
-    if occupancy.index.min() < 0:
-        occupancy = occupancy.loc[0:, :]
-        pos_data = pos_data.loc[0:, :]
-    occupancy.index.name = "position"
+    pos_data = pos_data.mask(mask)
 
     return pos_data, occupancy
 

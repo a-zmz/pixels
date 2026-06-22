@@ -1185,6 +1185,15 @@ class Stream:
             del grays, baseline, mu, std, z_fr
             gc.collect()
 
+        # get veolocity
+        velocity = self._get_vr_variable(
+            label,
+            event,
+            end_event,
+            "velocity",
+        )
+        trials["velocity"] = velocity
+
         # get positional spike rate, spike count, and occupancy
         positional_data = xut.get_vr_positional_data(trials)
 
