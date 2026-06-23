@@ -1391,7 +1391,7 @@ def _get_vr_positional_data(positions, data_type, data):
         pos_data[trial] = reidxed
 
         # get trial occupancy
-        pos_count = trial_data.groupby("position").size()
+        pos_count = trial_data.groupby("position").size().reindex(indices)
         occupancy.loc[pos_count.index.values, trial] = pos_count.values
 
     if not "spike" in data_type:
