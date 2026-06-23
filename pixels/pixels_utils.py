@@ -1306,7 +1306,7 @@ def _get_vr_positional_data(positions, data_type, data):
         # get constants from vd
         from vision_in_darkness.constants import TUNNEL_RESET
         # create position indices
-        indices_range = [np.floor(positions.min().min()), TUNNEL_RESET+1]
+        indices_range = [0, TUNNEL_RESET+1]
 
     # get trial ids
     trial_ids = positions.columns.get_level_values("trial")
@@ -1401,7 +1401,7 @@ def _get_vr_positional_data(positions, data_type, data):
             axis=1,
             level=["start", "trial"],
             ascending=[False, True],
-        ).dropna(how="all")
+        )
     else:
         # concatenate dfs
         pos_data = pd.concat(pos_data, axis=1, names=["trial", "unit"])
@@ -1432,9 +1432,8 @@ def _get_vr_positional_data(positions, data_type, data):
             axis=1,
             level=["start", "unit", "trial"],
             ascending=[False, True, True],
-        ).dropna(how="all")
+        )
 
-        occupancy = occupancy.dropna(how="all")
         # remove negative position values
         if occupancy.index.min() < 0:
             occupancy = occupancy.loc[0:, :]
