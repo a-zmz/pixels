@@ -2920,3 +2920,30 @@ class Behaviour(ABC):
 
         return output
 
+
+    def get_vr_variable(self, label, event, end_event, vr_variable):
+        """
+        Get a vr variable.
+        """
+        streams = self.files["pixels"]
+        stream_id, stream_files = list(streams.items())[0]
+        stream = Stream(
+            stream_id=stream_id,
+            stream_num=0,
+            files=stream_files,
+            session=self,
+        )
+
+        logging.info(
+            f"\n> Getting {vr_variable} in <{label.name}> trials."
+        )
+
+        output = stream.get_vr_variable(
+            label=label,
+            event=event,
+            end_event=end_event,
+            vr_variable=vr_variable,
+        )
+
+        return output
+
