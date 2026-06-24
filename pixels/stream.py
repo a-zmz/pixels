@@ -112,7 +112,7 @@ class Stream:
         return trials, events, selected_starts, start_t, end_t, trial_ids
 
 
-    def _get_vr_variable(self, label, event, end_event, vr_variable):
+    def get_vr_variable(self, label, event, end_event, vr_variable):
         logging.info(
             f"\n> Getting {self.session.name} {self.stream_id} {vr_variable}."
         )
@@ -435,7 +435,7 @@ class Stream:
         self, label, event, units=None, sigma=None, end_event=None,
     ):
         # get positions
-        positions = self._get_vr_variable(
+        positions = self.get_vr_variable(
             label,
             event,
             end_event,
@@ -1186,7 +1186,7 @@ class Stream:
             gc.collect()
 
         # get veolocity
-        velocity = self._get_vr_variable(
+        velocity = self.get_vr_variable(
             label,
             event,
             end_event,
@@ -1486,7 +1486,7 @@ class Stream:
             raise PixelsError(f"\n > {label.name} not found.")
 
         # get positions
-        positions = self._get_vr_variable(
+        positions = self.get_vr_variable(
             label,
             event,
             end_event,
@@ -1882,7 +1882,7 @@ class Stream:
         )
 
         # get veolocity
-        velocity = self._get_vr_variable(
+        velocity = self.get_vr_variable(
             label,
             event,
             end_event,
