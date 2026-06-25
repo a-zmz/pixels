@@ -1252,18 +1252,25 @@ def get_vr_positional_data(trial_data):
         data_type="spike_rate",
         data=trial_data["fr"],
     )
-    pos_v, _ = _get_vr_positional_data(
-        positions=trial_data["positions"],
-        data_type="velocity",
-        data=trial_data["velocity"],
-    )
+    if "velocity" in trial_data:
+        pos_v, _ = _get_vr_positional_data(
+            positions=trial_data["positions"],
+            data_type="velocity",
+            data=trial_data["velocity"],
+        )
 
-    return {
-            "pos_fc": pos_fc,
-            "pos_fr": pos_fr,
-            "pos_v": pos_v,
-            "occupancy": occupancy,
-        }
+        return {
+                "pos_fc": pos_fc,
+                "pos_fr": pos_fr,
+                "pos_v": pos_v,
+                "occupancy": occupancy,
+            }
+    else:
+        return {
+                "pos_fc": pos_fc,
+                "pos_fr": pos_fr,
+                "occupancy": occupancy,
+            }
 
 
 def _get_vr_positional_data(positions, data_type, data):
