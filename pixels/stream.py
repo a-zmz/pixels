@@ -1570,7 +1570,12 @@ class Stream:
         # get trial start and end timestamps
         target_trial_start_t = trial_start_t[all_trial_ids.isin(trial_ids)]
         # get trial start and end time in reference of each trial
-        event_on_t = start_t - target_trial_start_t
+        try:
+            event_on_t = start_t - target_trial_start_t
+        except Exception as e:
+            raise ValueError(
+                f"\n> does the target event happen between the ref? {e}"
+            ) from e
         event_off_t = end_t - target_trial_start_t
 
         # get chance data
