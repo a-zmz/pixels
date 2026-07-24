@@ -347,7 +347,7 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
         rec,
         freq_min=freq_min,
         freq_max=freq_max,
-        margin_ms=5.0,
+        margin_ms=5*(1000.0/freq_min), # avoid edge artefact
         filter_order=5,
         ftype=ftype,
         direction="forward-backward",
