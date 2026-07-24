@@ -1193,7 +1193,14 @@ def correct_group_id(rec):
     npx 2.0 alpha: 24
     npx 2.0 commercial: 2013
     '''
-    probe_type = int(rec.get_annotation("probes_info")[0]["probe_type"])
+    try:
+        probe_type = int(rec.get_annotation("probes_info")[0]["probe_type"])
+    except KeyError:
+        probe_name = rec.get_annotation("probes_info")[0]["description"]
+        if "1.0" in probe_name:
+            probe_type = 0
+        else:
+            assert 0
 
     # get group ids
     group_ids = rec.get_channel_groups()
