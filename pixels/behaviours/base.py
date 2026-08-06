@@ -1644,6 +1644,106 @@ class Behaviour(ABC):
         return spike_times[0]
 
 
+    def get_units_info(self, region_map, raw_signal_depth):
+        """
+        Select units based on specified criteria.
+
+        Parameters
+        ----------
+        unit_kwargs : dict
+            consists of region name, shank id, min and max depth of the region.
+        """
+        info_list = ["depth", "shank", "fr", "region"]
+
+        output = {}
+        streams = self.files["pixels"]
+        for stream_num, (stream_id, stream_files) in enumerate(streams.items()):
+            # find sorting analyser, use merged if there is one
+            merged_sa_dir = self.find_file(
+                stream_files["merged_sorting_analyser"]
+            )
+            if merged_sa_dir:
+                sa_dir = merged_sa_dir
+            else:
+                sa_dir = self.find_file(stream_files["sorting_analyser"])
+
+            # load sorting analyser
+            temp_sa = si.load_sorting_analyzer(sa_dir, load_extensions=True)
+            # NOTE: si.load gives warning when using temp_wh.dat to build
+            # sorting analyser, and to load sa it will be loading binary
+            # recording obj, and that checks version
+
+            # remove noisy units
+            try:
+                noisy_units = load_yaml(
+                    path=self.find_file(stream_files["noisy_units"]),
+                )
+            except:
+                raise PixelsError("> Have you labelled noisy units?")
+            # remove units from sorting and reattach to sa to keep properties
+            sorting = temp_sa.sorting.remove_units(remove_unit_ids=noisy_units)
+            sa = temp_sa.remove_units(remove_unit_ids=noisy_units)
+            sa.sorting = sorting
+
+            # get units
+            unit_ids = sa.unit_ids
+
+            # get shank id for units
+            shank_ids = sa.sorting.get_property("group")
+
+            # get probe depth
+            stream_depth = raw_signal_depth[stream_id]
+
+            # get coordinates of channel with max. amplitude
+            max_chan_coords = sa.sorting.get_property("max_chan_coords")
+            # get depths
+            depths = max_chan_coords[:, 1]
+
+            df = pd.DataFrame(
+                np.full((len(unit_ids), len(info_list)), np.nan),
+                index=unit_ids,
+            )
+            df.index.name = "unit"
+            df.columns = info_list
+            df.loc[:, "depth"] = depths
+            df.loc[:, "shank"] = shank_ids
+
+            def _get_region(row):
+                depth = row["depth"]
+                shank = row["shank"]
+                for region, kwargs in region_map[stream_id].items():
+                    shank = int(shank)
+
+                    min_depth = kwargs[shank]["min_depth"]
+                    max_depth = kwargs[shank]["max_depth"]
+
+                    if min_depth <= depth < max_depth:
+                        return region
+
+                return None
+
+            # get region of each unit
+            df["region"] = df.apply(_get_region, axis=1)
+
+            # get fr from quality metrics
+            qms = temp_sa.get_extension("quality_metrics").get_data()
+            df["fr"] = qms.loc[df.index, "firing_rate"]
+
+            def _get_depth(row):
+                depth = row["depth"]
+                shank = int(row["shank"])
+                return stream_depth[shank] - depth
+
+            # zero depth at surface
+            df["depth"] = df.apply(_get_depth, axis=1)
+            # sort by depth
+            df.sort_values(by="depth", ascending=True, inplace=True)
+
+            output[stream_id] = df
+
+        return pd.concat(output, names=["stream"])
+
+
     def select_units(
         self, min_depth=0, max_depth=None, min_spike_width=None,
         unit_kwargs=None, max_spike_width=None, name=None,
