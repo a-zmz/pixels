@@ -1713,6 +1713,8 @@ class Behaviour(ABC):
                 shank = row["shank"]
                 for region, kwargs in region_map[stream_id].items():
                     shank = int(shank)
+                    if not shank in kwargs.keys():
+                        continue
 
                     min_depth = kwargs[shank]["min_depth"]
                     max_depth = kwargs[shank]["max_depth"]
