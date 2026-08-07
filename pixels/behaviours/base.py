@@ -1717,7 +1717,17 @@ class Behaviour(ABC):
                     min_depth = kwargs[shank]["min_depth"]
                     max_depth = kwargs[shank]["max_depth"]
 
-                    if min_depth <= depth < max_depth:
+                    if isinstance(min_depth, list):
+                        bool_in_range = []
+                        for m, min_d in enumerate(min_depth):
+                            bool_in_range.append(min_d <= depth < max_depth[m])
+                        in_range = np.logical_or.reduce(bool_in_range)
+                        assert 0
+                    elif isinstance(min_depth, int):
+                        # check depth range
+                        in_range = (min_depth <= depth < max_depth)
+
+                    if in_range:
                         return region
 
                 return None
