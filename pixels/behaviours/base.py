@@ -1653,7 +1653,7 @@ class Behaviour(ABC):
         unit_kwargs : dict
             consists of region name, shank id, min and max depth of the region.
         """
-        info_list = ["depth", "shank", "fr", "region"]
+        info_list = ["chan_depth", "insertion_depth", "shank", "fr", "region"]
 
         output = {}
         streams = self.files["pixels"]
@@ -1705,11 +1705,11 @@ class Behaviour(ABC):
             )
             df.index.name = "unit"
             df.columns = info_list
-            df.loc[:, "depth"] = depths
+            df.loc[:, "chan_depth"] = depths
             df.loc[:, "shank"] = shank_ids
 
             def _get_region(row):
-                depth = row["depth"]
+                depth = row["chan_depth"]
                 shank = row["shank"]
                 for region, kwargs in region_map[stream_id].items():
                     shank = int(shank)
@@ -1730,14 +1730,14 @@ class Behaviour(ABC):
             df["fr"] = qms.loc[df.index, "firing_rate"]
 
             def _get_depth(row):
-                depth = row["depth"]
+                depth = row["chan_depth"]
                 shank = int(row["shank"])
                 return stream_depth[shank] - depth
 
             # zero depth at surface
-            df["depth"] = df.apply(_get_depth, axis=1)
+            df["insertion_depth"] = df.apply(_get_depth, axis=1)
             # sort by depth
-            df.sort_values(by="depth", ascending=True, inplace=True)
+            df.sort_values(by="insertion_depth", ascending=True, inplace=True)
 
             output[stream_id] = df
 
