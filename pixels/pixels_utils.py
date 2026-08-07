@@ -1197,10 +1197,17 @@ def correct_group_id(rec):
         probe_type = int(rec.get_annotation("probes_info")[0]["probe_type"])
     except KeyError:
         probe_name = rec.get_annotation("probes_info")[0]["description"]
-        if "1.0" in probe_name:
-            probe_type = 0
-        else:
-            assert 0
+        try:
+            probe_type = int(
+                rec.get_annotation("probes_info")[0]["model_name"][2:]
+            )
+        except KeyError:
+            if "1.0" in probe_name:
+                probe_type = 0
+            elif "2.0" in probe_name:
+                # TODO aug 7 2026 how to get probe type dynamically?
+                assert 0
+                probe_type = 2013
 
     # get group ids
     group_ids = rec.get_channel_groups()
