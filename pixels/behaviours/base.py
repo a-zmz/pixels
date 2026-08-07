@@ -1724,7 +1724,7 @@ class Behaviour(ABC):
                         for m, min_d in enumerate(min_depth):
                             bool_in_range.append(min_d <= depth < max_depth[m])
                         in_range = np.logical_or.reduce(bool_in_range)
-                        assert 0
+
                     elif isinstance(min_depth, int):
                         # check depth range
                         in_range = (min_depth <= depth < max_depth)
