@@ -1707,12 +1707,12 @@ class Behaviour(ABC):
             df.columns = info_list
             df.loc[:, "chan_depth"] = depths
             df.loc[:, "shank"] = shank_ids
+            df["shank"] = df.shank.astype(int)
 
             def _get_region(row):
                 depth = row["chan_depth"]
                 shank = row["shank"]
                 for region, kwargs in region_map[stream_id].items():
-                    shank = int(shank)
                     if not shank in kwargs.keys():
                         continue
 
