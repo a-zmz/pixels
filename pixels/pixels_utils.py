@@ -1187,27 +1187,23 @@ def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
 
 
 def correct_group_id(rec):
-    # check probe type
-    '''
-    npx 1.0: 0
-    npx 2.0 alpha: 24
-    npx 2.0 commercial: 2013
-    '''
+    # get probe type from model name
+    npx_model_name_map = {
+        "PRB_1_4_0480_1": 0, # npx 1.0
+        "PRB_1_4_0480_1_C": 0, # npx 1.0 with cap
+        "NP2003": 2003, # npx 2.0 single shank
+        "NP2004": 2004, # npx 2.0 single shank with cap
+        "NP2010": 2010, # npx 2.0 multi shank alpha
+        "NP2013": 2013, # npx 2.0 multi shank
+        "NP2014": 2014, # npx 2.0 multi shank with cap
+    }
+
     try:
         probe_type = int(rec.get_annotation("probes_info")[0]["probe_type"])
     except KeyError:
-        probe_name = rec.get_annotation("probes_info")[0]["description"]
-        try:
-            probe_type = int(
-                rec.get_annotation("probes_info")[0]["model_name"][2:]
-            )
-        except KeyError:
-            if "1.0" in probe_name:
-                probe_type = 0
-            elif "2.0" in probe_name:
-                # TODO aug 7 2026 how to get probe type dynamically?
-                assert 0
-                probe_type = 2013
+        probe_type = npx_model_name_map[
+            rec.get_annotation("probes_info")[0]["model_name"]
+        ]
 
     # get group ids
     group_ids = rec.get_channel_groups()
