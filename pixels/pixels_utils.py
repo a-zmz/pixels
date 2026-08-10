@@ -1209,7 +1209,7 @@ def correct_group_id(rec):
     group_ids = rec.get_channel_groups()
 
     # correct only if it is multishank probe
-    if probe_type > 0:
+    if probe_type >= 2010:
         # get channel x locations
         shank_x_locs = {
             0: [0, 32],
