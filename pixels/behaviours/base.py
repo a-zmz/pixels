@@ -80,7 +80,7 @@ class Behaviour(ABC):
     SAMPLE_RATE = SAMPLE_RATE
 
     def __init__(self, name, data_dir, metadata=None, processed_dir=None,
-                 interim_dir=None, hist_dir=None, interim1_dir=None,
+                 interim_dir=None, interim1_dir=None,
                  interim2_dir=None):
         self.name = name
         self.date = name.split("_")[0]
@@ -101,12 +101,6 @@ class Behaviour(ABC):
             self.processed = Path(processed_dir).expanduser() / self.name
             self.backup = self.data_dir / "processed" / self.name
             self.backup.mkdir(parents=True, exist_ok=True)
-
-        if hist_dir is None:
-            self.histology = self.data_dir / "histology"\
-                    / processed / self.mouse_id
-        else:
-            self.histology =  Path(hist_dir).expanduser() / self.mouse_id
 
         if interim1_dir is None:
             self.interim1 = self.data_dir / "interim" / self.name

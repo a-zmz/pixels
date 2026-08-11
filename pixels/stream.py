@@ -43,7 +43,6 @@ class Stream:
         self.cache1 = session.interim1 / "cache/"
         self.cache2 = session.interim2 / "cache/"
         self.processed = session.processed
-        self.histology = session.histology
 
         self._use_cache = True
 
@@ -1206,7 +1205,7 @@ class Stream:
 
         # load brain surface depths
         depth_info = file_utils.load_yaml(
-            path=self.histology / self.files["depth_info"],
+            path=self.processed / self.files["depth_info"],
         )
         surface_depths = depth_info["raw_signal_depths"][self.stream_id]
 

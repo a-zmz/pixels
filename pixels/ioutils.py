@@ -78,6 +78,10 @@ def get_data_files(data_dir, session_name):
 
     pupil_raw = sorted(glob.glob(f"{data_dir}/behaviour/pupil_cam/*.avi*"))
 
+    histology = {
+        "depth_info": None,
+    }
+
     behaviour = {
         "vr_synched": [],
         "action_labels": [],
@@ -117,6 +121,11 @@ def get_data_files(data_dir, session_name):
         behaviour["action_labels"].append(base_name.with_name(
             f"action_labels_{probe_id}.npz"
         ))
+
+        # session wise shanks depth info
+        histology["depth_info"] = base_name.with_name(
+            f"{session_name}_depth_info.yaml"
+        )
 
         # >>> spikeinterface cache >>>
         # extracted & motion corrected ap stream, 300Hz+
@@ -176,12 +185,6 @@ def get_data_files(data_dir, session_name):
             str(base_name).replace("t0", "tcat")
         )
 
-        # histology
-        mouse_id = session_name.split("_")[-1]
-        pixels[stream_id]["depth_info"] = base_name.with_name(
-            f"{mouse_id}_depth_info.yaml"
-        )
-
         # identified faulty channels
         pixels[stream_id]["faulty_channels"] = base_name.with_name(
             f"{session_name}_{probe_id}_faulty_channels.yaml"
@@ -205,6 +208,7 @@ def get_data_files(data_dir, session_name):
     files = {
         "pixels": pixels,
         "behaviour": behaviour,
+        "histology": histology,
     }
 
     return files

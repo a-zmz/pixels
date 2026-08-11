@@ -52,7 +52,6 @@ class Experiment:
         meta_dir=None,
         interim_dir=None,
         processed_dir=None,
-        hist_dir=None,
         interim1_dir=None,
         interim2_dir=None,
         session_date_fmt="%y%m%d",
@@ -75,9 +74,6 @@ class Experiment:
         else:
             self.meta_dir = None
 
-        if hist_dir:
-            self.hist_dir = Path(hist_dir).expanduser()
-
         self.sessions = []
         sessions = ioutils.get_sessions(
             mouse_ids,
@@ -97,7 +93,6 @@ class Experiment:
                     data_dir=metadata[0]['data_dir'],
                     interim_dir=interim_dir,
                     processed_dir=processed_dir,
-                    hist_dir=hist_dir,
                     interim1_dir=interim1_dir,
                     interim2_dir=interim2_dir,
                 )
