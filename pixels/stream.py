@@ -226,7 +226,7 @@ class Stream:
 
         # pad ends with 1 second extra to remove edge effects from
         # convolution
-        scan_pad = self.SAMPLE_RATE
+        scan_pad = self.SAMPLE_RATE * DURATION
         scan_starts = start_t - scan_pad
         scan_ends = end_t + scan_pad + 1
         scan_durations = scan_ends - scan_starts
