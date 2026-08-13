@@ -75,8 +75,6 @@ class Stream:
         trials = np.flatnonzero(outcomes & label.value)
         # map starts by event
         starts = np.flatnonzero(events & event.value)
-        # map starts by end event
-        ends = np.flatnonzero(events & end_event.value)
 
         if ("dark" in label.name) and\
             any(name in event.name for name in ["landmark", "wall"]):
@@ -90,20 +88,31 @@ class Stream:
 
         # only take starts and ends from selected trials
         selected_starts = trials[np.isin(trials, starts)]
-        selected_ends = trials[np.isin(trials, ends)]
 
         # make sure trials have both starts and ends, some trials ended before
         # the end_event, and some dark trials are not in dark at start event 
-        start_ids = synched_vr.iloc[selected_starts].trial_count.unique()
-        end_ids = synched_vr.iloc[selected_ends].trial_count.unique()
-        common_ids = np.intersect1d(start_ids, end_ids)
-        if len(start_ids) != len(end_ids):
-            selected_starts = selected_starts[np.isin(start_ids, common_ids)]
-            selected_ends = selected_ends[np.isin(end_ids, common_ids)]
+        start_ids = synched_vr.iloc[selected_starts].trial_count
+
+        if end_event:
+            # map starts by end event
+            ends = np.flatnonzero(events & end_event.value)
+            selected_ends = trials[np.isin(trials, ends)]
+            end_ids = synched_vr.iloc[selected_ends].trial_count
+            # get unique trial ids if there is an end event 
+            common_ids = np.intersect1d(start_ids, end_ids).unique()
+            if len(start_ids) != len(end_ids):
+                selected_starts = selected_starts[
+                    np.isin(start_ids, common_ids)
+                ]
+                selected_ends = selected_ends[np.isin(end_ids, common_ids)]
+            # get timestamps
+            end_t = timestamps[selected_ends]
+        else:
+            common_ids = start_ids
+            end_t = None
 
         # get timestamps
         start_t = timestamps[selected_starts]
-        end_t = timestamps[selected_ends]
 
         # use original trial ids as trial index
         trial_ids = pd.Index(common_ids, dtype=np.int16)
