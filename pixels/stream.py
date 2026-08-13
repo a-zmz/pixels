@@ -584,6 +584,9 @@ class Stream:
         fr.index = spiked.index
         fr.columns.names = ["unit"]
 
+        # use second for position index
+        positions.index = spiked.index.get_level_values("time").unique()
+
         output["spiked"] = spiked
         output["fr"] = fr
         output["positions"] = positions
