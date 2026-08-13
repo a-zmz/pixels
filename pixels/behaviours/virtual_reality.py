@@ -636,10 +636,10 @@ class VR(Behaviour):
         elif (reward_typed.size == 0) & np.any(punished):
             logging.info(f"\n> trial {trial_id} is punished.")
             # get reward type zero for punished
-            reward_type = int(trial_df.reward_type.unique())
+            reward_type = int(trial_df.reward_type.unique()[0])
         else:
             # get non-zero reward type in current trial
-            reward_type = int(reward_typed.reward_type.unique())
+            reward_type = int(reward_typed.reward_type.unique()[0])
 
             if reward_type > Outcomes.NONE:
                 # >>>> non aborted, valve events >>>>
