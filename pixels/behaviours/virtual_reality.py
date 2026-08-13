@@ -234,6 +234,7 @@ class VR(Behaviour):
             data.lick_detect.values,
             np.uint64(Events.licked),
         )
+        # TODO aug 12 2026: should we further specify lick_on and lick_off??
 
         # map trial outcomes
         outcome_map = self._build_outcome_map()
