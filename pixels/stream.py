@@ -247,7 +247,7 @@ class Stream:
 
         trials_spiked = {}
         trials_fr = {}
-        for i, start in enumerate(selected_starts):
+        for i, _ in enumerate(selected_starts):
             # select spike times of current trial
             trial_bool = (rec_spikes >= scan_starts[i])\
                     & (rec_spikes <= scan_ends[i])
