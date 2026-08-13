@@ -325,7 +325,7 @@ class Stream:
 
 
     @cacheable(cache_format="zarr")
-    def align_full_trials(self, units, data, label, event, sigma, end_event):
+    def align_full_trials(self, units, label, event, sigma, end_event):
         """
         Align pixels data to full behaviour trials, from trial start to end.
 
@@ -334,9 +334,6 @@ class Stream:
         units : dictionary of lists of ints
             The output from self.select_units, used to only apply this method to a
             selection of units.
-
-        data : str, optional
-            The data type to align.
 
         label : int
             An action label value to specify which trial types are desired.
@@ -364,33 +361,13 @@ class Stream:
                 "\n > Only use this function to align all units to full trials."
             )
 
-        if "spike_trial" in data:
-            logging.info(
-                f"\n> Aligning spike times and spike rate of all units to "
-                f"<{label.name}> trials, from {event.name} to "
-                f"{end_event.name}, with {sigma} ms sigma."
-            )
-            return self._get_aligned_trials(
-                label, event, units=units, sigma=sigma, end_event=end_event,
-            )
-        elif "spike_event" in data:
-            assert 0, "not implemented"
-            # TODO dec 4 2025:
-            # this should align all available events, and save it all, so we
-            # only need to index into it
-            # for each event, we have the dataframe of timestamp x trial id,
-            # each value is a boolean.
-            # use the trial-wise, not original timestamp
-            logging.info(
-                f"\n> Aligning spike times and spike rate of {units} units to "
-                f"{event.name} event in <{label.name}> trials."
-            )
-            return self._get_aligned_events(
-                label, event, units=units, sigma=sigma,
-            )
-        else:
-            raise NotImplementedError(
-                "> Other types of alignment are not implemented."
+        logging.info(
+            f"\n> Aligning spike times and spike rate of all units to "
+            f"<{label.name}> trials, from {event.name} to "
+            f"{end_event.name}, with {sigma} ms sigma."
+        )
+        return self._get_aligned_trials(
+            label, event, units=units, sigma=sigma, end_event=end_event,
             )
 
 
