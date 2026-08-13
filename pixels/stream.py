@@ -371,6 +371,64 @@ class Stream:
             )
 
 
+    def align_all_events(self, units, sigma):
+        """
+        Align pixels data to all available events of all possible labels.
+
+        params
+        ===
+        units : dictionary of lists of ints
+            The output from self.select_units, used to only apply this method to
+            a selection of units.
+
+        label : int
+            An action label value to specify which trial types are desired.
+
+        event : int
+            An event type value to specify which event to align the trials to.
+
+        sigma : int, optional
+            Time in milliseconds of sigma of gaussian kernel to use when
+            aligning firing rates.
+
+        return
+        ===
+        df.
+        """
+        from pixels.behaviours.virtual_reality import Events, TrialTypes
+
+        # get class variables from TrialTypes to map all labels
+        basic_labels = [
+            key for key, value in TrialTypes.__dict__.items()
+            if not (key.startswith("__") or key.startswith("_")
+                or callable(value)
+                or isinstance(value, (classmethod, staticmethod)))
+        ][1:11] # exclude NONE and combos
+
+        # get class variables from Events to map all events
+        events = [
+            key for key, value in Events.__dict__.items()
+            if not (key.startswith("__") or key.startswith("_")
+                or callable(value)
+                or isinstance(value, (classmethod, staticmethod)))
+        ][1:] # exclude NONE
+
+        for label in basic_labels:
+            for event in events:
+                logging.info(
+                    f"\n> Aligning spike times and spike rate of {units} units "
+                    f"to {event} event in <{label}> trials."
+                )
+                self._get_aligned_events(
+                    label, event, units=units, sigma=sigma,
+                )
+
+        # TODO dec 4 2025:
+        # Align all available events, and save it all, so we
+        # only need to index into it
+        return None
+
+
     def _get_aligned_trials(
         self, label, event, units=None, sigma=None, end_event=None,
     ):
