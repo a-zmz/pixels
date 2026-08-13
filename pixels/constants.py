@@ -54,3 +54,7 @@ T_SEG = 5 # second
 
 # min number of units for analysis
 MIN_N_UNITS = 5
+
+# duration of alinging event in second
+DURATION = 1
+PAD_DURATION = 1
