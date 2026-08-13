@@ -120,7 +120,7 @@ class Stream:
         return trials, events, selected_starts, start_t, end_t, trial_ids
 
 
-    def get_vr_variable(self, label, event, end_event, vr_variable):
+    def get_vr_variable(self, label, event, end_event=None, vr_variable=None):
         logging.info(
             f"\n> Getting {self.session.name} {self.stream_id} {vr_variable}."
         )
@@ -147,8 +147,18 @@ class Stream:
         data_idx = data.index.to_numpy()
 
         # find start and end index
-        trial_start_t = np.searchsorted(data_idx, start_t, side="left")
-        trial_end_t = np.searchsorted(data_idx, end_t, side="right")
+        if not end_event:
+            # for event alignment
+            scan_pad = self.SAMPLE_RATE * DURATION
+            scan_start_t = start_t - scan_pad
+            scan_end_t = start_t + scan_pad
+        else:
+            # for trial alignment
+            scan_start_t = start_t
+            scan_end_t = end_t
+
+        trial_start_t = np.searchsorted(data_idx, scan_start_t, side="left")
+        trial_end_t = np.searchsorted(data_idx, scan_end_t, side="right")
         ls = [
             pd.Series(data_val[s:e])
             for s, e in zip(trial_start_t, trial_end_t)
@@ -169,6 +179,14 @@ class Stream:
 
         # get start positions
         start_pos = synched_vr.position_in_tunnel.values[start_idx].astype(int)
+
+        if not end_event:
+            trial_start_map = dict(zip(trial_ids.unique(), start_pos))
+            start_pos = trial_ids.map(trial_start_map)
+            #df.index = (df.index - self.SAMPLE_RATE) / self.SAMPLE_RATE
+        else:
+            start_pos = start_pos
+
         # create multiindex with starts
         cols_with_starts = pd.MultiIndex.from_arrays(
             [start_pos, trial_ids],
