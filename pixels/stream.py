@@ -453,92 +453,35 @@ class Stream:
         return output
 
 
-    def _get_aligned_events(self, label, event, units=None, sigma=None):
-        # get spikes and firing rate
-        _, output = self._get_vr_spikes(
-            units,
+    @cacheable(cache_format="zarr")
+    def align_events(self, label, event, units=None, sigma=None):
+        # map trials
+        (_, _, _, start_t, _, trial_ids) = self._map_trials(label, event)
+
+        # get position of the event
+        positions = self.get_vr_variable(
             label,
             event,
-            sigma,
-            end_event,
+            None,
+            "position_in_tunnel",
         )
-
-        # get synched pixels stream with vr and action labels
-        synched_vr, action_labels = self.get_synched_vr()
-
-        # get positions of all trials
-        all_pos = synched_vr.position_in_tunnel
-
-        # get spike times
-        spikes = self.get_spike_times(units)
-        # now get array unit ids
-        units = units[self.stream_id]
-
-        # get action and event label file
-        outcomes = action_labels["outcome"]
-        events = action_labels["events"]
-        # get timestamps index of behaviour in self.SAMPLE_RATE hz, to
-        # convert it to ms, do timestamps*1000/self.SAMPLE_RATE
-        timestamps = action_labels["timestamps"]
-
-        # select frames of wanted trial type
-        trials = np.where(np.bitwise_and(outcomes, label))[0]
-        # map starts by event
-        starts = np.where(np.bitwise_and(events, event))[0]
-
-        # only take starts from selected trials
-        selected_starts = trials[np.where(np.isin(trials, starts))[0]]
-        start_t = timestamps[selected_starts]
-
-        if selected_starts.size == 0:
-            logging.info(f"\n> No trials found with label {label} and event "
-                         f"{event.name}, output will be empty.")
-            return None
-
-        # use original trial id as trial index
-        trial_ids = pd.Index(
-            synched_vr.iloc[selected_starts].trial_count.unique()
-        )
-
-        # TODO aug 1 2025:
-        # lick happens more than once in a trial, thus i here does not
-        # correspond to trial index, fit it
-        # check if event happens more than once in each trial
-        if start_t.size > trial_ids.size:
-            trial_counts = synched_vr.loc[start_t, "trial_count"]
-
-        # map actual starting locations
-        if not "trial_start" in event.name:
-            all_start_idx = np.where(
-                np.bitwise_and(events, event.trial_start)
-            )[0]
-            start_idx = trials[np.where(
-                np.isin(trials, all_start_idx)
-            )[0]]
-        else:
-            start_idx = selected_starts.copy()
-
-        start_pos = synched_vr.position_in_tunnel.iloc[
-            start_idx
-        ].values.astype(int)
-
-        # map starting position with trial
-        start_trial_maps = dict(zip(trial_ids, start_pos))
 
         # pad ends with 1 second extra to remove edge effects from convolution,
         # during of event is 2s (pre + post)
-        duration = 1
-        pad_duration = 1
         scan_pad = self.SAMPLE_RATE
-        one_side_frames = scan_pad * (duration + pad_duration)
+        one_side_frames = scan_pad * (DURATION + PAD_DURATION)
         scan_starts = start_t - one_side_frames
         scan_ends = start_t + one_side_frames + 1
         scan_duration = one_side_frames * 2 + 1
         relative_idx = np.linspace(
-            -(duration+pad_duration),
-            (duration+pad_duration),
+            -(DURATION+PAD_DURATION),
+            (DURATION+PAD_DURATION),
             scan_duration,
         )
+
+        # get spike times
+        spikes = self.get_spike_times(units)
+        units = units[self.stream_id]
 
         cursor = 0
         raw_rec = self.load_raw_ap()
@@ -555,18 +498,13 @@ class Stream:
         cursor += samples
 
         output = {}
-        trials_fr = {}
-        trials_spiked = {}
-        trials_positions = {}
-        for i, start in enumerate(selected_starts):
-            assert 0
-            # TODO sep 16 2025:
-            # make sure it does not fail for event that happens more than once,
-            # e.g., licks
+        event_fr = {}
+        event_spiked = {}
+        for i, start in enumerate(start_t):
             # select spike times of event in current trial
-            trial_bool = (rec_spikes >= scan_starts[i])\
+            event_bool = (rec_spikes >= scan_starts[i])\
                     & (rec_spikes <= scan_ends[i])
-            trial = rec_spikes[trial_bool]
+            i_event = rec_spikes[event_bool]
 
             # initiate binary spike times array for current trial
             # NOTE: dtype must be float otherwise would get all 0 when passing
@@ -577,9 +515,9 @@ class Stream:
             # make it df, column name being unit id
             spiked = pd.DataFrame(times, index=idx, columns=units)
 
-            for unit in trial:
+            for unit in i_event:
                 # get spike time for unit
-                u_times = trial[unit].values
+                u_times = i_event[unit].values
                 # drop nan
                 u_times = u_times[~np.isnan(u_times)]
                 # round spike times to use it as index
@@ -607,49 +545,36 @@ class Stream:
             rates = rates.iloc[scan_pad: -scan_pad]
             spiked = spiked.iloc[scan_pad: -scan_pad]
 
-            trials_fr[trial_ids[i]] = rates
-            trials_spiked[trial_ids[i]] = spiked
+            event_fr[i] = rates
+            event_spiked[i] = spiked
 
         # get trials vertically stacked spiked
-        stacked_spiked = pd.concat(
-            trials_spiked,
+        spiked = pd.concat(
+            event_spiked,
             axis=0,
         )
-        stacked_spiked.index.names = ["trial", "time"]
-        stacked_spiked.columns.names = ["unit"]
+        # map count to trial id
+        count_trial_map = dict(zip(np.arange(0, len(trial_ids)), trial_ids))
+        spiked.index = pd.MultiIndex.from_arrays(
+            [
+                spiked.index.get_level_values(0).map(count_trial_map),
+                spiked.index.get_level_values(0),
+                spiked.index.get_level_values(1),
+            ],
+            names=["trial", "count", "time"]
+        )
+        spiked.columns.names = ["unit"]
 
-        # get trials horizontally stacked spiked
-        spiked = ioutils.reindex_by_longest(
-            dfs=stacked_spiked,
-            level="trial",
-            return_format="dataframe",
+        fr = pd.concat(
+            event_fr,
+            axis=0,
         )
-        trial_cols = spiked.columns.get_level_values("trial")
-        start_cols = trial_cols.map(start_trial_maps)
-        unit_cols = spiked.columns.get_level_values("unit")
-        new_cols = pd.MultiIndex.from_arrays(
-            [unit_cols, start_cols, trial_cols],
-            names=["unit", "start", "trial"]
-        )
-        spiked.columns = new_cols
-        spiked = spiked.sort_index(
-            axis=1,
-            level=["unit", "start", "trial"],
-            ascending=[True, False, True],
-        )
-
-        fr = ioutils.reindex_by_longest(
-            dfs=trials_fr,
-            level="trial",
-            idx_names=["trial", "time"],
-            col_names=["unit"],
-            return_format="dataframe",
-        )
-        fr.columns = new_cols
-        fr = fr.loc[:, spiked.columns]
+        fr.index = spiked.index
+        fr.columns.names = ["unit"]
 
         output["spiked"] = spiked
         output["fr"] = fr
+        output["positions"] = positions
 
         return output
 
@@ -701,8 +626,7 @@ class Stream:
                 f"spike rate of {units} units to {event.name} event "
                 f"in <{label.name}> trials."
             )
-            assert 0, "not implemented"
-            return self._get_aligned_events(
+            return self.align_events(
                 label, event, units=units, sigma=sigma,
             )
         else:
