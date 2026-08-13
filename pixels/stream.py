@@ -183,7 +183,6 @@ class Stream:
         if not end_event:
             trial_start_map = dict(zip(trial_ids.unique(), start_pos))
             start_pos = trial_ids.map(trial_start_map)
-            #df.index = (df.index - self.SAMPLE_RATE) / self.SAMPLE_RATE
         else:
             start_pos = start_pos
 
@@ -466,6 +465,19 @@ class Stream:
             "position_in_tunnel",
         )
 
+        # get event count
+        event_count = np.arange(0, len(trial_ids))
+        # create multiindex with starts
+        cols_with_count = pd.MultiIndex.from_arrays(
+            [
+                positions.columns.get_level_values(0),
+                positions.columns.get_level_values(1),
+                event_count,
+            ],
+            names=("start", "trial", "count"),
+        )
+        positions.columns = cols_with_count
+
         # pad ends with 1 second extra to remove edge effects from convolution,
         # during of event is 2s (pre + post)
         scan_pad = self.SAMPLE_RATE
@@ -554,7 +566,7 @@ class Stream:
             axis=0,
         )
         # map count to trial id
-        count_trial_map = dict(zip(np.arange(0, len(trial_ids)), trial_ids))
+        count_trial_map = dict(zip(event_count, trial_ids))
         spiked.index = pd.MultiIndex.from_arrays(
             [
                 spiked.index.get_level_values(0).map(count_trial_map),
