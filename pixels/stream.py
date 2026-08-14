@@ -567,13 +567,19 @@ class Stream:
         )
         # map count to trial id
         count_trial_map = dict(zip(event_count, trial_ids))
+        # map trial to start
+        count_start_map = dict(zip(
+            event_count,
+            positions.columns.get_level_values("start")
+        ))
         spiked.index = pd.MultiIndex.from_arrays(
             [
+                spiked.index.get_level_values(0).map(count_start_map),
                 spiked.index.get_level_values(0).map(count_trial_map),
                 spiked.index.get_level_values(0),
                 spiked.index.get_level_values(1),
             ],
-            names=["trial", "count", "time"]
+            names=["start", "trial", "count", "time"]
         )
         spiked.columns.names = ["unit"]
 
@@ -586,23 +592,6 @@ class Stream:
 
         # use second for position index
         positions.index = spiked.index.get_level_values("time").unique()
-
-        # map trial to start
-        trial_start_map = dict(zip(
-            positions.columns.get_level_values("trial"),
-            positions.columns.get_level_values("start")
-        ))
-
-        # create multiindex with starts
-        cols_with_start = pd.MultiIndex.from_arrays(
-            [
-                fr.index.get_level_values("trial").map(trial_start_map),
-                fr.index.get_level_values("trial"),
-                fr.index.get_level_values("count"),
-                fr.index.get_level_values("time"),
-            ],
-            names=("start", "trial", "count", "time"),
-        )
 
         output["spiked"] = spiked
         output["fr"] = fr
