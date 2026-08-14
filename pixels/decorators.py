@@ -96,77 +96,118 @@ def _df_to_zarr_via_xarray(
     row_prefix = "row"
     col_prefix = "col"
 
-    # Ensure all index/column level names are defined
+    # ensure all index/column level names are defined
     if isinstance(df.index, pd.MultiIndex):
         row_names = _default_names(list(df.index.names), row_prefix)
+        row_is_multi = True
     else:
-        if not df.index.name:
-            df.index.name = f"{row_prefix}0"
-        row_names = [df.index.name]
+        row_names = [df.index.name or f"{row_prefix}0"]
+        row_is_multi = False
 
     if isinstance(df.columns, pd.MultiIndex):
         col_names = _default_names(list(df.columns.names), col_prefix)
+        col_is_multi = True
     else:
-        if not df.columns.name:
-            df.columns.name = f"{col_prefix}0"
-        col_names = [df.columns.name]
+        col_names = [df.columns.name or f"{col_prefix}0"]
+        col_is_multi = False
 
-    # build a 2D DataArray
-    da = xr.DataArray(
-        df.to_numpy(copy=False),
-        dims=("__row__", "__col__"),
-        coords={ # can be Index or MultiIndex
-            "__row__": ("__row__", df.index),
-            "__col__": ("__col__", df.columns),
+    ds = xr.Dataset(
+        data_vars={
+            "values": (("__row__", "__col__"), df.to_numpy(copy=False))
         },
-        name="values",
+        coords={
+            "__row__": np.arange(df.shape[0]),
+            "__col__": np.arange(df.shape[1]),
+        },
     )
 
-    # lazily split MultiIndex dims into multiple dims (no big materialization)
-    # row dims
-    if isinstance(df.index, pd.MultiIndex):
-        da = da.unstack("__row__") # creates dims = row_names
-    else:
-        da = da.rename({"__row__": row_names[0]})
+    row_level_vars = []
+    col_level_vars = []
+    # store row index levels
+    if row_is_multi:
+        for i, name in enumerate(row_names):
+            arr = df.index.get_level_values(i).to_numpy()
+            if arr.dtype == object:
+                arr = arr.astype(str)
 
-    # column dims
-    if isinstance(df.columns, pd.MultiIndex):
-        da = da.unstack("__col__") # creates dims = col_names
+            var = f"__row_{_safe_key(str(name))}__"
+            ds[var] = ("__row__", arr)
+            row_level_vars.append(var)
     else:
-        da = da.rename({"__col__": col_names[0]})
+        arr = df.index.to_numpy()
+        if arr.dtype == object:
+            arr = arr.astype(str)
 
-    # ensure final dim order matches the reader expectation
-    # [row_dims..., col_dims...]
-    da = da.transpose(*(row_names + col_names))
-    ds = da.to_dataset(name="values")
+        name = row_names[0] if row_names else "index"
+        var = f"__row_{_safe_key(str(name))}__"
+        ds[var] = ("__row__", arr)
+        row_level_vars.append(var)
+
+    # store column index levels
+    if col_is_multi:
+        for i, name in enumerate(col_names):
+            arr = df.columns.get_level_values(i).to_numpy()
+            if arr.dtype == object:
+                arr = arr.astype(str)
+
+            var = f"__col_{_safe_key(str(name))}__"
+            ds[var] = ("__col__", arr)
+            col_level_vars.append(var)
+    else:
+        arr = df.columns.to_numpy()
+        if arr.dtype == object:
+            arr = arr.astype(str)
+
+        name = col_names[0] if col_names else "columns"
+        var = f"__col_{_safe_key(str(name))}__"
+        ds[var] = ("__col__", arr)
+        col_level_vars.append(var)
 
     # mark attrs for round-trip
-    ds.attrs["__via"] = "pd_df_any_mi"
+    ds.attrs["__via"] = "pd_df_any_mi_2d"
     ds.attrs["__row_dims__"] = row_names
     ds.attrs["__col_dims__"] = col_names
+    ds.attrs["__row_is_multiindex__"] = row_is_multi
+    ds.attrs["__col_is_multiindex__"] = col_is_multi
+    ds.attrs["__row_level_vars__"] = row_level_vars
+    ds.attrs["__col_level_vars__"] = col_level_vars
 
-    # check size to determine chunking
-    chunking = {}
-    for name, size in ds.sizes.items():
-        if size > BIG_CHUNKS:
-            chunking[name] = BIG_CHUNKS
-        else:
-            chunking[name] = SMALL_CHUNKS
-    ds = ds.chunk(chunking)
+    # safe chunking for 2D values
+    itemsize = np.dtype(df.to_numpy(copy=False).dtype).itemsize
+    target_bytes = 128 * 1024**2
 
-    # ensure coords are writable (handle object/string coords): cast to str
-    for cname, coord in ds.coords.items():
-        if coord.dtype == object:
-            ds = ds.assign_coords({cname: coord.astype(str)})
+    nrow, ncol = df.shape
+
+    row_chunk = min(nrow, BIG_CHUNKS*2)
+    col_chunk = min(ncol, max(1, target_bytes // max(1, row_chunk * itemsize)))
+
+    # if still too large due to large dtype/object, reduce row_chunk
+    while row_chunk * col_chunk * itemsize > target_bytes:
+        row_chunk = max(1, row_chunk // 2)
+
+    ds = ds.chunk({
+        "__row__": row_chunk,
+        "__col__": col_chunk,
+    })
 
     if compressor is None:
         compressor = _make_default_compressor()
 
     encoding = {
-        "values": {"compressor": compressor}
+        "values": {
+            "compressor": compressor,
+            "chunks": (row_chunk, col_chunk),
+        }
     }
 
-    # write lazily; dask controls memory during compute
+    # index-level arrays are 1D; chunk them safely
+    for name in ds.data_vars:
+        if name != "values":
+            size = ds[name].sizes[ds[name].dims[0]]
+            encoding[name] = {
+                "compressor": compressor,
+            }
+
     if path is not None:
         ds.to_zarr(str(path), mode=mode, encoding=encoding)
         try:
@@ -209,10 +250,23 @@ def _df_from_zarr_via_xarray(
         ds = xr.open_zarr(
             store=store,
             group=group_name or "",
-            consolidated=False,# TODO nov 12 2025 test True
+            consolidated=False,
             chunks=None,
         )
 
+    via = ds.attrs.get("__via")
+
+    if via == "pd_df_any_mi_2d":
+        return _df_from_zarr_via_xarray_2d_layout(ds)
+
+    # backward-compatible old reader
+    return _df_from_zarr_via_xarray_old_layout(ds)
+
+def _df_from_zarr_via_xarray_old_layout(ds: xr.Dataset) -> pd.DataFrame:
+    """
+    Read a DataFrame written by _df_to_zarr_via_xarray and reconstruct
+    MultiIndex if attrs exist, using the old layout.
+    """
     da = ds["values"]
     row_dim = list(ds.attrs.get("__row_dims__") or [])
     col_dim = list(ds.attrs.get("__col_dims__") or [])
@@ -264,9 +318,46 @@ def _df_from_zarr_via_xarray(
         col_index = pd.MultiIndex.from_product(col_levels, names=col_dim)
 
     df = pd.DataFrame(values2d, index=row_index, columns=col_index)
+    df = df.dropna(how="all", axis=0).dropna(how="all", axis=1)
 
     return df
 
+def _df_from_zarr_via_xarray_2d_layout(ds: xr.Dataset) -> pd.DataFrame:
+    da = ds["values"]
+
+    # ensure expected order
+    da = da.transpose("__row__", "__col__")
+
+    data = da.data
+    values = data.compute() if hasattr(data, "compute") else np.asarray(data)
+
+    row_names = list(ds.attrs.get("__row_dims__") or [])
+    col_names = list(ds.attrs.get("__col_dims__") or [])
+
+    row_is_multi = bool(ds.attrs.get("__row_is_multiindex__", False))
+    col_is_multi = bool(ds.attrs.get("__col_is_multiindex__", False))
+
+    # reconstruct row index
+    if row_is_multi:
+        row_arrays = [
+            ds[var].values
+            for var in list(ds.attrs.get("__row_level_vars__") or [])
+        ]
+        row_index = pd.MultiIndex.from_arrays(row_arrays, names=row_names)
+    else:
+        row_index = pd.Index(ds[row_level_vars[0]].values, name=row_names[0])
+
+    # reconstruct column index
+    if col_is_multi:
+        col_arrays = [
+            ds[var].values
+            for var in list(ds.attrs.get("__col_level_vars__") or [])
+        ]
+        col_index = pd.MultiIndex.from_arrays(col_arrays, names=col_names)
+    else:
+        col_index = pd.Index(ds[col_level_vars[0]].values, name=col_names[0])
+
+    return pd.DataFrame(values, index=row_index, columns=col_index)
 
 # -----------------------------------
 # Zarr read/write for arrays and dicts
