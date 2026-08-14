@@ -489,18 +489,18 @@ def _read_zarr_generic(root_path: Path) -> Any:
         return None
     root = zarr.open_group(store=store, mode="r")
 
-    # If top-level was written via xarray as a DataFrame
-    if root.attrs.get("__via") == "pd_df_any_mi" and xr is not None:
+    # if top-level was written via xarray as a DataFrame
+    if "pd_df_any_mi" in root.attrs.get("__via", "") and xr is not None:
         return _df_from_zarr_via_xarray(store=store, group_name="")
 
-    # If top-level is a single array written at root
+    # if top-level is a single array written at root
     if "array" in root and isinstance(root["array"], zarr.Array):
         return root["array"]
 
     def read_from_group(prefix: str) -> Any:
         g = zarr.open_group(store=store, path=prefix, mode="r")
         # DataFrame group?
-        if g.attrs.get("__via") == "pd_df_any_mi" and xr is not None:
+        if "pd_df_any_mi" in g.attrs.get("__via", "") and xr is not None:
             return _df_from_zarr_via_xarray(
                 store=store,
                 group_name=prefix or "",
