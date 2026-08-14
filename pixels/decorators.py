@@ -339,24 +339,23 @@ def _df_from_zarr_via_xarray_2d_layout(ds: xr.Dataset) -> pd.DataFrame:
     row_is_multi = bool(ds.attrs.get("__row_is_multiindex__", False))
     col_is_multi = bool(ds.attrs.get("__col_is_multiindex__", False))
 
+    row_level_vars = list(ds.attrs.get("__row_level_vars__") or [])
+    col_level_vars = list(ds.attrs.get("__col_level_vars__") or [])
+
     # reconstruct row index
     if row_is_multi:
-        row_arrays = [
-            ds[var].values
-            for var in list(ds.attrs.get("__row_level_vars__") or [])
-        ]
+        row_arrays = [ds[var].values for var in row_level_vars]
         row_index = pd.MultiIndex.from_arrays(row_arrays, names=row_names)
     else:
+        row_name = row_names[0] if row_names else None
         row_index = pd.Index(ds[row_level_vars[0]].values, name=row_names[0])
 
     # reconstruct column index
     if col_is_multi:
-        col_arrays = [
-            ds[var].values
-            for var in list(ds.attrs.get("__col_level_vars__") or [])
-        ]
+        col_arrays = [ds[var].values for var in col_level_vars]
         col_index = pd.MultiIndex.from_arrays(col_arrays, names=col_names)
     else:
+        col_name = col_names[0] if col_names else None
         col_index = pd.Index(ds[col_level_vars[0]].values, name=col_names[0])
 
     return pd.DataFrame(values, index=row_index, columns=col_index)
