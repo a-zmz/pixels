@@ -979,6 +979,9 @@ class Stream:
 
         trial_ids = positions.columns.get_level_values("trial").unique()
         for trial in trial_ids:
+            assert 0
+            # TODO aug 14 2026 check if we still need to dropna here cuz we
+            # fixed it in decorator already
             counts = spiked.xs(trial, level="trial", axis=1).dropna()
             rates = fr.xs(trial, level="trial", axis=1).dropna()
             trial_pos = positions.xs(trial, level="trial", axis=1).dropna()
@@ -1340,6 +1343,9 @@ class Stream:
         for s, start in enumerate(starts):
             # make sure only data from start onwards included
             data = pos_fr.xs(start, level="start", axis=1).loc[start:, :]
+            assert 0
+            # TODO aug 14 2026 check if we still need to dropna here cuz we
+            # fixed it in decorator already
             # crop if needed
             cropped = data.loc[crop_from:, :].dropna(how="any", axis=0)
 
@@ -1371,6 +1377,9 @@ class Stream:
 
             # get mean of all trials within start
             chance_mean = {}
+            assert 0
+            # TODO aug 14 2026 check if we still need to dropna here cuz we
+            # fixed it in decorator already
             start_chance = (
                 chance_psd
                 .xs(start, level="start", axis=0)
@@ -1402,6 +1411,8 @@ class Stream:
             psds,
             names=["start","frequency"],
         )
+        # TODO aug 14 2026 check if we still need to dropna here cuz we
+        # fixed it in decorator already
         # NOTE: all trials will appear in all starts, but their values will be
         # all nan in other starts, so remember to dropna(axis=1)!
 
