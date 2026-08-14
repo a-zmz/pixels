@@ -470,8 +470,8 @@ class Stream:
         # create multiindex with starts
         cols_with_count = pd.MultiIndex.from_arrays(
             [
-                positions.columns.get_level_values(0),
-                positions.columns.get_level_values(1),
+                positions.columns.get_level_values("start"),
+                positions.columns.get_level_values("trial"),
                 event_count,
             ],
             names=("start", "trial", "count"),
