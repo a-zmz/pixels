@@ -223,7 +223,6 @@ def _df_to_zarr_via_xarray(
             encoding=encoding,
         )
 
-
 def _df_from_zarr_via_xarray(
     *,
     path: Path | None = None,
@@ -234,6 +233,9 @@ def _df_from_zarr_via_xarray(
     Read a DataFrame written by _df_to_zarr_via_xarray and reconstruct
     MultiIndex if attrs exist.
     Provide either path or (store, group).
+    Supports:
+      - old dense xarray layout with unstacked MultiIndex dims
+      - new 2D layout with explicit index/column level arrays
     """
     if xr is None or zarr is None:
         raise ImportError(
