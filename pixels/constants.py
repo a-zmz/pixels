@@ -5,15 +5,21 @@ import numpy as np
 
 SAMPLE_RATE = 2000 # Hz
 
+tom_freq_bands = {
+    "theta":[4, 11], # from Tom
+    "gamma":[30, 80], # from Tom
+    "ripple":[110, 220], # from Tom
+}
 freq_bands = {
     "ap":[300, 9000],
     "lfp":[0.5, 500],
     "delta":[1, 4], # from Moser
-    #"theta":[4, 11], # from Tom
     "theta":[5, 10], # from Moser
     "sharp_wave":[5, 40], # from kempter & maier
-    "gamma":[30, 80], # from Tom
-    "ripple":[110, 220], # from Tom
+    "slow_gamma":[20, 45], # from david dupret 2025
+    "mid_gamma":[50, 100], # from david dupret 2025
+    "ripple":[100, 250], # i.e., fast gamma, from david dupret 2025
+    "ripple_surround":[70, 300], # from david dupret 2025
 }
 
 BEHAVIOUR_HZ = 25000
