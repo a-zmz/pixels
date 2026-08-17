@@ -820,7 +820,7 @@ def _worker_write_repeat(i, zarr_path, sigma, sample_rate, spike_meta):
         del spiked, c_spiked, c_fr
         gc.collect()
 
-        logging.info(f"\nRepeat {i} finished.")
+        logging.info(f"\nChance repeat {i} finished.")
     finally:
         for shm in spike_shms:
             shm.close()
@@ -1123,7 +1123,7 @@ def _bin_chance_worker(
              unit_ids, time_bin, pos_bin)
         gc.collect()
 
-        logging.info(f"\nRepeat {r} finished.")
+        logging.info(f"\nBin chance repeat {r} finished.")
     finally:
         for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
             shm.close()
@@ -1565,7 +1565,7 @@ def _psd_chance_worker(
             psd,
             names=["start", "frequency"],
         )
-        logging.info(f"\nRepeat {r} finished.")
+        logging.info(f"\nPSD chance repeat {r} finished.")
     finally:
         for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
             shm.close()
@@ -2332,7 +2332,7 @@ def _positional_fr_chance_worker(
         del positions, idx, cols, mask, trial_ids, unit_ids
         gc.collect()
 
-        logging.info(f"\nRepeat {r} finished.")
+        logging.info(f"\nPositional chance repeat {r} finished.")
     finally:
         for shm in idx_shms + cols_shms + positions_shms + [mask_shm]:
             shm.close()
