@@ -343,6 +343,9 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
     ===
     band: spikeinterface recording object.
     """
+    if freq_min <= 10:
+        si.set_global_job_kwargs(**{"chunk_duration": "30s"})
+
     band = spre.bandpass_filter(
         rec,
         freq_min=freq_min,
@@ -351,7 +354,12 @@ def extract_band(rec, freq_min, freq_max, ftype="butter"):
         filter_order=5,
         ftype=ftype,
         direction="forward-backward",
+        ignore_low_freq_error=True,
     )
+
+    # revert chunk size back
+    if freq_min <= 10:
+        si.set_global_job_kwargs(**job_kwargs)
 
     return band
 
