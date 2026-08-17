@@ -1148,7 +1148,7 @@ class Stream:
 
         # load brain surface depths
         depth_info = file_utils.load_yaml(
-            path=self.processed / self.files["depth_info"],
+            path=self.processed / self.session.files["histology"]["depth_info"],
         )
         surface_depths = depth_info["raw_signal_depths"][self.stream_id]
 
