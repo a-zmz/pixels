@@ -978,9 +978,6 @@ class Stream:
 
         trial_ids = positions.columns.get_level_values("trial").unique()
         for trial in trial_ids:
-            assert 0
-            # TODO aug 14 2026 check if we still need to dropna here cuz we
-            # fixed it in decorator already
             counts = spiked.xs(trial, level="trial", axis=1).dropna()
             rates = fr.xs(trial, level="trial", axis=1).dropna()
             trial_pos = positions.xs(trial, level="trial", axis=1).dropna()
