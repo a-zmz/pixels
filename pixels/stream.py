@@ -99,7 +99,7 @@ class Stream:
             selected_ends = trials[np.isin(trials, ends)]
             end_ids = synched_vr.iloc[selected_ends].trial_count
             # get unique trial ids if there is an end event 
-            common_ids = np.intersect1d(start_ids, end_ids).unique()
+            common_ids = np.intersect1d(start_ids, end_ids)
             if len(start_ids) != len(end_ids):
                 selected_starts = selected_starts[
                     np.isin(start_ids, common_ids)
@@ -662,7 +662,6 @@ class Stream:
         # get aligned trials
         trials = self.align_full_trials(
             units=self.session.select_units(name="all"),
-            data="spike_trial", # NOTE: ALWAYS the second arg
             label=getattr(label, label_name),
             event=event.gray_on,
             sigma=sigma,
