@@ -56,6 +56,7 @@ class Experiment:
         interim2_dir=None,
         session_date_fmt="%y%m%d",
         of_date=None,
+        exclude_date=None,
     ):
         if not isinstance(mouse_ids, (list, tuple, set)):
             mouse_ids = [mouse_ids]
@@ -81,6 +82,7 @@ class Experiment:
             self.meta_dir,
             session_date_fmt,
             of_date,
+            exclude_date,
         )
 
         for name, metadata in sessions.items():

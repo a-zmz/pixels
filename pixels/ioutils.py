@@ -425,7 +425,10 @@ def write_hdf5(path, df, key="df", mode="w", format="fixed"):
     return
 
 
-def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None):
+def get_sessions(
+    mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None,
+    exclude_date=None,
+):
     """
     Get a list of recording sessions for the specified mice, excluding those whose
     metadata contain "'exclude' = True".
@@ -487,6 +490,25 @@ def get_sessions(mouse_ids, data_dir, meta_dir, session_date_fmt, of_date=None):
                     f"{datetime.datetime.strftime(date_struct, '%Y %B %d')}."
                 )
             mouse_sessions = date_sessions
+
+        if exclude_date is not None:
+            if isinstance(exclude_date, str):
+                ex_date_list = [exclude_date]
+            elif isinstance(exclude_date, dict):
+                ex_date_list = exclude_date[mouse]
+            elif is_nested_list(exclude_date):
+                ex_date_list = exclude_date[m]
+            else:
+                ex_date_list = of_date
+
+            for date in ex_date_list:
+                date_struct = datetime.datetime.strptime(date, session_date_fmt)
+                mouse_sessions.pop(session_dates.index(date_struct))
+                logging.info(
+                    f"\n> Excluding session on "
+                    f"{datetime.datetime.strftime(date_struct, '%Y %B %d')} "
+                    f"from {mouse}."
+                )
 
         if not meta_dir:
             # Do not collect metadata
