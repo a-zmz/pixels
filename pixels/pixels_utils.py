@@ -1195,6 +1195,9 @@ def bin_vr_trial(data, positions, sample_rate, time_bin, pos_bin,
 
 
 def correct_group_id(rec):
+    # get group ids
+    group_ids = rec.get_channel_groups()
+
     # get probe type from model name
     npx_model_name_map = {
         "PRB_1_4_0480_1": 0, # npx 1.0
@@ -1212,9 +1215,10 @@ def correct_group_id(rec):
         probe_type = npx_model_name_map[
             rec.get_annotation("probes_info")[0]["model_name"]
         ]
-
-    # get group ids
-    group_ids = rec.get_channel_groups()
+    except TypeError:
+        probe_type = 0
+        # npx 1.0 probe only has one shank
+        assert np.unique(group_ids).size == 1
 
     # correct only if it is multishank probe
     if probe_type >= 2010:
