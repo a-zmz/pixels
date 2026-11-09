@@ -586,6 +586,7 @@ def curate_sorting_analyser(sa):
     # calculate all extensions BEFORE further steps
     # basics
     required_extensions = [
+        "spike_locations",
         "spike_amplitudes",
         "random_spikes",
         "waveforms",
