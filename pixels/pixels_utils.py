@@ -618,10 +618,6 @@ def curate_sorting_analyser(sa):
         extension_params=ext_params,
     )
 
-    #import spikeinterface.qualitymetrics as sqm
-    # NOTE nov 13 2025: pc metrics only runs if n_jobs=1
-    #sqm.compute_quality_metrics(sa, n_jobs=1)
-
     # get max peak channel for each unit
     max_chan = si.get_template_extremum_channel(sa).values()
 
