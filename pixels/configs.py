@@ -43,10 +43,11 @@ compressor = Blosc(
 )
 
 # kilosort 4 singularity image names
+ks4_1_7_image_name = "si0.105.4_ks4.1.7_with_wavpack.sif"
 ks4_0_30_image_name = "si103.0_ks4-0-30_with_wavpack.sif"
 #ks4_0_30_image_name = "si102.3_ks4-0-30_with_wavpack.sif"
 ks4_0_18_image_name = "ks4-0-18_with_wavpack.sif"
-ks4_image_name = ks4_0_30_image_name
+ks4_image_name = ks4_1_7_image_name
 
 # quality metrics rule
 # TODO nov 26 2024
