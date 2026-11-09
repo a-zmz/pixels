@@ -907,7 +907,7 @@ class Behaviour(ABC):
                 output=output,
                 sa_dir=sa_dir,
             )
-            if hasattr(self, "backup"):
+            if hasattr(self, "backup") and self.backup is not None:
                 # copy to backup if backup setup
                 copytree(
                     sa_dir,
