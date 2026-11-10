@@ -136,7 +136,8 @@ class Experiment:
 
     def sort_spikes(self, mc_method="dredge"):
         """ Extract the spikes from raw spike data for all sessions.  """
-        # Only the outer, once-per-session process uses spawn.
+        import multiprocessing as mp
+        # only the outer, once-per-session process uses spawn.
         ctx = mp.get_context("spawn")
 
         for i, session in enumerate(self.sessions):
