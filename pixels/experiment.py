@@ -13,6 +13,7 @@ import pandas as pd
 from pixels import ioutils
 from pixels.error import PixelsError
 from pixels.configs import *
+from pixels.sorting_worker import sort_session_worker
 
 
 class Experiment:
@@ -135,12 +136,35 @@ class Experiment:
 
     def sort_spikes(self, mc_method="dredge"):
         """ Extract the spikes from raw spike data for all sessions.  """
+        # Only the outer, once-per-session process uses spawn.
+        ctx = mp.get_context("spawn")
+
         for i, session in enumerate(self.sessions):
             logging.info(
                 "\n>>>>> Sorting spikes for session "
                 f"{session.name} ({i + 1} / {len(self.sessions)})"
             )
-            session.sort_spikes(mc_method=mc_method)
+
+            process = ctx.Process(
+                target=sort_session_worker,
+                args=(session, mc_method, job_kwargs),
+                daemon=False, # Must be able to create SI worker processes
+            )
+
+            process.start()
+            process.join()
+
+            exitcode = process.exitcode
+            process.close()
+
+            if exitcode != 0:
+                raise RuntimeError(
+                    f"Spike sorting failed for session {session.name!r}; "
+                    f"worker exit code: {exitcode}. "
+                    "See the worker traceback above."
+                )
+
+            #session.sort_spikes(mc_method=mc_method)
 
     def assess_noise(self):
         """
