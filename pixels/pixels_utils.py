@@ -133,8 +133,6 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
             )
     rec_removed = rec_removed.remove_channels(bad_chan_ids)
 
-    # get channel group id and use it to index into brain surface channel depth
-    shank_id = np.unique(rec_removed.get_channel_groups())[0]
     # get channel depths
     chan_depths = rec_removed.get_channel_locations()[:, 1]
     # get channel ids
