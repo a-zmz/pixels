@@ -119,8 +119,6 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
     faulty_ids = rec_ps.channel_ids[np.isin(chan_names, faulty_channels)]
     rec_removed = rec_ps.remove_channels(faulty_ids)
 
-    # get channel ids
-    chan_ids = rec_removed.channel_ids
     # detect bad channels
     bad_chan_ids, chan_labels = spre.detect_bad_channels(
         rec_removed,
@@ -131,7 +129,7 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
         print(f"\t\t> Found {count} channels labelled as {label}.")
         if "good" not in label:
             print(f"\t\t> {label} channels: "
-                f"\n\t\t{chan_ids[np.isin(chan_labels, label)]}"
+                f"\n\t\t{rec_removed.channel_ids[np.isin(chan_labels, label)]}"
             )
     rec_removed = rec_removed.remove_channels(bad_chan_ids)
 
@@ -139,6 +137,8 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
     shank_id = np.unique(rec_removed.get_channel_groups())[0]
     # get channel depths
     chan_depths = rec_removed.get_channel_locations()[:, 1]
+    # get channel ids
+    chan_ids = rec_removed.channel_ids
     # remove channels outside by using identified brain surface depths
     outside_chan_ids = chan_ids[chan_depths > surface_depth]
     rec_clean = rec_removed.remove_channels(outside_chan_ids)
