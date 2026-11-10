@@ -127,6 +127,10 @@ def _preprocess_raw(rec, surface_depth, faulty_channels):
     labels, counts = np.unique(chan_labels, return_counts=True)
     for label, count in zip(labels, counts):
         print(f"\t\t> Found {count} channels labelled as {label}.")
+        if "good" not in label:
+            print(f"\t\t> {label} channels: "
+                f"\n\t\t{bad_chan_ids[np.isin(chan_labels, label)]}"
+            )
     rec_removed = rec_removed.remove_channels(bad_chan_ids)
 
     # get channel group id and use it to index into brain surface channel depth
