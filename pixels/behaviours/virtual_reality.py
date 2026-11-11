@@ -1,5 +1,5 @@
 """
-This module provides reach task specific operations.
+This module provides virtual reality task specific operations.
 """
 
 # NOTE: for event alignment, we align to the first timepoint when the event
@@ -11,7 +11,6 @@ from enum import IntFlag, auto, unique
 from typing import NamedTuple
 
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 
 from vision_in_darkness.base import Outcomes, Worlds, Conditions
