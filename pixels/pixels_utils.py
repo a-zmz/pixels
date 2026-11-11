@@ -745,12 +745,14 @@ def export_sorting_analyser(sa, curated_sa, output, curated_sa_dir,
     sexp.export_report(
         sorting_analyzer=curated_sa,
         output_folder=output/"curated_report",
+        n_jobs=1,
     )
 
     # export pre curation report
     sexp.export_report(
         sorting_analyzer=sa,
         output_folder=output/"report",
+        n_jobs=1,
     )
 
     if to_phy:
