@@ -7,7 +7,7 @@ This module provides reach task specific operations.
 # as a train of 0s and 1s, we align to the first 1s and the last 1s of a given
 # event, except for licks since it could only be on or off per frame.
 
-from enum import IntFlag, auto
+from enum import IntFlag, auto, unique
 from typing import NamedTuple
 
 import numpy as np
@@ -22,6 +22,7 @@ from pixels.configs import *
 from pixels.constants import SAMPLE_RATE, V1_SPIKE_LATENCY
 
 
+@unique
 class TrialTypes(IntFlag):
     """
     These cover all possible trial types.
