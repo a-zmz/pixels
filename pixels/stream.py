@@ -19,8 +19,6 @@ from pixels.error import PixelsError
 
 from common_utils import file_utils
 
-from vision_in_darkness.constants import SPATIAL_SAMPLE_RATE
-
 class Stream:
     def __init__(
         self,
@@ -1287,6 +1285,8 @@ class Stream:
         # always put units first, cuz it is like that in
         # experiemnt.align_trials, otherwise the same cache cannot be loaded
 
+        from vision_in_darkness.constants import SPATIAL_SAMPLE_RATE
+
         # get chance psd
         chance_psd = self.get_chance_positional_psd(
             units=units, # NOTE: ALWAYS the first arg
@@ -1571,6 +1571,8 @@ class Stream:
     # TODO nov 25 2025: (cache_format="zarr") cuz it's big?
     @cacheable(cache_format="zarr")
     def get_chance_positional_psd(self, units, label, event, sigma, end_event):
+        from vision_in_darkness.constants import SPATIAL_SAMPLE_RATE
+
         # NOTE: we only use completed trials for this analysis
         label_name = label.name.split("_")[-1]
         # get timestamps and trial ids of all trials of current label

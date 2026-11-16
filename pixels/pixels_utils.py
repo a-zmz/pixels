@@ -40,7 +40,6 @@ from pixels.constants import *
 from pixels.decorators import _df_to_zarr_via_xarray
 
 from common_utils import math_utils
-from vision_in_darkness.constants import landmarks, SPATIAL_SAMPLE_RATE
 
 def load_raw(paths, stream_id):
     """
@@ -1323,6 +1322,7 @@ def _get_vr_positional_data(positions, data_type, data):
         shape: position x trial
     """
     from pandas.api.types import is_integer_dtype
+    from vision_in_darkness.constants import SPATIAL_SAMPLE_RATE
 
     if "bin" in positions.index.name:
         logging.info(f"\n> Getting binned positional {data_type}...")
@@ -1524,6 +1524,8 @@ def _psd_chance_worker(
     return
     ===
     """
+    from vision_in_darkness.constants import landmarks
+
     # attach to shared memory and rebuild the indices
     idx, idx_shms = ioutils.import_multiindex_to_shm(idx_meta)
     cols, cols_shms = ioutils.import_index_to_shm(cols_meta)
