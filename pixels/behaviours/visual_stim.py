@@ -2,13 +2,13 @@
 This module provides visual stim task specific operations.
 """
 
+from __future__ import annotations
+
 from enum import IntFlag, IntEnum, auto, unique
 from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
-
-from vision_in_darkness.base import Outcomes, Worlds, Conditions
 
 from pixels import PixelsError
 from pixels.behaviours import Behaviour
