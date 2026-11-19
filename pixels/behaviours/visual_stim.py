@@ -307,5 +307,34 @@ class Events(IntFlag):
     trial_end = auto() # 1 << 11 # 2048
 
 
+class LabeledEvents(NamedTuple):
+    """Return type: timestamps + int fields for stim_type, outcome & events."""
+    timestamps: np.ndarray # shape (N,)
+    stim_type: np.ndarray # shape (N,) dtype int64
+    outcome: np.ndarray # shape (N,) dtype int64
+    events: np.ndarray # shape (N,) dtype uint64
+
+
 # TODO nov 11 2026 continue here
 # each trial we need four values?
+class VisualStim(Behaviour):
+    def _extract_action_labels(self, session, data) -> LabeledEvents:
+        """
+        Go over every frame in data and assign:
+         - `events_arr[i]` := bitmask of Events that occur at frame i
+         - `outcomes_arr[i]` := the trial‐outcome (one and only one TrialType)
+           at i
+        """
+        N = len(data)
+        stim_type_arr = np.zeros(N, dtype=np.int64)
+        outcomes_arr = np.zeros(N, dtype=np.int64)
+        events_arr = np.zeros(N, dtype=np.uint64)
+
+
+        # return typed arrays
+        return LabeledEvents(
+            timestamps = data.index.values,
+            stim_type = stim_type,
+            outcome = outcomes_arr,
+            events = events_arr,
+        )
