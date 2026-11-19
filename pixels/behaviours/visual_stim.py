@@ -278,20 +278,33 @@ class Events(IntFlag):
     """
     Defines events that could happen during vr sessions.
 
-    Events can be added on top of each other.
+    Events members are in bit, and can be added on top of each other.
     """
     NONE = 0
 
-    trial_start = auto() # 1
-    gray_on = auto() # 2
-    gray_off = auto() # 4
-    dark_on = auto() # 8
-    dark_off = auto() # 16
-    static_on = auto() # 32
-    static_off = auto() # 64
-    forward_on = auto() # 128
-    forward_off = auto() # 256
-    trial_end = auto() # 512
+    trial_start = auto() # 1 << 0 # 1
+
+    # pre and post visual stim 5 mins black
+    black_on = auto() # 1 << 1 # 2
+    black_off = auto() # 1 << 2 # 4
+
+    # inter trial interval
+    gray_on = auto() # 1 << 3 # 8
+    gray_off = auto() # 1 << 4 # 16
+
+    # inter trial interval
+    dark_on = auto() # 1 << 5 # 32
+    dark_off = auto() # 1 << 6 # 64
+
+    # drifting grating
+    static_on = auto() # 1 << 7 # 128
+    static_off = auto() # 1 << 8 # 256
+
+    # drifting grating
+    forward_on = auto() # 1 << 9 # 512
+    forward_off = auto() # 1 << 10 # 1024
+
+    trial_end = auto() # 1 << 11 # 2048
 
 
 # TODO nov 11 2026 continue here
