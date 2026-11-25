@@ -2837,7 +2837,7 @@ class Behaviour(ABC):
         return output
 
 
-    def sync_vr(self, vr_session):
+    def sync_vis(self, vr_session):
         """
         Synchronise each pixels stream with virtual reality data.
 
@@ -2858,7 +2858,7 @@ class Behaviour(ABC):
             logging.info(
                 f"\n> Synchonising {self.name} {stream_id} pixels data with vr."
             )
-            stream.sync_vr(vr_session)
+            stream.sync_vis(vr_session)
 
         return None
 

@@ -618,7 +618,7 @@ class Experiment:
         return df
 
 
-    def sync_vr(self, vr_sessions):
+    def sync_vis(self, vr_sessions):
         """
         Synchronise virtual reality data of a mouse (or mice) with pixels
         streams.
@@ -643,7 +643,7 @@ class Experiment:
 
             vr_session = vr_sessions[vr_session_name]
 
-            session.sync_vr(vr_session)
+            session.sync_vis(vr_session)
 
         return None
 

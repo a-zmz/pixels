@@ -774,7 +774,7 @@ class Stream:
         return spike_times
 
 
-    def sync_vr(self, vr_session):
+    def sync_vis(self, vr_session):
         # get action labels & synched vr path
         action_labels = self.session.get_action_labels()[self.stream_num]
         synched_vr_path = self.session.find_file(
@@ -784,12 +784,12 @@ class Stream:
             logging.info(f"\n> {self.stream_id} from {self.session.name} is "
                          "already synched with vr.")
         else:
-            self._sync_vr(vr_session)
+            self._sync_vis(vr_session)
 
         return None
 
 
-    def _sync_vr(self, vr_session):
+    def _sync_vis(self, vr_session):
         # get synchronised vr path
         synched_vr_path = vr_session.cache_dir + "synched/" +\
                     vr_session.name + "_vr_synched.h5"
